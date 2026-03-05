@@ -7,24 +7,36 @@ import {
 
 const faqs = [
   {
-    q: "How does EduSetu help with a curriculum transition to India?",
-    a: "EduSetu uses AI-powered analysis to map what your child has already covered in their current curriculum against CBSE, ICSE, or State Board requirements. You receive a personalised readiness report highlighting areas to prepare for, so the transition feels confident — not stressful.",
+    q: "Which curricula does Globiculum support?",
+    a: "Globiculum currently supports 47+ international curricula including US Common Core, IB (PYP/MYP/DP) — all mapped against CBSE and ICSE grade levels.",
   },
   {
-    q: "Which Indian boards does EduSetu support?",
-    a: "We currently support CBSE, ICSE, and major State Board curricula. Our alignment engine is designed to scale, so additional boards and international systems are added regularly.",
+    q: "My child is joining mid-year. Can Globiculum still help?",
+    a: "Absolutely. In fact, mid-year transitions are where Globiculum makes the biggest difference. We factor in how much of the current academic year has passed and create a focused, timeline-aware plan for the remaining months.",
   },
   {
-    q: "Do I need to know the Indian syllabus in detail to get started?",
-    a: "Not at all. Simply tell us your child's current grade, country, and subjects. EduSetu handles the curriculum mapping automatically and presents everything in parent-friendly language.",
+    q: "How accurate is the gap analysis?",
+    a: "Our AI is trained on official CBSE, ICSE, and international board syllabi. The analysis is chapter and concept-level — far more specific than what any generic tutor could provide in an initial session.",
   },
   {
-    q: "How long does it take to generate a gap analysis report?",
-    a: "Most reports are ready within a few minutes. You answer a short set of questions about your child's academics, and our AI engine produces a detailed alignment report you can review immediately.",
+    q: "Do you cover all subjects?",
+    a: "Yes. Globiculum covers Mathematics, Sciences (Physics, Chemistry, Biology at secondary level), English, Social Studies, and Hindi. Subject coverage continues to expand with each release.",
   },
   {
-    q: "Is my child's data safe on EduSetu?",
-    a: "Absolutely. We follow strict data privacy practices aligned with FERPA and COPPA guidelines. All student data is encrypted, and you can request deletion at any time from your dashboard.",
+    q: "Is the gap report really free?",
+    a: "Yes, your first full curriculum gap analysis is completely free. No credit card, no trial period, no hidden fees. We believe every family deserves to know where they stand before committing to anything.",
+  },
+  {
+    q: "We're moving in 3 months — is that enough time?",
+    a: "3 months is a solid window. Most families with a focused Globiculum plan close the key gaps within 6–8 weeks of consistent effort. We'll show you exactly how to use your time so nothing critical falls through the cracks.",
+  },
+  {
+    q: "What if my child might return abroad later?",
+    a: "Globiculum is built for globally mobile families. We keep your child's global curriculum profile active so if you move again — to the US, UK, or anywhere else — we can map in reverse just as effectively.",
+  },
+  {
+    q: "How is Globiculum different from coaching centres?",
+    a: "Coaching centres teach everyone the same thing. Globiculum starts with what your child already knows — then fills only the specific gaps they need to close. It's the difference between a generic class and a personal roadmap.",
   },
 ];
 
@@ -32,8 +44,11 @@ const FAQSection = () => {
   return (
     <section className="py-20 bg-background" id="faq">
       <div className="container mx-auto px-4 max-w-3xl">
+        <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3 text-center">
+          Questions parents ask us
+        </p>
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-2 text-foreground">
-          Frequently Asked Questions
+          Everything you need to know before you get started.
         </h2>
         <p className="text-center text-muted-foreground mb-10">
           Common questions from families preparing for a move to India.
@@ -53,7 +68,6 @@ const FAQSection = () => {
         </Accordion>
       </div>
 
-      {/* FAQ structured data for SEO */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

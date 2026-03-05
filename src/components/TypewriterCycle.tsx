@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const words = ["CBSE", "ICSE", "State Boards"];
+const words = ["Worlds", "Curricula", "Systems"];
 const TYPING_SPEED = 120;
 const PAUSE = 1800;
 const DELETE_SPEED = 80;

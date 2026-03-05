@@ -17,11 +17,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { GraduationCap, Menu, LogOut, User, LayoutDashboard, Bell } from "lucide-react";
+import { Menu, LogOut, User, LayoutDashboard, Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useAlerts } from "@/hooks/useAlerts";
+import globiculumLogo from "@/assets/globiculum-logo.png";
 
 interface HeaderProps {
   children?: React.ReactNode;
@@ -164,12 +164,13 @@ const Header = ({ children }: HeaderProps = {}) => {
   return (
     <header className="bg-primary border-b border-primary-glow sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <GraduationCap className="h-8 w-8 text-secondary" />
-          <span className="text-xl font-bold text-primary-foreground">
-            EduSetu
-          </span>
-        </div>
+        <a href="/" className="flex items-center space-x-2">
+          <img
+            src={globiculumLogo}
+            alt="Globiculum"
+            className="h-8 w-auto"
+          />
+        </a>
 
         <nav className="hidden md:flex items-center space-x-6">
           {NAV_LINKS.map((link) => (
@@ -201,7 +202,6 @@ const Header = ({ children }: HeaderProps = {}) => {
           )}
           {renderAuthSection()}
 
-          {/* Mobile hamburger menu using Sheet */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button
@@ -215,8 +215,7 @@ const Header = ({ children }: HeaderProps = {}) => {
             <SheetContent side="right" className="w-[280px] bg-background">
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2 text-foreground">
-                  <GraduationCap className="h-6 w-6 text-primary" />
-                  EduSetu
+                  <img src={globiculumLogo} alt="Globiculum" className="h-6 w-auto" />
                 </SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-1 mt-6">
@@ -225,7 +224,7 @@ const Header = ({ children }: HeaderProps = {}) => {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="block px-3 py-3 rounded-md text-foreground hover:bg-accent transition-colors font-medium"
+                    className="block px-3 py-3 rounded-md text-foreground hover:bg-accent/10 transition-colors font-medium"
                   >
                     {link.label}
                   </a>
