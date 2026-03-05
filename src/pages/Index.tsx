@@ -1,7 +1,11 @@
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
+import AboutSection from "@/components/AboutSection";
+import ChallengeSection from "@/components/ChallengeSection";
+import HowItWorksSection from "@/components/HowItWorksSection";
 import ProblemSection from "@/components/ProblemSection";
-import ProgressIndicator from "@/components/ProgressIndicator";
+import ResultsSection from "@/components/ResultsSection";
+import TestimonialsSection from "@/components/TestimonialsSection";
 import CTASection from "@/components/CTASection";
 import FAQSection from "@/components/FAQSection";
 import StickyMobileCTA from "@/components/StickyMobileCTA";
@@ -12,15 +16,12 @@ const Index = () => {
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
       <HeroSection />
+      <AboutSection />
+      <ChallengeSection />
+      <HowItWorksSection />
       <ProblemSection />
-      
-      {/* AI-Driven Gap Analysis Process Section */}
-      <section id="gap-analysis" className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <ProgressIndicator />
-        </div>
-      </section>
-      
+      <ResultsSection />
+      <TestimonialsSection />
       <CTASection />
       <FAQSection />
       <Footer />
