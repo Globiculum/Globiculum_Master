@@ -1,4 +1,4 @@
-import globiculumLogo from "@/assets/globiculum-logo.png";
+import globiculumLogo from "@/assets/globiculum-logo-white.png";
 
 const Footer = () => {
   return (
