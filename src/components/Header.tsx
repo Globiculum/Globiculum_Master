@@ -21,7 +21,7 @@ import { Menu, LogOut, User, LayoutDashboard, Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useAlerts } from "@/hooks/useAlerts";
-import globiculumLogo from "@/assets/globiculum-logo.png";
+import globiculumLogo from "@/assets/globiculum-logo-white.png";
 
 interface HeaderProps {
   children?: React.ReactNode;
