@@ -168,7 +168,7 @@ const Header = ({ children }: HeaderProps = {}) => {
           <img
             src={globiculumLogo}
             alt="Globiculum"
-            className="h-8 w-auto brightness-0 invert"
+            className="h-10 w-auto"
           />
         </a>
 
@@ -215,7 +215,7 @@ const Header = ({ children }: HeaderProps = {}) => {
             <SheetContent side="right" className="w-[280px] bg-background">
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2 text-foreground">
-                  <img src={globiculumLogo} alt="Globiculum" className="h-6 w-auto" />
+                  <img src={globiculumLogo} alt="Globiculum" className="h-8 w-auto" />
                 </SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-1 mt-6">
