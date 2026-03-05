@@ -1,4 +1,4 @@
-import globiculumLogo from "@/assets/globiculum-logo-white.png";
+import globiculumLogo from "@/assets/globiculum-logo.png";
 
 const Footer = () => {
   return (
@@ -7,7 +7,7 @@ const Footer = () => {
         <div className="grid md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="space-y-4">
-            <img src={globiculumLogo} alt="Globiculum" className="h-8 w-auto" />
+            <img src={globiculumLogo} alt="Globiculum" className="h-8 w-auto brightness-0 invert" />
             <p className="text-sm text-primary-foreground/70">
               Seamless curriculum transitions for global learners. Bridging worlds, building futures.
             </p>
