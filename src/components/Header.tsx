@@ -21,7 +21,7 @@ import { Menu, LogOut, User, LayoutDashboard, Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useAlerts } from "@/hooks/useAlerts";
-import globiculumLogo from "@/assets/globiculum-logo-white.png";
+import globiculumLogo from "@/assets/globiculum-logo.png";
 
 interface HeaderProps {
   children?: React.ReactNode;
@@ -168,7 +168,7 @@ const Header = ({ children }: HeaderProps = {}) => {
           <img
             src={globiculumLogo}
             alt="Globiculum"
-            className="h-8 w-auto"
+            className="h-8 w-auto brightness-0 invert"
           />
         </a>
 
