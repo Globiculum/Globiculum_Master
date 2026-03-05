@@ -1,0 +1,1 @@
+ALTER TABLE public.student_profiles ADD COLUMN curriculum_analysis jsonb DEFAULT NULL;

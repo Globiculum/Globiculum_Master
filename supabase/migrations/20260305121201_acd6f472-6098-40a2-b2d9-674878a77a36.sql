@@ -1,0 +1,1 @@
+ALTER TABLE public.saved_reports ADD COLUMN prev_report_id uuid REFERENCES public.saved_reports(id) ON DELETE SET NULL DEFAULT NULL;
