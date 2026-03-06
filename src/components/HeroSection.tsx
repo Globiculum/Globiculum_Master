@@ -38,7 +38,7 @@ const HeroSection = () => {
             <Button
               variant="outline"
               size="lg"
-              className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 transition-colors rounded-full"
+              className="border-accent text-accent hover:bg-accent/10 transition-colors rounded-full font-semibold"
               asChild
             >
               <a href="#how-it-works">How It Works</a>
