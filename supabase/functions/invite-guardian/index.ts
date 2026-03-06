@@ -124,15 +124,15 @@ serve(async (req) => {
 
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #1a1a2e;">You've been invited as a guardian on EduSetu</h2>
-          <p>${parentName} has invited you to view <strong>${studentName}</strong>'s educational progress and reports on EduSetu.</p>
+          <h2 style="color: #1a1a2e;">You've been invited as a guardian on Globiculum</h2>
+          <p>${parentName} has invited you to view <strong>${studentName}</strong>'s educational progress and reports on Globiculum.</p>
           <p>As a guardian, you'll be able to:</p>
           <ul>
             <li>View curriculum alignment reports</li>
             <li>Monitor learning progress</li>
             <li>Access assessment results</li>
           </ul>
-          <p>To get started, simply sign up or log in to EduSetu with this email address (<strong>${guardianEmail}</strong>). Your guardian access will be activated automatically.</p>
+          <p>To get started, simply sign up or log in to Globiculum with this email address (<strong>${guardianEmail}</strong>). Your guardian access will be activated automatically.</p>
           <div style="margin: 30px 0;">
             <a href="${supabaseUrl.replace('.supabase.co', '.lovable.app')}/auth" 
                style="background-color: #1a1a2e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
@@ -151,9 +151,9 @@ serve(async (req) => {
             Authorization: `Bearer ${resendApiKey}`,
           },
           body: JSON.stringify({
-            from: "EduSetu <noreply@edusetu.com>",
+            from: "Globiculum <noreply@globiculum.com>",
             to: [guardianEmail],
-            subject: `${parentName} invited you to view ${studentName}'s progress on EduSetu`,
+            subject: `${parentName} invited you to view ${studentName}'s progress on Globiculum`,
             html: emailHtml,
           }),
         });

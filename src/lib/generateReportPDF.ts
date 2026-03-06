@@ -527,7 +527,7 @@ export const generateReportPDF = (analysis: AnalysisData, formData: FormData): v
     doc.setFont("helvetica", "normal");
     doc.setTextColor(COLORS.muted.r, COLORS.muted.g, COLORS.muted.b);
     doc.text(`Page ${i} of ${pageCount}`, margin, pageHeight - 8);
-    doc.text(`EduSetu - ${showTRE ? 'Transition Readiness Report' : 'Curriculum Analysis Report'} | Generated: ${new Date().toLocaleDateString()}`, pageWidth - margin, pageHeight - 8, { align: "right" });
+    doc.text(`Globiculum - ${showTRE ? 'Transition Readiness Report' : 'Curriculum Analysis Report'} | Generated: ${new Date().toLocaleDateString()}`, pageWidth - margin, pageHeight - 8, { align: "right" });
   }
 
   doc.save("curriculum-alignment-report.pdf");
