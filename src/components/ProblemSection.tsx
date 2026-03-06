@@ -78,11 +78,11 @@ const ProblemSection = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground font-medium">
-                  Maintain US curriculum flexibility and competitive edge. Equip your child for international admissions and global careers.
+                  Maintain global curriculum flexibility and competitive edge. Equip your child for international admissions and global careers.
                 </p>
                 <div className="space-y-3">
                   {[
-                    { title: "SAT / AP Preparation", desc: "Strategic readiness for US college admissions success" },
+                    { title: "SAT / AP Preparation", desc: "Strategic readiness for global college admissions success" },
                     { title: "Critical Thinking & Creativity", desc: "Project-based, inquiry-led learning approaches" },
                     { title: "Global Competitiveness", desc: "Skills that travel, whichever country they live in next" },
                   ].map((item) => (
