@@ -48,7 +48,7 @@ const buildEmailHtml = (payload: EmailPayload, viewUrl: string): string => {
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #0F172A, #1E293B); padding: 32px 40px; text-align: center;">
-              <h1 style="margin:0;color:#FFFFFF;font-size:24px;font-weight:700;letter-spacing:-0.5px;">EduSetu</h1>
+              <h1 style="margin:0;color:#FFFFFF;font-size:24px;font-weight:700;letter-spacing:-0.5px;">Globiculum</h1>
               <p style="margin:8px 0 0;color:#94A3B8;font-size:14px;">Curriculum Transition Readiness Report</p>
             </td>
           </tr>
@@ -118,10 +118,10 @@ const buildEmailHtml = (payload: EmailPayload, viewUrl: string): string => {
           <tr>
             <td style="background-color:#F8FAFC;padding:24px 40px;border-top:1px solid #E2E8F0;text-align:center;">
               <p style="margin:0;color:#94A3B8;font-size:12px;">
-                This email was sent by EduSetu. You're receiving this because a report was generated for your account.
+                This email was sent by Globiculum. You're receiving this because a report was generated for your account.
               </p>
               <p style="margin:8px 0 0;color:#CBD5E1;font-size:11px;">
-                © ${new Date().getFullYear()} EduSetu — Bridging Education, Building Confidence
+                © ${new Date().getFullYear()} Globiculum — Bridging Education, Building Confidence
               </p>
             </td>
           </tr>
@@ -201,7 +201,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "EduSetu <onboarding@resend.dev>",
+        from: "Globiculum <onboarding@resend.dev>",
         to: [user.email],
         subject: `📊 ${body.studentName}'s Readiness Report — ${body.overallAlignmentPercentage}% Alignment`,
         html: emailHtml,

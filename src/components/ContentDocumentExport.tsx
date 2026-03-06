@@ -23,7 +23,7 @@ const ContentDocumentExport = () => {
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: "EduSetu Content Documentation",
+                    text: "Globiculum Content Documentation",
                     bold: true,
                     size: 48,
                     color: "1E3A5F",
@@ -51,7 +51,7 @@ const ContentDocumentExport = () => {
               // Section 1: Brand & Taglines
               createSectionHeading("1. Brand & Taglines"),
               createSubHeading("App Name"),
-              createBulletPoint("EduSetu"),
+              createBulletPoint("Globiculum"),
               createSubHeading("Primary Tagline"),
               createBulletPoint("Seamless Curriculum Transitions for Global Learners"),
               createSubHeading("Secondary Tagline"),
@@ -65,7 +65,7 @@ const ContentDocumentExport = () => {
               
               createSubHeading("Hero Section"),
               createLabeledContent("Headline", "Bridge Your Child's Education Between Worlds"),
-              createLabeledContent("Subheadline", "Moving to India or returning from abroad? EduSetu maps your child's current curriculum to Indian education systems, identifies gaps, and creates personalized learning pathways for a confident transition."),
+              createLabeledContent("Subheadline", "Moving to India or returning from abroad? Globiculum maps your child's current curriculum to Indian education systems, identifies gaps, and creates personalized learning pathways for a confident transition."),
               createLabeledContent("Primary CTA", "Get My Curriculum Gap Analysis Report"),
               createLabeledContent("Secondary CTA", "How It Works"),
               createSpacer(),
@@ -82,7 +82,7 @@ const ContentDocumentExport = () => {
               createLabeledContent("Description", "Our unique approach ensures your child excels in both Indian board examinations and maintains global academic competitiveness."),
               createSpacer(),
 
-              createSubHeading("Traditional vs EduSetu Comparison"),
+              createSubHeading("Traditional vs Globiculum Comparison"),
               createComparisonTable(),
               createSpacer(),
 
@@ -96,7 +96,7 @@ const ContentDocumentExport = () => {
               createSectionHeading("3. About Page"),
               
               createSubHeading("Mission Statement"),
-              createParagraphContent("At EduSetu, we understand that relocating with children means navigating unfamiliar educational landscapes. Our mission is to bridge the gap between different educational systems, ensuring every child's learning journey continues seamlessly."),
+              createParagraphContent("At Globiculum, we understand that relocating with children means navigating unfamiliar educational landscapes. Our mission is to bridge the gap between different educational systems, ensuring every child's learning journey continues seamlessly."),
               createSpacer(),
 
               createSubHeading("Vision Statement"),
@@ -113,8 +113,8 @@ const ContentDocumentExport = () => {
               createSectionHeading("4. Our Advantage Page"),
 
               createSubHeading("Page Title"),
-              createParagraphContent("What Sets EduSetu Apart"),
-              createLabeledContent("Description", "Discover why families worldwide trust EduSetu for their educational transition needs."),
+              createParagraphContent("What Sets Globiculum Apart"),
+              createLabeledContent("Description", "Discover why families worldwide trust Globiculum for their educational transition needs."),
               createSpacer(),
 
               createSubHeading("Feature Cards"),
@@ -213,7 +213,7 @@ const ContentDocumentExport = () => {
               createSpacer(),
 
               createSubHeading("Footer - Quick Links"),
-              createBulletPoint("About EduSetu"),
+              createBulletPoint("About Globiculum"),
               createBulletPoint("Our Advantage"),
               createBulletPoint("Begin Journey"),
               createSpacer(),
@@ -317,7 +317,7 @@ const ContentDocumentExport = () => {
       });
 
       const blob = await Packer.toBlob(doc);
-      saveAs(blob, `EduSetu_Content_Documentation_${new Date().toISOString().split('T')[0]}.docx`);
+      saveAs(blob, `Globiculum_Content_Documentation_${new Date().toISOString().split('T')[0]}.docx`);
       logAuditEvent({ action: "export_pdf", tableName: "content_documents", newData: { format: "docx" } });
       toast.success("Document generated successfully!");
     } catch (error) {
@@ -336,7 +336,7 @@ const ContentDocumentExport = () => {
           Content Documentation Export
         </CardTitle>
         <CardDescription>
-          Generate a comprehensive Word document containing all EduSetu static content for review and enhancement.
+          Generate a comprehensive Word document containing all Globiculum static content for review and enhancement.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -475,7 +475,7 @@ function createComparisonTable(): Table {
           }),
           new TableCell({
             children: [new Paragraph({ 
-              children: [new TextRun({ text: "EduSetu Advantage", bold: true, size: 22 })],
+              children: [new TextRun({ text: "Globiculum Advantage", bold: true, size: 22 })],
               alignment: AlignmentType.CENTER,
             })],
             width: { size: 50, type: WidthType.PERCENTAGE },

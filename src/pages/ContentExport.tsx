@@ -10,7 +10,7 @@ const ContentExport = () => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Content Export</h1>
           <p className="text-muted-foreground">
-            Export all EduSetu content for documentation and review purposes.
+            Export all Globiculum content for documentation and review purposes.
           </p>
         </div>
         <ContentDocumentExport />

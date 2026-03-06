@@ -191,7 +191,7 @@ const Onboarding = () => {
           <>
             <CardHeader className="text-center space-y-2">
               <Users className="h-10 w-10 text-primary mx-auto" />
-              <CardTitle className="text-2xl">Welcome to EduSetu</CardTitle>
+              <CardTitle className="text-2xl">Welcome to Globiculum</CardTitle>
               <CardDescription>Let's personalize your experience. Are you a…</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

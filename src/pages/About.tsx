@@ -12,7 +12,7 @@ const About = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 space-y-4">
             <h1 className="text-4xl md:text-5xl font-bold text-foreground">
-              About <span className="text-secondary">EduSetu</span>
+              About <span className="text-secondary">Globiculum</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Bridging educational worlds for Indian migrant families, one student at a time.
@@ -30,7 +30,7 @@ const About = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-lg text-muted-foreground leading-relaxed">
-                  EduSetu was founded with a singular purpose: to empower Indian migrant families with the tools and guidance they need to ensure their children thrive academically — whether they're preparing for a return to India or building a foundation for global success. We bridge the gap between US and Indian education systems through AI-powered curriculum mapping, personalized learning pathways, and dedicated family support.
+                  Globiculum was founded with a singular purpose: to empower Indian migrant families with the tools and guidance they need to ensure their children thrive academically — whether they're preparing for a return to India or building a foundation for global success. We bridge the gap between US and Indian education systems through AI-powered curriculum mapping, personalized learning pathways, and dedicated family support.
                 </p>
               </CardContent>
             </Card>

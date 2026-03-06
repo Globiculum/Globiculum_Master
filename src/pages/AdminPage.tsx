@@ -106,8 +106,8 @@ const AdminPage = () => {
             variant="outline"
             onClick={() =>
               activeTab === "users"
-                ? exportCSV(filteredUsers, "edusetu-users")
-                : exportCSV(filteredReports, "edusetu-reports")
+                ? exportCSV(filteredUsers, "globiculum-users")
+                : exportCSV(filteredReports, "globiculum-reports")
             }
           >
             <Download className="h-4 w-4 mr-2" />

@@ -60,11 +60,11 @@ const OurAdvantage = () => {
             <div className="flex items-center justify-center gap-3 mb-4">
               <Sparkles className="h-10 w-10 text-secondary" />
               <h1 className="text-4xl md:text-5xl font-bold text-foreground">
-                What Makes <span className="text-secondary">EduSetu</span> Unique
+                What Makes <span className="text-secondary">Globiculum</span> Unique
               </h1>
             </div>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Discover what makes EduSetu unique — AI precision meets human care for every learner's journey.
+              Discover what makes Globiculum unique — AI precision meets human care for every learner's journey.
             </p>
           </div>
           
