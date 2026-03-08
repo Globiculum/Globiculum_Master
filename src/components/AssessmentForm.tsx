@@ -957,17 +957,38 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         </p>
       </div>
       
-      {/* Elementary: Foundational Areas instead of subjects */}
-      {formData.schoolStage === "elementary" ? (
+      {/* Subject selection for ALL grade bands including elementary */}
+      <div className="space-y-4">
+        <h4 className="font-semibold text-lg">What subjects does the student currently study in their school?</h4>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {getSubjectsByGradeBand().map((subject) => (
+            <button
+              key={subject}
+              onClick={() => handleArrayToggle("academicPath", subject)}
+              className={`p-4 rounded-lg border-2 transition-all font-medium text-sm ${
+                formData.academicPath.includes(subject)
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border bg-card hover:border-primary/50"
+              }`}
+            >
+              {subject}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Elementary: Additional foundational confidence assessment */}
+      {formData.schoolStage === "elementary" && (
         <ElementaryFoundations 
           confidences={formData.elementaryConfidences}
           onChange={handleElementaryConfidenceChange}
         />
-      ) : (
+      )}
+
+      {formData.schoolStage !== "elementary" && (
         <>
-          {/* Grade-band aware subject selection */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-lg">Which subjects is your child currently studying?</h4>
+          {/* Grade-band aware subject selection - already shown above */}
+          <div className="hidden" /> {/* placeholder for non-elementary specific sections */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {getSubjectsByGradeBand().map((subject) => (
                 <button
