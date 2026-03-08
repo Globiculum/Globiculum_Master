@@ -960,6 +960,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       {/* Subject selection for ALL grade bands including elementary */}
       <div className="space-y-4">
         <h4 className="font-semibold text-lg">What subjects does the student currently study in their school?</h4>
+        <p className="text-sm text-muted-foreground">These are subjects from the student's current school curriculum.</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {getSubjectsByGradeBand().map((subject) => (
             <button
@@ -983,6 +984,61 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
           confidences={formData.elementaryConfidences}
           onChange={handleElementaryConfidenceChange}
         />
+      )}
+
+      {/* Foreign Language Details - Elementary */}
+      {formData.schoolStage === "elementary" && formData.academicPath.includes("Foreign Language") && (
+        <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+          <h4 className="font-semibold text-base">Foreign Language Details</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="elem-foreign-lang-name">Which foreign language is the student studying?</Label>
+              <Select 
+                value={formData.foreignLanguageName} 
+                onValueChange={(value) => handleSelectChange("foreignLanguageName", value)}
+              >
+                <SelectTrigger id="elem-foreign-lang-name">
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="spanish">Spanish</SelectItem>
+                  <SelectItem value="french">French</SelectItem>
+                  <SelectItem value="german">German</SelectItem>
+                  <SelectItem value="mandarin">Mandarin</SelectItem>
+                  <SelectItem value="japanese">Japanese</SelectItem>
+                  <SelectItem value="latin">Latin</SelectItem>
+                  <SelectItem value="arabic">Arabic</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              {formData.foreignLanguageName === "other" && (
+                <Input
+                  className="mt-2"
+                  type="text"
+                  placeholder="Enter language name"
+                  value={formData.foreignLanguageNameOther}
+                  onChange={(e) => handleSelectChange("foreignLanguageNameOther", e.target.value)}
+                />
+              )}
+            </div>
+            <div>
+              <Label htmlFor="elem-foreign-lang-level">What is the student's current level in this language?</Label>
+              <Select 
+                value={formData.foreignLanguageLevel} 
+                onValueChange={(value) => handleSelectChange("foreignLanguageLevel", value)}
+              >
+                <SelectTrigger id="elem-foreign-lang-level">
+                  <SelectValue placeholder="Select level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="beginner">Beginner</SelectItem>
+                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                  <SelectItem value="advanced">Advanced</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Foreign Language Details - Middle School */}
