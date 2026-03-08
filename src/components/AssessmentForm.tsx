@@ -1355,16 +1355,55 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         )}
       </div>
 
-      {/* Indian Curriculum Improvement Goal */}
+      {/* Indian Curriculum Improvement Goal - aligned with target board */}
       <div className="space-y-4">
         <Label className="text-base font-medium">Which subjects would you most like the student to strengthen for Indian schooling?</Label>
         <p className="text-sm text-muted-foreground">Select all that apply — helps identify priority transition goals.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {[
-            ...(getSelectedSubjectOptions().length > 0 ? getSelectedSubjectOptions() : []),
-            "Hindi / Languages",
-            "Study habits for Indian curriculum",
-          ].filter((v, i, a) => a.indexOf(v) === i).map((goal) => (
+          {(() => {
+            const targetGoal = formData.targetGoal?.toLowerCase() || "";
+            let boardSubjects: string[] = [];
+            
+            if (targetGoal.includes("icse") || targetGoal.includes("isc")) {
+              boardSubjects = [
+                "Mathematics",
+                "Physics / Chemistry / Biology",
+                "English",
+                "Second Language (Hindi / Regional)",
+                "History / Civics / Geography",
+              ];
+            } else if (targetGoal.includes("ib") || targetGoal.includes("international")) {
+              boardSubjects = [
+                "Mathematics",
+                "Sciences",
+                "Language and Literature",
+                "Language Acquisition",
+                "Individuals and Societies",
+              ];
+            } else if (targetGoal.includes("igcse") || targetGoal.includes("cambridge")) {
+              boardSubjects = [
+                "Mathematics",
+                "Coordinated Science / Separate Sciences",
+                "English Language",
+                "Humanities / Global Perspectives",
+                "Foreign Language",
+              ];
+            } else {
+              // Default: CBSE
+              boardSubjects = [
+                "Mathematics",
+                "Science",
+                "English",
+                "Hindi / Second Language",
+                "Social Science",
+              ];
+            }
+            
+            return [
+              ...boardSubjects,
+              "Study habits for Indian curriculum",
+            ].filter((v, i, a) => a.indexOf(v) === i);
+          })().map((goal) => (
             <div key={goal} className="flex items-center space-x-2">
               <Checkbox 
                 id={`strengthen-${goal}`}
