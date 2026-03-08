@@ -536,16 +536,19 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     return curriculumByStage[formData.schoolStage as keyof typeof curriculumByStage] || [];
   };
 
-  // Grade-band aware subject lists
+   // Grade-band aware subject lists
   const getSubjectsByGradeBand = () => {
     switch (formData.schoolStage) {
       case "elementary":
         return [
           "Mathematics",
-          "Science",
           "English / Language Arts",
+          "Science",
           "Social Studies",
-          "Basic Language",
+          "Art / Creative Studies",
+          "Music",
+          "Physical Education",
+          "Foreign Language",
         ];
       case "middle":
         return [
@@ -954,104 +957,102 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         </p>
       </div>
       
-      {/* Elementary: Foundational Areas instead of subjects */}
-      {formData.schoolStage === "elementary" ? (
+      {/* Subject selection for ALL grade bands including elementary */}
+      <div className="space-y-4">
+        <h4 className="font-semibold text-lg">What subjects does the student currently study in their school?</h4>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {getSubjectsByGradeBand().map((subject) => (
+            <button
+              key={subject}
+              onClick={() => handleArrayToggle("academicPath", subject)}
+              className={`p-4 rounded-lg border-2 transition-all font-medium text-sm ${
+                formData.academicPath.includes(subject)
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border bg-card hover:border-primary/50"
+              }`}
+            >
+              {subject}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Elementary: Additional foundational confidence assessment */}
+      {formData.schoolStage === "elementary" && (
         <ElementaryFoundations 
           confidences={formData.elementaryConfidences}
           onChange={handleElementaryConfidenceChange}
         />
-      ) : (
-        <>
-          {/* Grade-band aware subject selection */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-lg">Which subjects is your child currently studying?</h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {getSubjectsByGradeBand().map((subject) => (
-                <button
-                  key={subject}
-                  onClick={() => handleArrayToggle("academicPath", subject)}
-                  className={`p-4 rounded-lg border-2 transition-all font-medium text-sm ${
-                    formData.academicPath.includes(subject)
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border bg-card hover:border-primary/50"
-                  }`}
-                >
-                  {subject}
-                </button>
-              ))}
-           </div>
-          </div>
+      )}
 
-          {/* Foreign Language Details - Middle School */}
-          {formData.schoolStage === "middle" && formData.academicPath.includes("Foreign Language") && (
-            <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
-              <h4 className="font-semibold text-base">Foreign Language Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="foreign-lang-name">Which foreign language is the student studying?</Label>
-                  <Select 
-                    value={formData.foreignLanguageName} 
-                    onValueChange={(value) => handleSelectChange("foreignLanguageName", value)}
-                  >
-                    <SelectTrigger id="foreign-lang-name">
-                      <SelectValue placeholder="Select language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="spanish">Spanish</SelectItem>
-                      <SelectItem value="french">French</SelectItem>
-                      <SelectItem value="german">German</SelectItem>
-                      <SelectItem value="mandarin">Mandarin</SelectItem>
-                      <SelectItem value="japanese">Japanese</SelectItem>
-                      <SelectItem value="latin">Latin</SelectItem>
-                      <SelectItem value="arabic">Arabic</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {formData.foreignLanguageName === "other" && (
-                    <Input
-                      className="mt-2"
-                      type="text"
-                      placeholder="Enter language name"
-                      value={formData.foreignLanguageNameOther}
-                      onChange={(e) => handleSelectChange("foreignLanguageNameOther", e.target.value)}
-                    />
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="foreign-lang-level">What is the student's current level?</Label>
-                  <Select 
-                    value={formData.foreignLanguageLevel} 
-                    onValueChange={(value) => handleSelectChange("foreignLanguageLevel", value)}
-                  >
-                    <SelectTrigger id="foreign-lang-level">
-                      <SelectValue placeholder="Select level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="beginner">Beginner</SelectItem>
-                      <SelectItem value="intermediate">Intermediate</SelectItem>
-                      <SelectItem value="advanced">Advanced</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+      {/* Foreign Language Details - Middle School */}
+      {formData.schoolStage === "middle" && formData.academicPath.includes("Foreign Language") && (
+        <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+          <h4 className="font-semibold text-base">Foreign Language Details</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="foreign-lang-name">Which foreign language is the student studying?</Label>
+              <Select 
+                value={formData.foreignLanguageName} 
+                onValueChange={(value) => handleSelectChange("foreignLanguageName", value)}
+              >
+                <SelectTrigger id="foreign-lang-name">
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="spanish">Spanish</SelectItem>
+                  <SelectItem value="french">French</SelectItem>
+                  <SelectItem value="german">German</SelectItem>
+                  <SelectItem value="mandarin">Mandarin</SelectItem>
+                  <SelectItem value="japanese">Japanese</SelectItem>
+                  <SelectItem value="latin">Latin</SelectItem>
+                  <SelectItem value="arabic">Arabic</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              {formData.foreignLanguageName === "other" && (
+                <Input
+                  className="mt-2"
+                  type="text"
+                  placeholder="Enter language name"
+                  value={formData.foreignLanguageNameOther}
+                  onChange={(e) => handleSelectChange("foreignLanguageNameOther", e.target.value)}
+                />
+              )}
             </div>
-          )}
-          
-          {/* High School Math Deep-Dive - only if Math-related selected and conditions met */}
-          {formData.schoolStage === "high" && 
-           (formData.academicPath.includes("Algebra") || formData.academicPath.includes("Geometry") || formData.academicPath.includes("Pre-Calculus / Calculus")) && 
-           formData.previousLocation === "us" && 
-           formData.usState && (
-            <HighSchoolMathDeepDive
-              usState={formData.usState}
-              curriculum={formData.currentCurriculum}
-              selectedCourse={formData.mathCourse}
-              programLevel={formData.mathProgramLevel}
-              onCourseChange={(course) => handleSelectChange("mathCourse", course)}
-              onLevelChange={(level) => handleSelectChange("mathProgramLevel", level)}
-            />
-          )}
-        </>
+            <div>
+              <Label htmlFor="foreign-lang-level">What is the student's current level?</Label>
+              <Select 
+                value={formData.foreignLanguageLevel} 
+                onValueChange={(value) => handleSelectChange("foreignLanguageLevel", value)}
+              >
+                <SelectTrigger id="foreign-lang-level">
+                  <SelectValue placeholder="Select level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="beginner">Beginner</SelectItem>
+                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                  <SelectItem value="advanced">Advanced</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* High School Math Deep-Dive - only if Math-related selected and conditions met */}
+      {formData.schoolStage === "high" && 
+       (formData.academicPath.includes("Algebra") || formData.academicPath.includes("Geometry") || formData.academicPath.includes("Pre-Calculus / Calculus")) && 
+       formData.previousLocation === "us" && 
+       formData.usState && (
+        <HighSchoolMathDeepDive
+          usState={formData.usState}
+          curriculum={formData.currentCurriculum}
+          selectedCourse={formData.mathCourse}
+          programLevel={formData.mathProgramLevel}
+          onCourseChange={(course) => handleSelectChange("mathCourse", course)}
+          onLevelChange={(level) => handleSelectChange("mathProgramLevel", level)}
+        />
       )}
 
       {/* Language Readiness for Indian Schooling */}
@@ -1527,10 +1528,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         const targetValid = !!formData.targetGoal;
         return prevLocationValid && targetValid && formData.timeline;
       case 2:
-        // Elementary: require at least one confidence level set
-        if (formData.schoolStage === "elementary") {
-          return Object.keys(formData.elementaryConfidences).length > 0 || formData.selectedLanguages.length > 0;
-        }
+        // All grade bands now require subject selection
         return formData.academicPath.length > 0 || formData.selectedLanguages.length > 0;
       case 3:
         // Updated: learningStyles is now an array, studyTime is new field

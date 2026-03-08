@@ -3,9 +3,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { FileText, Download, ArrowLeft, Target, BookOpen, Clock, Lightbulb, AlertTriangle, Loader2, TrendingUp, Calendar, GraduationCap, Globe, Info, ExternalLink, GitCompareArrows } from "lucide-react";
+import { FileText, Download, ArrowLeft, Target, BookOpen, Clock, Lightbulb, AlertTriangle, Loader2, TrendingUp, Calendar, GraduationCap, Globe, Info, ExternalLink, GitCompareArrows, ChevronDown, ChevronRight } from "lucide-react";
 import ReportComparison from "@/components/ReportComparison";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -710,7 +711,7 @@ const ReportPreview = () => {
                     <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 text-center">
                       <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
                       <div className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                        {analysis.overallAlignment.subjectsNeedingBridge.length} Subject{analysis.overallAlignment.subjectsNeedingBridge.length !== 1 ? 's' : ''}
+                        {analysis.subjectAnalysis.filter(s => s.alignmentLevel !== 'strong').length} Subject{analysis.subjectAnalysis.filter(s => s.alignmentLevel !== 'strong').length !== 1 ? 's' : ''}
                       </div>
                       <div className="text-xs text-blue-600 dark:text-blue-400">Need Preparation</div>
                     </div>
@@ -722,124 +723,252 @@ const ReportPreview = () => {
                   </div>
                 )}
 
-                {/* D. Coverage Analysis - Simplified */}
-                {analysis && (
+                {/* D. Coverage Analysis - with toggle for subjects needing prep */}
+                {analysis && (() => {
+                  const subjectsNeedingPrep = analysis.subjectAnalysis.filter(s => s.alignmentLevel !== 'strong');
+                  const strongSubjects = analysis.subjectAnalysis.filter(s => s.alignmentLevel === 'strong');
+                  return (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <GraduationCap className="h-5 w-5 text-primary" />
                       <h3 className="text-lg font-semibold">Coverage Analysis</h3>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {analysis.subjectAnalysis.map((subject) => (
-                        <div key={subject.subject} className="p-3 bg-muted/30 rounded-lg border border-border">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-sm">{subject.subject}</span>
-                            {getAlignmentBadge(subject.alignmentLevel)}
+                    
+                    {/* Subjects needing preparation - collapsible */}
+                    {subjectsNeedingPrep.length > 0 && (
+                      <Collapsible defaultOpen={true}>
+                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors">
+                          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                            {subjectsNeedingPrep.length} subject{subjectsNeedingPrep.length !== 1 ? 's' : ''} needing preparation
+                          </span>
+                          <ChevronDown className="h-4 w-4 ml-auto text-amber-600 dark:text-amber-400 transition-transform [[data-state=closed]_&]:rotate-[-90deg]" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                            {subjectsNeedingPrep.map((subject) => (
+                              <div key={subject.subject} className="p-3 bg-muted/30 rounded-lg border border-border">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="font-medium text-sm">{subject.subject}</span>
+                                  {getAlignmentBadge(subject.alignmentLevel)}
+                                </div>
+                                <div className="text-xs text-muted-foreground mb-2">
+                                  Coverage: <span className="font-semibold text-foreground">{subject.topicsCovered}/{subject.totalTopics}</span> topics
+                                </div>
+                                {subject.keyGaps.length > 0 && (
+                                  <div className="space-y-1">
+                                    <div className="text-xs font-medium text-muted-foreground">Key Missing Topics:</div>
+                                    <ul className="text-xs text-muted-foreground space-y-1">
+                                      {subject.keyGaps.slice(0, 3).map((gap, i) => {
+                                        const syllabusRef = isIndiaReadinessGoal(formData.targetGoal) 
+                                          ? getSyllabusReferenceForTopic(gap, subject.subject) 
+                                          : null;
+                                        return (
+                                          <li key={i} className="flex items-start gap-1">
+                                            <span className="mt-0.5">•</span>
+                                            <span className="flex-1">{gap}</span>
+                                            {syllabusRef && (
+                                              <a
+                                                href={syllabusRef.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-0.5 text-primary hover:underline shrink-0 ml-1"
+                                                title={syllabusRef.label}
+                                              >
+                                                <ExternalLink className="h-3 w-3" />
+                                                <span className="sr-only">{syllabusRef.label}</span>
+                                              </a>
+                                            )}
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                          <div className="text-xs text-muted-foreground mb-2">
-                            Coverage: <span className="font-semibold text-foreground">{subject.topicsCovered}/{subject.totalTopics}</span> topics
-                          </div>
-                          {subject.keyGaps.length > 0 && (
-                            <div className="space-y-1">
-                              <div className="text-xs font-medium text-muted-foreground">Key Missing Topics:</div>
-                              <ul className="text-xs text-muted-foreground space-y-1">
-                                {subject.keyGaps.slice(0, 3).map((gap, i) => {
-                                  const syllabusRef = isIndiaReadinessGoal(formData.targetGoal) 
-                                    ? getSyllabusReferenceForTopic(gap, subject.subject) 
-                                    : null;
-                                  return (
-                                    <li key={i} className="flex items-start gap-1">
-                                      <span className="mt-0.5">•</span>
-                                      <span className="flex-1">{gap}</span>
-                                      {syllabusRef && (
-                                        <a
-                                          href={syllabusRef.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-0.5 text-primary hover:underline shrink-0 ml-1"
-                                          title={syllabusRef.label}
-                                        >
-                                          <ExternalLink className="h-3 w-3" />
-                                          <span className="sr-only">{syllabusRef.label}</span>
-                                        </a>
-                                      )}
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
 
-                {/* E. Critical Gaps - Single Bullet List with Soft Red Background */}
-                {analysis && analysis.criticalGaps.length > 0 && (
+                    {/* Strong subjects - compact display */}
+                    {strongSubjects.length > 0 && (
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300">Strong alignment ({strongSubjects.length})</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {strongSubjects.map((s) => (
+                            <Badge key={s.subject} className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">
+                              {s.subject} — {s.topicsCovered}/{s.totalTopics}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  );
+                })()}
+
+                {/* E. Critical Gaps - Grouped by category */}
+                {analysis && analysis.criticalGaps.length > 0 && (() => {
+                  // Group gaps by detected category keywords
+                  const groupGaps = (gaps: string[]) => {
+                    const groups: Record<string, string[]> = {};
+                    const categoryPatterns: [string, RegExp][] = [
+                      ["Mathematical & Problem-Solving Gaps", /math|algebra|geometry|calculus|trigonometry|arithmetic|equation|number/i],
+                      ["Scientific Reasoning Gaps", /science|physics|chemistry|biology|experiment|lab|scientific/i],
+                      ["Language & Communication Gaps", /language|hindi|sanskrit|english|reading|writing|grammar|vocabulary|comprehension/i],
+                      ["Social Studies & Humanities Gaps", /history|geography|civics|social|economics|political/i],
+                    ];
+                    const ungrouped: string[] = [];
+                    
+                    for (const gap of gaps) {
+                      let matched = false;
+                      for (const [category, pattern] of categoryPatterns) {
+                        if (pattern.test(gap)) {
+                          if (!groups[category]) groups[category] = [];
+                          groups[category].push(gap);
+                          matched = true;
+                          break;
+                        }
+                      }
+                      if (!matched) ungrouped.push(gap);
+                    }
+                    if (ungrouped.length > 0) groups["Other Transition Gaps"] = ungrouped;
+                    return groups;
+                  };
+                  
+                  const groupedGaps = groupGaps(analysis.criticalGaps);
+                  
+                  return (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
                       <h3 className="text-lg font-semibold">Critical Gaps Identified</h3>
                     </div>
-                    <div className="p-4 bg-rose-50 dark:bg-rose-950/20 rounded-lg border border-rose-200 dark:border-rose-800">
-                      <ul className="space-y-1.5">
-                        {analysis.criticalGaps.map((gap, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm text-rose-800 dark:text-rose-300">
-                            <span className="text-rose-500 mt-0.5">•</span>
-                            {gap}
-                          </li>
-                        ))}
-                      </ul>
+                    <div className="space-y-3">
+                      {Object.entries(groupedGaps).map(([category, gaps]) => (
+                        <div key={category} className="p-4 bg-rose-50 dark:bg-rose-950/20 rounded-lg border border-rose-200 dark:border-rose-800">
+                          <div className="text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wide mb-2">{category}</div>
+                          <ul className="space-y-1.5">
+                            {gaps.map((gap, index) => (
+                              <li key={index} className="flex items-start gap-2 text-sm text-rose-800 dark:text-rose-300">
+                                <span className="text-rose-500 mt-0.5">•</span>
+                                {gap}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
-                {/* F. Bridge Timeline - Compact 3-Phase */}
+                {/* F. Bridge Timeline - Visual step-based with resource links */}
                 {analysis && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-primary" />
                       <h3 className="text-lg font-semibold">Bridge Timeline</h3>
                     </div>
-                    <div className="space-y-2">
-                      {/* Phase 1 */}
-                      <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 rounded">Phase 1</span>
-                          <span className="text-xs text-muted-foreground">{analysis.bridgeTimeline.phase1.duration}</span>
+                    
+                    {/* Visual horizontal progress indicator */}
+                    <div className="flex items-center gap-1 px-2">
+                      {[
+                        { label: "Phase 1", color: "bg-rose-400" },
+                        { label: "Phase 2", color: "bg-amber-400" },
+                        { label: "Phase 3", color: "bg-emerald-400" },
+                      ].map((p, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                          <div className={`h-2 w-full rounded-full ${p.color}`} />
+                          <span className="text-[10px] text-muted-foreground">{p.label}</span>
                         </div>
-                        <div className="text-sm font-medium mb-1.5">{analysis.bridgeTimeline.phase1.name}</div>
-                        <ul className="text-xs text-muted-foreground space-y-0.5">
-                          {analysis.bridgeTimeline.phase1.bullets.slice(0, 3).map((b, i) => (
-                            <li key={i}>• {b}</li>
-                          ))}
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {/* Phase 1 */}
+                      <div className="p-4 rounded-lg border-2 border-rose-200 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/10">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/50 px-2 py-0.5 rounded">Phase 1</span>
+                        </div>
+                        <div className="text-sm font-semibold mb-1">{analysis.bridgeTimeline.phase1.name}</div>
+                        <div className="text-xs text-muted-foreground mb-2">{analysis.bridgeTimeline.phase1.duration}</div>
+                        <ul className="text-xs text-muted-foreground space-y-1">
+                          {analysis.bridgeTimeline.phase1.bullets.slice(0, 3).map((b, i) => {
+                            const parts = parseRecommendationWithLinks(b);
+                            return (
+                              <li key={i} className="flex items-start gap-1">
+                                <span className="mt-0.5">→</span>
+                                <span>
+                                  {parts.map((part, j) => 
+                                    part.type === 'link' ? (
+                                      <a key={j} href={part.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                                        {part.content}<ExternalLink className="h-2.5 w-2.5" />
+                                      </a>
+                                    ) : <span key={j}>{part.content}</span>
+                                  )}
+                                </span>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                       {/* Phase 2 */}
-                      <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="p-4 rounded-lg border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/10">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 rounded">Phase 2</span>
-                          <span className="text-xs text-muted-foreground">{analysis.bridgeTimeline.phase2.duration}</span>
+                          <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded">Phase 2</span>
                         </div>
-                        <div className="text-sm font-medium mb-1.5">{analysis.bridgeTimeline.phase2.name}</div>
-                        <ul className="text-xs text-muted-foreground space-y-0.5">
-                          {analysis.bridgeTimeline.phase2.bullets.slice(0, 3).map((b, i) => (
-                            <li key={i}>• {b}</li>
-                          ))}
+                        <div className="text-sm font-semibold mb-1">{analysis.bridgeTimeline.phase2.name}</div>
+                        <div className="text-xs text-muted-foreground mb-2">{analysis.bridgeTimeline.phase2.duration}</div>
+                        <ul className="text-xs text-muted-foreground space-y-1">
+                          {analysis.bridgeTimeline.phase2.bullets.slice(0, 3).map((b, i) => {
+                            const parts = parseRecommendationWithLinks(b);
+                            return (
+                              <li key={i} className="flex items-start gap-1">
+                                <span className="mt-0.5">→</span>
+                                <span>
+                                  {parts.map((part, j) => 
+                                    part.type === 'link' ? (
+                                      <a key={j} href={part.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                                        {part.content}<ExternalLink className="h-2.5 w-2.5" />
+                                      </a>
+                                    ) : <span key={j}>{part.content}</span>
+                                  )}
+                                </span>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                       {/* Phase 3 */}
-                      <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="p-4 rounded-lg border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/10">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 rounded">Phase 3</span>
-                          <span className="text-xs text-muted-foreground">{analysis.bridgeTimeline.phase3.duration}</span>
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded">Phase 3</span>
                         </div>
-                        <div className="text-sm font-medium mb-1.5">{analysis.bridgeTimeline.phase3.name}</div>
-                        <ul className="text-xs text-muted-foreground space-y-0.5">
-                          {analysis.bridgeTimeline.phase3.bullets.slice(0, 2).map((b, i) => (
-                            <li key={i}>• {b}</li>
-                          ))}
+                        <div className="text-sm font-semibold mb-1">{analysis.bridgeTimeline.phase3.name}</div>
+                        <div className="text-xs text-muted-foreground mb-2">{analysis.bridgeTimeline.phase3.duration}</div>
+                        <ul className="text-xs text-muted-foreground space-y-1">
+                          {analysis.bridgeTimeline.phase3.bullets.slice(0, 3).map((b, i) => {
+                            const parts = parseRecommendationWithLinks(b);
+                            return (
+                              <li key={i} className="flex items-start gap-1">
+                                <span className="mt-0.5">→</span>
+                                <span>
+                                  {parts.map((part, j) => 
+                                    part.type === 'link' ? (
+                                      <a key={j} href={part.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                                        {part.content}<ExternalLink className="h-2.5 w-2.5" />
+                                      </a>
+                                    ) : <span key={j}>{part.content}</span>
+                                  )}
+                                </span>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     </div>
