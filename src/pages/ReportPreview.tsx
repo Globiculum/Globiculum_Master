@@ -1076,13 +1076,56 @@ const ReportPreview = () => {
                   </div>
                 )}
 
-                {/* G. Personalized Recommendations - 4 Mini-Sections */}
-                {analysis && (
+                {/* G. Personalized Recommendations - 4 Mini-Sections + Support Strategy */}
+                {analysis && (() => {
+                  // Check if source and target curriculum match (e.g. IB → IB)
+                  const currentCurr = (formData.currentCurriculum || "").toLowerCase();
+                  const targetGoal = (formData.targetGoal || "").toLowerCase();
+                  const isSameCurriculum = (
+                    (currentCurr.includes("ib") && targetGoal.includes("ib")) ||
+                    (currentCurr.includes("igcse") && targetGoal.includes("igcse")) ||
+                    (currentCurr.includes("cambridge") && targetGoal.includes("igcse"))
+                  );
+
+                  const renderRecList = (recs: string[]) => recs.slice(0, 4).map((rec, i) => {
+                    const parts = parseRecommendationWithLinks(rec);
+                    return (
+                      <li key={i} className="flex items-start gap-1">
+                        <span className="mt-0.5">•</span>
+                        <span>
+                          {parts.map((part, j) => 
+                            part.type === 'link' ? (
+                              <a key={j} href={part.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5">
+                                {part.content}<ExternalLink className="h-2.5 w-2.5" />
+                              </a>
+                            ) : <span key={j}>{part.content}</span>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  });
+
+                  return (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <Lightbulb className="h-5 w-5 text-primary" />
                       <h3 className="text-lg font-semibold">Personalized Recommendations</h3>
                     </div>
+
+                    {/* Same-curriculum note */}
+                    {isSameCurriculum && (
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Same Curriculum Detected</span>
+                        </div>
+                        <p className="text-xs text-blue-700 dark:text-blue-400">
+                          Your child is already studying in a {currentCurr.includes("ib") ? "IB" : "IGCSE/Cambridge"} curriculum. 
+                          Recommendations focus on continuation within the same framework rather than cross-curriculum bridging.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {/* Study Recommendations */}
                       <div className="p-3 bg-muted/30 rounded-lg border border-border">
@@ -1091,32 +1134,7 @@ const ReportPreview = () => {
                           Study Recommendations
                         </h4>
                         <ul className="text-xs text-muted-foreground space-y-1">
-                          {analysis.recommendations.study.slice(0, 4).map((rec, i) => {
-                            const parts = parseRecommendationWithLinks(rec);
-                            return (
-                              <li key={i} className="flex items-start gap-1">
-                                <span className="mt-0.5">•</span>
-                                <span>
-                                  {parts.map((part, j) => 
-                                    part.type === 'link' ? (
-                                      <a
-                                        key={j}
-                                        href={part.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary hover:underline inline-flex items-center gap-0.5"
-                                      >
-                                        {part.content}
-                                        <ExternalLink className="h-2.5 w-2.5" />
-                                      </a>
-                                    ) : (
-                                      <span key={j}>{part.content}</span>
-                                    )
-                                  )}
-                                </span>
-                              </li>
-                            );
-                          })}
+                          {renderRecList(analysis.recommendations.study)}
                         </ul>
                       </div>
                       {/* Skill & Strategy Tips */}
@@ -1126,32 +1144,7 @@ const ReportPreview = () => {
                           Skill & Strategy Tips
                         </h4>
                         <ul className="text-xs text-muted-foreground space-y-1">
-                          {analysis.recommendations.skillStrategy.slice(0, 4).map((rec, i) => {
-                            const parts = parseRecommendationWithLinks(rec);
-                            return (
-                              <li key={i} className="flex items-start gap-1">
-                                <span className="mt-0.5">•</span>
-                                <span>
-                                  {parts.map((part, j) => 
-                                    part.type === 'link' ? (
-                                      <a
-                                        key={j}
-                                        href={part.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary hover:underline inline-flex items-center gap-0.5"
-                                      >
-                                        {part.content}
-                                        <ExternalLink className="h-2.5 w-2.5" />
-                                      </a>
-                                    ) : (
-                                      <span key={j}>{part.content}</span>
-                                    )
-                                  )}
-                                </span>
-                              </li>
-                            );
-                          })}
+                          {renderRecList(analysis.recommendations.skillStrategy)}
                         </ul>
                       </div>
                       {/* Resource Suggestions */}
@@ -1161,32 +1154,7 @@ const ReportPreview = () => {
                           Resource Suggestions
                         </h4>
                         <ul className="text-xs text-muted-foreground space-y-1">
-                          {analysis.recommendations.resources.slice(0, 4).map((rec, i) => {
-                            const parts = parseRecommendationWithLinks(rec);
-                            return (
-                              <li key={i} className="flex items-start gap-1">
-                                <span className="mt-0.5">•</span>
-                                <span>
-                                  {parts.map((part, j) => 
-                                    part.type === 'link' ? (
-                                      <a
-                                        key={j}
-                                        href={part.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary hover:underline inline-flex items-center gap-0.5"
-                                      >
-                                        {part.content}
-                                        <ExternalLink className="h-2.5 w-2.5" />
-                                      </a>
-                                    ) : (
-                                      <span key={j}>{part.content}</span>
-                                    )
-                                  )}
-                                </span>
-                              </li>
-                            );
-                          })}
+                          {renderRecList(analysis.recommendations.resources)}
                         </ul>
                       </div>
                       {/* Cultural & Language Adaptation */}
@@ -1196,37 +1164,73 @@ const ReportPreview = () => {
                           Cultural & Language Adaptation
                         </h4>
                         <ul className="text-xs text-muted-foreground space-y-1">
-                          {analysis.recommendations.culturalLanguage.slice(0, 4).map((rec, i) => {
-                            const parts = parseRecommendationWithLinks(rec);
-                            return (
-                              <li key={i} className="flex items-start gap-1">
-                                <span className="mt-0.5">•</span>
-                                <span>
-                                  {parts.map((part, j) => 
-                                    part.type === 'link' ? (
-                                      <a
-                                        key={j}
-                                        href={part.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary hover:underline inline-flex items-center gap-0.5"
-                                      >
-                                        {part.content}
-                                        <ExternalLink className="h-2.5 w-2.5" />
-                                      </a>
-                                    ) : (
-                                      <span key={j}>{part.content}</span>
-                                    )
-                                  )}
-                                </span>
-                              </li>
-                            );
-                          })}
+                          {renderRecList(analysis.recommendations.culturalLanguage)}
                         </ul>
                       </div>
                     </div>
+
+                    {/* Parent Support Strategy based on supportNeeds */}
+                    {formData.supportNeeds && formData.supportNeeds.length > 0 && (
+                      <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                        <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                          <Target className="h-4 w-4 text-primary" />
+                          Recommended Support Strategy
+                        </h4>
+                        <ul className="text-xs text-muted-foreground space-y-1.5">
+                          {formData.supportNeeds.includes("1-on-1 tutoring sessions") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Consider structured one-on-one tutoring sessions to strengthen key subject fundamentals before transition.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("Peer support groups") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Peer learning groups can help the student adapt to collaborative learning and discussion-based assignments common in Indian schools.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("Group study programs") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Group study programs provide structured academic support and help build social connections with peers in the new school environment.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("Parent counseling calls") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Regular parent counseling calls can help you stay informed about progress and address concerns early in the transition.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("Cultural mentorship") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>A cultural mentor can guide the student through social norms, classroom expectations, and cultural adjustment in Indian schools.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("Regular progress tracking") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Set up regular progress check-ins to monitor academic adaptation and adjust the bridge plan as needed.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("Emergency academic support") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Having access to emergency academic support ensures quick help when the student encounters unexpected curriculum challenges.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("College admission guidance") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Early college admission guidance can align the transition plan with long-term academic goals and competitive exam preparation.</span>
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* Compare with Previous */}
                 {previousReport && analysis && (
