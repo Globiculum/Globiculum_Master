@@ -536,15 +536,15 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     return curriculumByStage[formData.schoolStage as keyof typeof curriculumByStage] || [];
   };
 
-   // Grade-band aware subject lists (US Curriculum labels for clarity)
+   // Grade-band aware subject lists (clean labels – US context is in the question text)
   const getSubjectsByGradeBand = () => {
     switch (formData.schoolStage) {
       case "elementary":
         return [
-          "Mathematics (US Curriculum)",
-          "English / Language Arts (US Curriculum)",
-          "Science (US Curriculum)",
-          "Social Studies (US Curriculum)",
+          "Mathematics",
+          "English / Language Arts",
+          "Science",
+          "Social Studies",
           "Art / Creative Studies",
           "Music",
           "Physical Education",
@@ -552,10 +552,10 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         ];
       case "middle":
         return [
-          "Mathematics (US Curriculum)",
-          "Science (US Curriculum)",
-          "English / Language Arts (US Curriculum)",
-          "Social Studies (US Curriculum)",
+          "Mathematics",
+          "Science",
+          "English / Language Arts",
+          "Social Studies",
           "Foreign Language",
           "Elective (Art/Music/Technology)",
         ];
@@ -574,10 +574,10 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         ];
       default:
         return [
-          "Mathematics (US Curriculum)",
-          "Science (US Curriculum)",
-          "English / Language Arts (US Curriculum)",
-          "Social Studies (US Curriculum)",
+          "Mathematics",
+          "Science",
+          "English / Language Arts",
+          "Social Studies",
         ];
     }
   };
