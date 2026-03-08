@@ -1551,10 +1551,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         const targetValid = !!formData.targetGoal;
         return prevLocationValid && targetValid && formData.timeline;
       case 2:
-        // Elementary: require at least one confidence level set
-        if (formData.schoolStage === "elementary") {
-          return Object.keys(formData.elementaryConfidences).length > 0 || formData.selectedLanguages.length > 0;
-        }
+        // All grade bands now require subject selection
         return formData.academicPath.length > 0 || formData.selectedLanguages.length > 0;
       case 3:
         // Updated: learningStyles is now an array, studyTime is new field
