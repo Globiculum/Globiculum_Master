@@ -36,7 +36,7 @@ const App = () => (
           <Route 
             path="/report-preview" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute skipOnboardingCheck>
                 <ReportPreview />
               </ProtectedRoute>
             } 

@@ -57,6 +57,11 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       extracurriculars: [] as string[],
       languagesAtHome: [] as string[],
       
+      // Foreign Language details (Middle School)
+      foreignLanguageName: "",
+      foreignLanguageNameOther: "",
+      foreignLanguageLevel: "",
+      
       // Elementary-specific: foundational confidence levels
       elementaryConfidences: {} as Record<string, string>,
       
