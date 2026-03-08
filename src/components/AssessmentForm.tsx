@@ -536,16 +536,19 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     return curriculumByStage[formData.schoolStage as keyof typeof curriculumByStage] || [];
   };
 
-  // Grade-band aware subject lists
+   // Grade-band aware subject lists
   const getSubjectsByGradeBand = () => {
     switch (formData.schoolStage) {
       case "elementary":
         return [
           "Mathematics",
-          "Science",
           "English / Language Arts",
+          "Science",
           "Social Studies",
-          "Basic Language",
+          "Art / Creative Studies",
+          "Music",
+          "Physical Education",
+          "Foreign Language",
         ];
       case "middle":
         return [
