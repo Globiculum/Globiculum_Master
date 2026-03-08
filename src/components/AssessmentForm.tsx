@@ -57,6 +57,11 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       extracurriculars: [] as string[],
       languagesAtHome: [] as string[],
       
+      // Foreign Language details (Middle School)
+      foreignLanguageName: "",
+      foreignLanguageNameOther: "",
+      foreignLanguageLevel: "",
+      
       // Elementary-specific: foundational confidence levels
       elementaryConfidences: {} as Record<string, string>,
       
@@ -102,6 +107,9 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         customLanguage: prefillData.customLanguage || defaults.customLanguage,
         extracurriculars: Array.isArray(prefillData.extracurriculars) ? prefillData.extracurriculars : defaults.extracurriculars,
         languagesAtHome: Array.isArray(prefillData.languagesAtHome) ? prefillData.languagesAtHome : defaults.languagesAtHome,
+        foreignLanguageName: prefillData.foreignLanguageName || defaults.foreignLanguageName,
+        foreignLanguageNameOther: prefillData.foreignLanguageNameOther || defaults.foreignLanguageNameOther,
+        foreignLanguageLevel: prefillData.foreignLanguageLevel || defaults.foreignLanguageLevel,
         elementaryConfidences: prefillData.elementaryConfidences || defaults.elementaryConfidences,
         mathCourse: prefillData.mathCourse || defaults.mathCourse,
         mathProgramLevel: prefillData.mathProgramLevel || defaults.mathProgramLevel,
@@ -971,8 +979,63 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
                   {subject}
                 </button>
               ))}
-            </div>
+           </div>
           </div>
+
+          {/* Foreign Language Details - Middle School */}
+          {formData.schoolStage === "middle" && formData.academicPath.includes("Foreign Language") && (
+            <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+              <h4 className="font-semibold text-base">Foreign Language Details</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="foreign-lang-name">Which foreign language is the student studying?</Label>
+                  <Select 
+                    value={formData.foreignLanguageName} 
+                    onValueChange={(value) => handleSelectChange("foreignLanguageName", value)}
+                  >
+                    <SelectTrigger id="foreign-lang-name">
+                      <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="spanish">Spanish</SelectItem>
+                      <SelectItem value="french">French</SelectItem>
+                      <SelectItem value="german">German</SelectItem>
+                      <SelectItem value="mandarin">Mandarin</SelectItem>
+                      <SelectItem value="japanese">Japanese</SelectItem>
+                      <SelectItem value="latin">Latin</SelectItem>
+                      <SelectItem value="arabic">Arabic</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formData.foreignLanguageName === "other" && (
+                    <Input
+                      className="mt-2"
+                      type="text"
+                      placeholder="Enter language name"
+                      value={formData.foreignLanguageNameOther}
+                      onChange={(e) => handleSelectChange("foreignLanguageNameOther", e.target.value)}
+                    />
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="foreign-lang-level">What is the student's current level?</Label>
+                  <Select 
+                    value={formData.foreignLanguageLevel} 
+                    onValueChange={(value) => handleSelectChange("foreignLanguageLevel", value)}
+                  >
+                    <SelectTrigger id="foreign-lang-level">
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="beginner">Beginner</SelectItem>
+                      <SelectItem value="intermediate">Intermediate</SelectItem>
+                      <SelectItem value="advanced">Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* High School Math Deep-Dive - only if Math-related selected and conditions met */}
           {formData.schoolStage === "high" && 
