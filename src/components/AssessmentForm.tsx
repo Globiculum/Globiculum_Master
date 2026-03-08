@@ -528,6 +528,55 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     return curriculumByStage[formData.schoolStage as keyof typeof curriculumByStage] || [];
   };
 
+  // Grade-band aware subject lists
+  const getSubjectsByGradeBand = () => {
+    switch (formData.schoolStage) {
+      case "elementary":
+        return [
+          "Mathematics",
+          "Science",
+          "English / Language Arts",
+          "Social Studies",
+          "Basic Language",
+        ];
+      case "middle":
+        return [
+          "Mathematics",
+          "Science",
+          "English / Language Arts",
+          "Social Studies",
+          "Foreign Language",
+          "Elective (Art/Music/Technology)",
+        ];
+      case "high":
+        return [
+          "Algebra",
+          "Geometry",
+          "Pre-Calculus / Calculus",
+          "Biology",
+          "Chemistry",
+          "Physics",
+          "English / Language Arts",
+          "Social Studies / History",
+          "Foreign Language",
+          "Elective (Art/Music/CS/Other)",
+        ];
+      default:
+        return [
+          "Mathematics",
+          "Science",
+          "English / Language Arts",
+          "Social Studies",
+        ];
+    }
+  };
+
+  // Dynamic subjects based on what the user selected in academicPath
+  const getSelectedSubjectOptions = () => {
+    if (formData.academicPath.length === 0) return [];
+    return formData.academicPath;
+  };
+
   const renderStep = () => {
     switch (currentStep) {
       case 0:
