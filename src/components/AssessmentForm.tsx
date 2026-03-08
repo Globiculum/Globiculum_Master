@@ -942,7 +942,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         <p className="text-muted-foreground">
           {formData.schoolStage === "elementary" 
             ? "Help us understand your child's foundational learning" 
-            : "Select the subjects in your child's current academic path"}
+            : "What subjects does the student currently study in their US curriculum?"}
         </p>
       </div>
       
@@ -954,18 +954,11 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         />
       ) : (
         <>
-          {/* Core Subjects for Middle/High School */}
+          {/* Grade-band aware subject selection */}
           <div className="space-y-4">
             <h4 className="font-semibold text-lg">Which subjects is your child currently studying?</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {[
-                "Math",
-                "Science",
-                "English / Language Arts",
-                "Social Studies",
-                "Information Technology",
-                "Computer Science / Coding",
-              ].map((subject) => (
+              {getSubjectsByGradeBand().map((subject) => (
                 <button
                   key={subject}
                   onClick={() => handleArrayToggle("academicPath", subject)}
@@ -981,9 +974,9 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
             </div>
           </div>
           
-          {/* High School Math Deep-Dive - only if Math selected and conditions met */}
+          {/* High School Math Deep-Dive - only if Math-related selected and conditions met */}
           {formData.schoolStage === "high" && 
-           formData.academicPath.includes("Math") && 
+           (formData.academicPath.includes("Algebra") || formData.academicPath.includes("Geometry") || formData.academicPath.includes("Pre-Calculus / Calculus")) && 
            formData.previousLocation === "us" && 
            formData.usState && (
             <HighSchoolMathDeepDive
