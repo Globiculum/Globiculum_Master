@@ -1397,8 +1397,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       case 1:
         const prevLocationValid = formData.previousLocation && 
           (formData.previousLocation !== "other" || formData.previousLocationOther);
-        const targetValid = formData.targetGoal && 
-          (formData.targetGoal !== "other" || formData.targetGoalOther);
+        const targetValid = !!formData.targetGoal;
         return prevLocationValid && targetValid && formData.timeline;
       case 2:
         // Elementary: require at least one confidence level set

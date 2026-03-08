@@ -15,6 +15,11 @@ import { getSyllabusReferenceForTopic, parseRecommendationWithLinks } from "@/li
 
 // Goals that involve Indian academic readiness - show TRE for these
 const INDIA_READINESS_GOALS = [
+  // New transition pathways
+  "india-cbse",
+  "india-igcse",
+  "india-ib",
+  // Legacy values (safe fallback)
   "cbse",
   "icse",
   "state_boards",
@@ -23,6 +28,12 @@ const INDIA_READINESS_GOALS = [
   "dual_prep_excellence",
   "academic_foundations_strengthening",
   "cultural_language_immersion",
+  "dual-prep",
+  "india-reintegration",
+  "academic-foundations",
+  "cultural-language",
+  "international",
+  "indian-boards",
   // Common variations
   "indian board preparation",
   "cbse preparation",
