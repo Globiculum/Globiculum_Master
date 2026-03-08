@@ -536,15 +536,15 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     return curriculumByStage[formData.schoolStage as keyof typeof curriculumByStage] || [];
   };
 
-   // Grade-band aware subject lists
+   // Grade-band aware subject lists (US Curriculum labels for clarity)
   const getSubjectsByGradeBand = () => {
     switch (formData.schoolStage) {
       case "elementary":
         return [
-          "Mathematics",
-          "English / Language Arts",
-          "Science",
-          "Social Studies",
+          "Mathematics (US Curriculum)",
+          "English / Language Arts (US Curriculum)",
+          "Science (US Curriculum)",
+          "Social Studies (US Curriculum)",
           "Art / Creative Studies",
           "Music",
           "Physical Education",
@@ -552,10 +552,10 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         ];
       case "middle":
         return [
-          "Mathematics",
-          "Science",
-          "English / Language Arts",
-          "Social Studies",
+          "Mathematics (US Curriculum)",
+          "Science (US Curriculum)",
+          "English / Language Arts (US Curriculum)",
+          "Social Studies (US Curriculum)",
           "Foreign Language",
           "Elective (Art/Music/Technology)",
         ];
@@ -568,16 +568,16 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
           "Chemistry",
           "Physics",
           "English / Language Arts",
-          "Social Studies / History",
+          "Social Studies / US History",
           "Foreign Language",
           "Elective (Art/Music/CS/Other)",
         ];
       default:
         return [
-          "Mathematics",
-          "Science",
-          "English / Language Arts",
-          "Social Studies",
+          "Mathematics (US Curriculum)",
+          "Science (US Curriculum)",
+          "English / Language Arts (US Curriculum)",
+          "Social Studies (US Curriculum)",
         ];
     }
   };
