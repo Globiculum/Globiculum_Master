@@ -73,6 +73,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       previousGrades: "",
       strongestSubjects: [] as string[],
       challengingSubjects: [] as string[],
+      strengthenGoals: [] as string[], // Indian curriculum improvement goals
       transitionConcerns: [] as string[],
       supportNeeds: [] as string[]
     };
