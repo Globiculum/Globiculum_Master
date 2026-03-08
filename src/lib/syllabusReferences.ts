@@ -302,14 +302,38 @@ export function getSyllabusReferenceForTopic(topic: string, subject?: string): S
   const normalizedTopic = topic.toLowerCase().trim();
   const normalizedSubject = subject?.toLowerCase().trim() || "";
   
-  // First, check for specific topic/chapter matches
+  // 1. Exact keyword match in topic-chapter mapping
   for (const [keyword, reference] of Object.entries(GRADE_TOPIC_CHAPTERS)) {
     if (normalizedTopic.includes(keyword.toLowerCase())) {
       return reference;
     }
   }
-  
-  // If no specific topic match, try subject-based URL
+
+  // 2. Try matching individual words from the topic (3+ chars) against chapter keywords
+  const topicWords = normalizedTopic.split(/[\s,\-\/&]+/).filter(w => w.length >= 3);
+  for (const word of topicWords) {
+    for (const [keyword, reference] of Object.entries(GRADE_TOPIC_CHAPTERS)) {
+      if (keyword.toLowerCase().includes(word) && word.length >= 4) {
+        return reference;
+      }
+    }
+  }
+
+  // 3. Khan Academy concept fallback based on subject context
+  const kaFallbacks: Record<string, SyllabusReference> = {
+    mathematics: { url: "https://www.khanacademy.org/math", label: "Khan Academy – Mathematics" },
+    math: { url: "https://www.khanacademy.org/math", label: "Khan Academy – Mathematics" },
+    science: { url: "https://www.khanacademy.org/science", label: "Khan Academy – Science" },
+    physics: { url: "https://www.khanacademy.org/science/physics", label: "Khan Academy – Physics" },
+    chemistry: { url: "https://www.khanacademy.org/science/chemistry", label: "Khan Academy – Chemistry" },
+    biology: { url: "https://www.khanacademy.org/science/biology", label: "Khan Academy – Biology" },
+  };
+
+  if (normalizedSubject && kaFallbacks[normalizedSubject]) {
+    return kaFallbacks[normalizedSubject];
+  }
+
+  // 4. Try subject-based NCERT URL as last resort
   if (normalizedSubject && NCERT_SUBJECT_URLS[normalizedSubject]) {
     return {
       url: NCERT_SUBJECT_URLS[normalizedSubject],
@@ -317,14 +341,14 @@ export function getSyllabusReferenceForTopic(topic: string, subject?: string): S
     };
   }
   
-  // Check if topic text contains subject keywords
+  // 5. Check if topic text contains subject keywords
   for (const [subjectKey, url] of Object.entries(NCERT_SUBJECT_URLS)) {
     if (normalizedTopic.includes(subjectKey)) {
       return { url, label: `NCERT ${subjectKey.charAt(0).toUpperCase() + subjectKey.slice(1)} Textbooks` };
     }
   }
   
-  // No reliable reference found
+  // No reliable reference found — return null instead of generic page
   return null;
 }
 

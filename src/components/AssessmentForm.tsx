@@ -959,8 +959,8 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       
       {/* Subject selection for ALL grade bands including elementary */}
       <div className="space-y-4">
-        <h4 className="font-semibold text-lg">What subjects does the student currently study in their school?</h4>
-        <p className="text-sm text-muted-foreground">These are subjects from the student's current school curriculum.</p>
+        <h4 className="font-semibold text-lg">Which subjects does the student currently study as part of their US school curriculum or transcripts?</h4>
+        <p className="text-sm text-muted-foreground">Select all subjects the student is currently enrolled in at their school.</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {getSubjectsByGradeBand().map((subject) => (
             <button
