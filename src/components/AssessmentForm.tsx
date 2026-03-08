@@ -837,38 +837,33 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         )}
 
         <div>
-          <Label htmlFor="target-goal">Preparation Goals</Label>
+          <Label htmlFor="target-goal">Transition Pathway</Label>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">
+            Select the Indian school system your child will be transitioning into.
+          </p>
           <Select value={formData.targetGoal} onValueChange={(value) => handleSelectChange("targetGoal", value)}>
             <SelectTrigger id="target-goal">
-              <SelectValue placeholder="What are your preparation goals?" />
+              <SelectValue placeholder="Which Indian school system are you preparing for?" />
             </SelectTrigger>
             <SelectContent className="max-h-[300px]">
-              <SelectItem value="sat">SAT (Scholastic Assessment Test)</SelectItem>
-              <SelectItem value="ap">AP (Advanced Placement)</SelectItem>
-              <SelectItem value="indian-boards">Indian Boards (CBSE - Central Board of Secondary Education / ICSE - Indian Certificate of Secondary Education / State Boards)</SelectItem>
-              <SelectItem value="dual-prep">Dual-Prep Excellence</SelectItem>
-              <SelectItem value="india-reintegration">Smooth Indian School Reintegration</SelectItem>
-              <SelectItem value="us-college">Smooth US College Admission Preparation</SelectItem>
-              <SelectItem value="cultural-language">Cultural & Language Immersion</SelectItem>
-              <SelectItem value="academic-foundations">Academic Foundations Strengthening</SelectItem>
-              <SelectItem value="international">International Curriculum Readiness (IB - International Baccalaureate, IGCSE - International General Certificate of Secondary Education)</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              <SelectItem value="india-cbse">Prepare for Indian CBSE Schools</SelectItem>
+              <SelectItem value="india-igcse">Prepare for Indian IGCSE Schools</SelectItem>
+              <SelectItem value="india-ib">Prepare for Indian IB Schools</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        
-        {formData.targetGoal === "other" && (
-          <div>
-            <Label htmlFor="target-goal-other">Please specify your goal</Label>
-            <Input
-              id="target-goal-other"
-              type="text"
-              placeholder="Describe your preparation goal"
-              value={formData.targetGoalOther}
-              onChange={(e) => handleSelectChange("targetGoalOther", e.target.value)}
-            />
+
+        {/* Cultural Readiness - Supporting context */}
+        <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
+          <div className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            <Label className="text-base font-semibold">Cultural Readiness for India</Label>
           </div>
-        )}
+          <p className="text-sm text-muted-foreground">
+            Your report will include guidance on classroom expectations, academic rigor differences,
+            social adaptation, and cultural adjustment to help your child thrive in their new school environment.
+          </p>
+        </div>
 
         <div>
           <Label htmlFor="timeline">Preparation Timeline</Label>
