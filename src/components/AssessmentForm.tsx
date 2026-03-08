@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BookOpen, MapPin, Calendar, Target, BarChart3, Loader2, Globe } from "lucide-react";
+import { BookOpen, MapPin, Calendar, Target, BarChart3, Loader2, Globe, GraduationCap } from "lucide-react";
 import { ElementaryFoundations } from "./assessment/ElementaryFoundations";
 import { LearningStyleObservations } from "./assessment/LearningStyleObservations";
 import { StudyTimePatterns } from "./assessment/StudyTimePatterns";
@@ -1055,7 +1055,8 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         />
       )}
 
-      {/* Language Readiness for Indian Schooling */}
+      {/* Language Readiness for Indian Schooling - hide for grades 11-12 */}
+      {!(formData.schoolStage === "high" && parseInt(formData.snapshotGrade) >= 11) && (
       <div className="space-y-4">
         <h4 className="font-semibold text-lg">Language Readiness for Indian Schooling</h4>
         <p className="text-sm text-muted-foreground">
@@ -1150,6 +1151,40 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
           </div>
         )}
       </div>
+      )}
+
+      {/* High School Stream Readiness Context (Grades 11-12) */}
+      {formData.schoolStage === "high" && parseInt(formData.snapshotGrade) >= 11 && (
+        <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+          <h4 className="font-semibold text-lg flex items-center gap-2">
+            <GraduationCap className="h-5 w-5 text-primary" />
+            Indian Stream Readiness
+          </h4>
+          <p className="text-sm text-muted-foreground">
+            In Indian Grades 11–12, students specialize into streams. Your US coursework will be mapped to determine stream readiness.
+            Language requirements typically apply only until Grade 10.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "PCM (Science – Math)", desc: "Physics, Chemistry, Mathematics" },
+              { label: "PCB (Science – Bio)", desc: "Physics, Chemistry, Biology" },
+              { label: "Commerce", desc: "Business, Accountancy, Economics" },
+              { label: "Humanities", desc: "History, Political Science, Psychology" },
+            ].map((stream) => (
+              <div
+                key={stream.label}
+                className="p-3 rounded-lg border border-border bg-card text-center"
+              >
+                <div className="text-sm font-medium">{stream.label}</div>
+                <div className="text-xs text-muted-foreground mt-1">{stream.desc}</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground italic">
+            Your report will automatically assess stream readiness based on the subjects you selected above.
+          </p>
+        </div>
+      )}
       
       {/* Languages Spoken at Home */}
       <div className="space-y-4">
