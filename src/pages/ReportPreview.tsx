@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { FileText, Download, ArrowLeft, Target, BookOpen, Clock, Lightbulb, AlertTriangle, Loader2, TrendingUp, Calendar, GraduationCap, Globe, Info, ExternalLink, GitCompareArrows, ChevronDown, ChevronRight } from "lucide-react";
+import { FileText, Download, ArrowLeft, Target, BookOpen, Clock, Lightbulb, AlertTriangle, Loader2, TrendingUp, Calendar, GraduationCap, Globe, Info, ExternalLink, GitCompareArrows, ChevronDown, ChevronRight, Layers } from "lucide-react";
 import ReportComparison from "@/components/ReportComparison";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
