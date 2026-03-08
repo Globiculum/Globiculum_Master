@@ -155,15 +155,27 @@ export function getSyllabusReferenceForTopic(topic: string, subject?: string): S
  * Maps resource names/keywords to official URLs
  */
 const RESOURCE_URL_MAPPINGS: Record<string, { url: string; pattern: RegExp }> = {
-  // Educational platforms (official, non-commercial references only)
+  // Educational platforms - specific topic pages where possible
+  "khan_academy_math": { url: "https://www.khanacademy.org/math", pattern: /khan\s*academy\s*(math|algebra|geometry|calculus|trigonometry)/i },
+  "khan_academy_science": { url: "https://www.khanacademy.org/science", pattern: /khan\s*academy\s*(science|physics|chemistry|biology)/i },
   "khan_academy": { url: "https://www.khanacademy.org/", pattern: /khan\s*academy/i },
-  "ncert": { url: "https://ncert.nic.in/", pattern: /ncert/i },
+  "ncert_math_10": { url: "https://ncert.nic.in/textbook.php?jemh1=0-0", label: "NCERT Class 10 Math", pattern: /ncert\s*(class\s*10)?\s*math/i },
+  "ncert_science_10": { url: "https://ncert.nic.in/textbook.php?jesc1=0-0", label: "NCERT Class 10 Science", pattern: /ncert\s*(class\s*10)?\s*science/i },
   "ncert_textbook": { url: "https://ncert.nic.in/textbook.php", pattern: /ncert\s*(text)?books?/i },
-  "cbse": { url: "https://cbseacademic.nic.in/", pattern: /cbse\s*(syllabus|curriculum|academic)?/i },
+  "ncert": { url: "https://ncert.nic.in/", pattern: /ncert/i },
+  "cbse_math": { url: "https://cbseacademic.nic.in/curriculum_2024.html", pattern: /cbse\s*math/i },
+  "cbse_worksheets": { url: "https://cbseacademic.nic.in/supportive-material.html", pattern: /cbse\s*(worksheet|practice\s*paper|sample\s*paper|mock\s*test)/i },
+  "cbse": { url: "https://cbseacademic.nic.in/curriculum_2024.html", pattern: /cbse\s*(syllabus|curriculum|academic)?/i },
   "icse": { url: "https://www.cisce.org/", pattern: /icse|cisce/i },
   "diksha": { url: "https://diksha.gov.in/", pattern: /diksha/i },
   "swayam": { url: "https://swayam.gov.in/", pattern: /swayam/i },
   "nptel": { url: "https://nptel.ac.in/", pattern: /nptel/i },
+  "rd_sharma": { url: "https://ncert.nic.in/textbook.php?subject=Mathematics", pattern: /rd\s*sharma/i },
+  
+  // Specific practice / worksheets
+  "practice_papers": { url: "https://cbseacademic.nic.in/supportive-material.html", pattern: /practice\s*(papers?|exercises?|worksheets?)/i },
+  "mock_tests": { url: "https://cbseacademic.nic.in/supportive-material.html", pattern: /mock\s*test/i },
+  "sample_papers": { url: "https://cbseacademic.nic.in/supportive-material.html", pattern: /sample\s*papers?/i },
   
   // Official exam/test references
   "sat": { url: "https://satsuite.collegeboard.org/sat", pattern: /\bsat\b/i },
@@ -179,7 +191,7 @@ const RESOURCE_URL_MAPPINGS: Record<string, { url: string; pattern: RegExp }> = 
   "igcse": { url: "https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-secondary-2/cambridge-igcse/", pattern: /igcse|cambridge/i },
   
   // Language learning (official resources)
-  "hindi_learning": { url: "https://ncert.nic.in/textbook.php?subject=Hindi", pattern: /hindi\s*(language|learning|proficiency)?/i },
+  "hindi_learning": { url: "https://ncert.nic.in/textbook.php?subject=Hindi", pattern: /hindi\s*(language|learning|proficiency|vocabulary|conversations?)?/i },
   "sanskrit": { url: "https://ncert.nic.in/textbook.php?subject=Sanskrit", pattern: /sanskrit/i },
   
   // Government education portals
