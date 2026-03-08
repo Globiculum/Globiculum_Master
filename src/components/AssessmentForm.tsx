@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BookOpen, MapPin, Calendar, Target, BarChart3, Loader2 } from "lucide-react";
+import { BookOpen, MapPin, Calendar, Target, BarChart3, Loader2, Globe } from "lucide-react";
 import { ElementaryFoundations } from "./assessment/ElementaryFoundations";
 import { LearningStyleObservations } from "./assessment/LearningStyleObservations";
 import { StudyTimePatterns } from "./assessment/StudyTimePatterns";
@@ -837,38 +837,33 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         )}
 
         <div>
-          <Label htmlFor="target-goal">Preparation Goals</Label>
+          <Label htmlFor="target-goal">Transition Pathway</Label>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">
+            Select the Indian school system your child will be transitioning into.
+          </p>
           <Select value={formData.targetGoal} onValueChange={(value) => handleSelectChange("targetGoal", value)}>
             <SelectTrigger id="target-goal">
-              <SelectValue placeholder="What are your preparation goals?" />
+              <SelectValue placeholder="Which Indian school system are you preparing for?" />
             </SelectTrigger>
             <SelectContent className="max-h-[300px]">
-              <SelectItem value="sat">SAT (Scholastic Assessment Test)</SelectItem>
-              <SelectItem value="ap">AP (Advanced Placement)</SelectItem>
-              <SelectItem value="indian-boards">Indian Boards (CBSE - Central Board of Secondary Education / ICSE - Indian Certificate of Secondary Education / State Boards)</SelectItem>
-              <SelectItem value="dual-prep">Dual-Prep Excellence</SelectItem>
-              <SelectItem value="india-reintegration">Smooth Indian School Reintegration</SelectItem>
-              <SelectItem value="us-college">Smooth US College Admission Preparation</SelectItem>
-              <SelectItem value="cultural-language">Cultural & Language Immersion</SelectItem>
-              <SelectItem value="academic-foundations">Academic Foundations Strengthening</SelectItem>
-              <SelectItem value="international">International Curriculum Readiness (IB - International Baccalaureate, IGCSE - International General Certificate of Secondary Education)</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              <SelectItem value="india-cbse">Prepare for Indian CBSE Schools</SelectItem>
+              <SelectItem value="india-igcse">Prepare for Indian IGCSE Schools</SelectItem>
+              <SelectItem value="india-ib">Prepare for Indian IB Schools</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        
-        {formData.targetGoal === "other" && (
-          <div>
-            <Label htmlFor="target-goal-other">Please specify your goal</Label>
-            <Input
-              id="target-goal-other"
-              type="text"
-              placeholder="Describe your preparation goal"
-              value={formData.targetGoalOther}
-              onChange={(e) => handleSelectChange("targetGoalOther", e.target.value)}
-            />
+
+        {/* Cultural Readiness - Supporting context */}
+        <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
+          <div className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            <Label className="text-base font-semibold">Cultural Readiness for India</Label>
           </div>
-        )}
+          <p className="text-sm text-muted-foreground">
+            Your report will include guidance on classroom expectations, academic rigor differences,
+            social adaptation, and cultural adjustment to help your child thrive in their new school environment.
+          </p>
+        </div>
 
         <div>
           <Label htmlFor="timeline">Preparation Timeline</Label>
@@ -952,45 +947,52 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         </>
       )}
 
-      {/* Foreign Languages */}
+      {/* Language Readiness for Indian Schooling */}
       <div className="space-y-4">
-        <h4 className="font-semibold text-lg">Foreign Languages</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {[
-            "English",
-            "Hindi",
-            "Telugu",
-            "Tamil",
-            "Kannada",
-            "Malayalam",
-            "Marathi",
-            "Spanish",
-            "French",
-            "Mandarin",
-            "Arabic"
-          ].map((lang) => (
+        <h4 className="font-semibold text-lg">Language Readiness for Indian Schooling</h4>
+        <p className="text-sm text-muted-foreground">
+          Indian schools typically require Hindi and sometimes a regional or third language.
+          English proficiency is assumed for US-based students and will not be heavily weighted.
+        </p>
+        
+        {/* Primary Indian languages */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Select languages your child has exposure to</Label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[
+              "Hindi",
+              "Sanskrit",
+              "Telugu",
+              "Tamil",
+              "Kannada",
+              "Malayalam",
+              "Marathi",
+              "Bengali",
+              "Gujarati",
+            ].map((lang) => (
+              <button
+                key={lang}
+                onClick={() => handleArrayToggle("selectedLanguages", lang)}
+                className={`px-3 py-2 rounded-md border text-sm transition-all ${
+                  formData.selectedLanguages.includes(lang)
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                {lang}
+              </button>
+            ))}
             <button
-              key={lang}
-              onClick={() => handleArrayToggle("selectedLanguages", lang)}
+              onClick={() => handleArrayToggle("selectedLanguages", "Other")}
               className={`px-3 py-2 rounded-md border text-sm transition-all ${
-                formData.selectedLanguages.includes(lang)
+                formData.selectedLanguages.includes("Other")
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border hover:border-primary/50"
               }`}
             >
-              {lang}
+              Other
             </button>
-          ))}
-          <button
-            onClick={() => handleArrayToggle("selectedLanguages", "Other")}
-            className={`px-3 py-2 rounded-md border text-sm transition-all ${
-              formData.selectedLanguages.includes("Other")
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border hover:border-primary/50"
-            }`}
-          >
-            Other
-          </button>
+          </div>
         </div>
         
         {formData.selectedLanguages.includes("Other") && (
@@ -1028,6 +1030,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
                     <SelectValue placeholder="Select proficiency" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">No Exposure</SelectItem>
                     <SelectItem value="beginner">Beginner</SelectItem>
                     <SelectItem value="intermediate">Intermediate</SelectItem>
                     <SelectItem value="fluent">Fluent</SelectItem>
@@ -1394,8 +1397,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       case 1:
         const prevLocationValid = formData.previousLocation && 
           (formData.previousLocation !== "other" || formData.previousLocationOther);
-        const targetValid = formData.targetGoal && 
-          (formData.targetGoal !== "other" || formData.targetGoalOther);
+        const targetValid = !!formData.targetGoal;
         return prevLocationValid && targetValid && formData.timeline;
       case 2:
         // Elementary: require at least one confidence level set
