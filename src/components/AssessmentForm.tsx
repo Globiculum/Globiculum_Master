@@ -73,6 +73,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       previousGrades: "",
       strongestSubjects: [] as string[],
       challengingSubjects: [] as string[],
+      strengthenGoals: [] as string[], // Indian curriculum improvement goals
       transitionConcerns: [] as string[],
       supportNeeds: [] as string[]
     };
@@ -112,6 +113,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         challengingSubjects: Array.isArray(prefillData.challengingSubjects) ? prefillData.challengingSubjects : defaults.challengingSubjects,
         transitionConcerns: Array.isArray(prefillData.transitionConcerns) ? prefillData.transitionConcerns : defaults.transitionConcerns,
         supportNeeds: Array.isArray(prefillData.supportNeeds) ? prefillData.supportNeeds : defaults.supportNeeds,
+        strengthenGoals: Array.isArray(prefillData.strengthenGoals) ? prefillData.strengthenGoals : defaults.strengthenGoals,
       };
     }
 
@@ -526,6 +528,55 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     return curriculumByStage[formData.schoolStage as keyof typeof curriculumByStage] || [];
   };
 
+  // Grade-band aware subject lists
+  const getSubjectsByGradeBand = () => {
+    switch (formData.schoolStage) {
+      case "elementary":
+        return [
+          "Mathematics",
+          "Science",
+          "English / Language Arts",
+          "Social Studies",
+          "Basic Language",
+        ];
+      case "middle":
+        return [
+          "Mathematics",
+          "Science",
+          "English / Language Arts",
+          "Social Studies",
+          "Foreign Language",
+          "Elective (Art/Music/Technology)",
+        ];
+      case "high":
+        return [
+          "Algebra",
+          "Geometry",
+          "Pre-Calculus / Calculus",
+          "Biology",
+          "Chemistry",
+          "Physics",
+          "English / Language Arts",
+          "Social Studies / History",
+          "Foreign Language",
+          "Elective (Art/Music/CS/Other)",
+        ];
+      default:
+        return [
+          "Mathematics",
+          "Science",
+          "English / Language Arts",
+          "Social Studies",
+        ];
+    }
+  };
+
+  // Dynamic subjects based on what the user selected in academicPath
+  const getSelectedSubjectOptions = () => {
+    if (formData.academicPath.length === 0) return [];
+    return formData.academicPath;
+  };
+
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -891,7 +942,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         <p className="text-muted-foreground">
           {formData.schoolStage === "elementary" 
             ? "Help us understand your child's foundational learning" 
-            : "Select the subjects in your child's current academic path"}
+            : "What subjects does the student currently study in their US curriculum?"}
         </p>
       </div>
       
@@ -903,18 +954,11 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         />
       ) : (
         <>
-          {/* Core Subjects for Middle/High School */}
+          {/* Grade-band aware subject selection */}
           <div className="space-y-4">
             <h4 className="font-semibold text-lg">Which subjects is your child currently studying?</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {[
-                "Math",
-                "Science",
-                "English / Language Arts",
-                "Social Studies",
-                "Information Technology",
-                "Computer Science / Coding",
-              ].map((subject) => (
+              {getSubjectsByGradeBand().map((subject) => (
                 <button
                   key={subject}
                   onClick={() => handleArrayToggle("academicPath", subject)}
@@ -930,9 +974,9 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
             </div>
           </div>
           
-          {/* High School Math Deep-Dive - only if Math selected and conditions met */}
+          {/* High School Math Deep-Dive - only if Math-related selected and conditions met */}
           {formData.schoolStage === "high" && 
-           formData.academicPath.includes("Math") && 
+           (formData.academicPath.includes("Algebra") || formData.academicPath.includes("Geometry") || formData.academicPath.includes("Pre-Calculus / Calculus")) && 
            formData.previousLocation === "us" && 
            formData.usState && (
             <HighSchoolMathDeepDive
@@ -1197,53 +1241,73 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         </div>
       </div>
 
-      {/* Strongest Subjects */}
+      {/* Strongest Subjects - Dynamic based on selected subjects */}
       <div className="space-y-4">
-        <Label className="text-base font-medium">Strongest Subjects (Select all that apply)</Label>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {[
-            "Mathematics",
-            "Physics",
-            "Chemistry",
-            "Biology",
-            "English",
-            "Computer Science",
-            "History",
-            "Economics"
-          ].map((subject) => (
-            <div key={subject} className="flex items-center space-x-2">
-              <Checkbox 
-                id={`strong-${subject}`}
-                checked={formData.strongestSubjects.includes(subject)}
-                onCheckedChange={() => handleArrayToggle("strongestSubjects", subject)}
-              />
-              <Label htmlFor={`strong-${subject}`} className="text-sm cursor-pointer">{subject}</Label>
-            </div>
-          ))}
-        </div>
+        <Label className="text-base font-medium">
+          {getSelectedSubjectOptions().length > 0 
+            ? "Which of the subjects you selected is the student's strongest?" 
+            : "Strongest Subjects (select subjects in Step 3 first)"}
+        </Label>
+        {getSelectedSubjectOptions().length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {getSelectedSubjectOptions().map((subject) => (
+              <div key={subject} className="flex items-center space-x-2">
+                <Checkbox 
+                  id={`strong-${subject}`}
+                  checked={formData.strongestSubjects.includes(subject)}
+                  onCheckedChange={() => handleArrayToggle("strongestSubjects", subject)}
+                />
+                <Label htmlFor={`strong-${subject}`} className="text-sm cursor-pointer">{subject}</Label>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Please select subjects in the Academic Path step to populate this list.</p>
+        )}
       </div>
 
-      {/* Most Challenging Subjects */}
+      {/* Most Challenging Subjects - Dynamic */}
       <div className="space-y-4">
-        <Label className="text-base font-medium">Most Challenging Subjects</Label>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Label className="text-base font-medium">
+          {getSelectedSubjectOptions().length > 0 
+            ? "Which subject is currently most challenging for the student?" 
+            : "Most Challenging Subjects (select subjects in Step 3 first)"}
+        </Label>
+        {getSelectedSubjectOptions().length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {getSelectedSubjectOptions().map((subject) => (
+              <div key={subject} className="flex items-center space-x-2">
+                <Checkbox 
+                  id={`challenge-${subject}`}
+                  checked={formData.challengingSubjects.includes(subject)}
+                  onCheckedChange={() => handleArrayToggle("challengingSubjects", subject)}
+                />
+                <Label htmlFor={`challenge-${subject}`} className="text-sm cursor-pointer">{subject}</Label>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Please select subjects in the Academic Path step to populate this list.</p>
+        )}
+      </div>
+
+      {/* Indian Curriculum Improvement Goal */}
+      <div className="space-y-4">
+        <Label className="text-base font-medium">Which subjects would you most like the student to strengthen for Indian schooling?</Label>
+        <p className="text-sm text-muted-foreground">Select all that apply — helps identify priority transition goals.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
-            "Mathematics",
-            "Physics",
-            "Chemistry",
-            "Biology",
-            "English Literature",
-            "Hindi",
-            "History/Social Studies",
-            "Economics"
-          ].map((subject) => (
-            <div key={subject} className="flex items-center space-x-2">
+            ...(getSelectedSubjectOptions().length > 0 ? getSelectedSubjectOptions() : []),
+            "Hindi / Languages",
+            "Study habits for Indian curriculum",
+          ].filter((v, i, a) => a.indexOf(v) === i).map((goal) => (
+            <div key={goal} className="flex items-center space-x-2">
               <Checkbox 
-                id={`challenge-${subject}`}
-                checked={formData.challengingSubjects.includes(subject)}
-                onCheckedChange={() => handleArrayToggle("challengingSubjects", subject)}
+                id={`strengthen-${goal}`}
+                checked={formData.strengthenGoals.includes(goal)}
+                onCheckedChange={() => handleArrayToggle("strengthenGoals", goal)}
               />
-              <Label htmlFor={`challenge-${subject}`} className="text-sm cursor-pointer">{subject}</Label>
+              <Label htmlFor={`strengthen-${goal}`} className="text-sm cursor-pointer">{goal}</Label>
             </div>
           ))}
         </div>
