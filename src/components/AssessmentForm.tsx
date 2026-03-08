@@ -947,45 +947,52 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         </>
       )}
 
-      {/* Foreign Languages */}
+      {/* Language Readiness for Indian Schooling */}
       <div className="space-y-4">
-        <h4 className="font-semibold text-lg">Foreign Languages</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {[
-            "English",
-            "Hindi",
-            "Telugu",
-            "Tamil",
-            "Kannada",
-            "Malayalam",
-            "Marathi",
-            "Spanish",
-            "French",
-            "Mandarin",
-            "Arabic"
-          ].map((lang) => (
+        <h4 className="font-semibold text-lg">Language Readiness for Indian Schooling</h4>
+        <p className="text-sm text-muted-foreground">
+          Indian schools typically require Hindi and sometimes a regional or third language.
+          English proficiency is assumed for US-based students and will not be heavily weighted.
+        </p>
+        
+        {/* Primary Indian languages */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Select languages your child has exposure to</Label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[
+              "Hindi",
+              "Sanskrit",
+              "Telugu",
+              "Tamil",
+              "Kannada",
+              "Malayalam",
+              "Marathi",
+              "Bengali",
+              "Gujarati",
+            ].map((lang) => (
+              <button
+                key={lang}
+                onClick={() => handleArrayToggle("selectedLanguages", lang)}
+                className={`px-3 py-2 rounded-md border text-sm transition-all ${
+                  formData.selectedLanguages.includes(lang)
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                {lang}
+              </button>
+            ))}
             <button
-              key={lang}
-              onClick={() => handleArrayToggle("selectedLanguages", lang)}
+              onClick={() => handleArrayToggle("selectedLanguages", "Other")}
               className={`px-3 py-2 rounded-md border text-sm transition-all ${
-                formData.selectedLanguages.includes(lang)
+                formData.selectedLanguages.includes("Other")
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border hover:border-primary/50"
               }`}
             >
-              {lang}
+              Other
             </button>
-          ))}
-          <button
-            onClick={() => handleArrayToggle("selectedLanguages", "Other")}
-            className={`px-3 py-2 rounded-md border text-sm transition-all ${
-              formData.selectedLanguages.includes("Other")
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border hover:border-primary/50"
-            }`}
-          >
-            Other
-          </button>
+          </div>
         </div>
         
         {formData.selectedLanguages.includes("Other") && (
@@ -1023,6 +1030,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
                     <SelectValue placeholder="Select proficiency" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">No Exposure</SelectItem>
                     <SelectItem value="beginner">Beginner</SelectItem>
                     <SelectItem value="intermediate">Intermediate</SelectItem>
                     <SelectItem value="fluent">Fluent</SelectItem>
