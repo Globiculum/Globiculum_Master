@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BookOpen, MapPin, Calendar, Target, BarChart3, Loader2, Globe } from "lucide-react";
+import { BookOpen, MapPin, Calendar, Target, BarChart3, Loader2, Globe, GraduationCap } from "lucide-react";
 import { ElementaryFoundations } from "./assessment/ElementaryFoundations";
 import { LearningStyleObservations } from "./assessment/LearningStyleObservations";
 import { StudyTimePatterns } from "./assessment/StudyTimePatterns";

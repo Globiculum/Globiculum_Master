@@ -711,7 +711,20 @@ const ReportPreview = () => {
                     <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 text-center">
                       <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
                       <div className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                        {analysis.subjectAnalysis.filter(s => s.alignmentLevel !== 'strong').length} Subject{analysis.subjectAnalysis.filter(s => s.alignmentLevel !== 'strong').length !== 1 ? 's' : ''}
+                        {(() => {
+                          const isHighSchool11Plus = formData.schoolStage === "high" && parseInt(formData.snapshotGrade) >= 11;
+                          const filtered = analysis.subjectAnalysis.filter(s => {
+                            if (s.alignmentLevel === 'strong') return false;
+                            // For high school 11-12, don't count social studies unless humanities stream
+                            if (isHighSchool11Plus) {
+                              const isSocialStudy = /social|history|civics|geography/i.test(s.subject);
+                              const isHumanities = formData.academicPath?.some?.((p: string) => /humanities|history|political/i.test(p));
+                              if (isSocialStudy && !isHumanities) return false;
+                            }
+                            return true;
+                          });
+                          return `${filtered.length} Subject${filtered.length !== 1 ? 's' : ''}`;
+                        })()}
                       </div>
                       <div className="text-xs text-blue-600 dark:text-blue-400">Need Preparation</div>
                     </div>
