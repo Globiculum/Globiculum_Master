@@ -1,32 +1,27 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
-// Behavior-based learning style observations
+// Updated behavior-based learning style observations (merged overlapping options)
 export const learningStyleOptions = [
   { 
-    id: "learns-examples", 
-    label: "Learns better with examples",
-    description: "Grasps concepts when shown real examples"
+    id: "structured-repetition", 
+    label: "Prefers structured learning with repetition and practice",
+    description: "Thrives with clear schedules, routines, and repeated practice of concepts"
   },
   { 
-    id: "needs-repetition", 
-    label: "Needs repetition and practice",
-    description: "Benefits from practicing concepts multiple times"
+    id: "exploration-discussion", 
+    label: "Learns best through exploration and discussion",
+    description: "Enjoys discovering ideas through conversation and open-ended inquiry"
   },
   { 
-    id: "enjoys-problem-solving", 
-    label: "Enjoys problem-solving",
-    description: "Likes working through challenges independently"
+    id: "visual-demonstrations", 
+    label: "Learns visually through diagrams and demonstrations",
+    description: "Understands better with charts, videos, diagrams, and visual aids"
   },
   { 
-    id: "learns-visually", 
-    label: "Learns visually",
-    description: "Understands better with diagrams, charts, and videos"
-  },
-  { 
-    id: "needs-structure", 
-    label: "Needs structure and routine",
-    description: "Thrives with clear schedules and expectations"
+    id: "problem-solving-application", 
+    label: "Learns through problem-solving and application",
+    description: "Likes working through real challenges and applying concepts hands-on"
   },
 ];
 
@@ -41,7 +36,7 @@ export function LearningStyleObservations({ selectedStyles, onToggle }: Learning
       <div>
         <Label className="text-base font-medium">Preferred Learning Style</Label>
         <p className="text-sm text-muted-foreground mt-1">
-          Select what you've observed — this helps personalize recommendations.
+          Select all that apply — this helps personalize recommendations.
         </p>
       </div>
       
