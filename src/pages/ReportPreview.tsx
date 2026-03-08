@@ -826,6 +826,92 @@ const ReportPreview = () => {
                   );
                 })()}
 
+                {/* D2. Stream Readiness for High School 11-12 */}
+                {analysis && formData.schoolStage === "high" && parseInt(formData.snapshotGrade) >= 11 && (() => {
+                  // Determine stream readiness from selected subjects
+                  const subjects = formData.academicPath || [];
+                  const subjectAnalysis = analysis.subjectAnalysis || [];
+                  
+                  const getReadiness = (keywords: RegExp): "strong" | "moderate" | "preparation" => {
+                    const matched = subjectAnalysis.find(s => keywords.test(s.subject));
+                    if (!matched) return "preparation";
+                    if (matched.alignmentLevel === "strong") return "strong";
+                    if (matched.alignmentLevel === "moderate") return "moderate";
+                    return "preparation";
+                  };
+
+                  const hasSubject = (keywords: RegExp) => subjects.some((s: string) => keywords.test(s));
+
+                  const streamSubjects = [
+                    { name: "Mathematics", check: /math|algebra|calculus|geometry|pre-calculus/i, readiness: getReadiness(/math/i) },
+                    { name: "Physics", check: /physics/i, readiness: hasSubject(/physics/i) ? getReadiness(/physics/i) : "preparation" },
+                    { name: "Chemistry", check: /chemistry/i, readiness: hasSubject(/chemistry/i) ? getReadiness(/chemistry/i) : "preparation" },
+                    { name: "Biology", check: /biology/i, readiness: hasSubject(/biology/i) ? getReadiness(/biology/i) : "preparation" },
+                    { name: "Economics / Commerce", check: /economics|commerce|business/i, readiness: hasSubject(/economics|commerce/i) ? getReadiness(/economics/i) : "preparation" },
+                    { name: "Computer Science", check: /computer|cs|coding/i, readiness: hasSubject(/computer|cs|coding/i) ? getReadiness(/computer/i) : "preparation" },
+                  ].filter(s => hasSubject(s.check) || s.name === "Mathematics");
+
+                  const readinessColors = {
+                    strong: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+                    moderate: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+                    preparation: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800",
+                  };
+                  const readinessLabels = { strong: "Strong Readiness", moderate: "Moderate Readiness", preparation: "Preparation Required" };
+
+                  // Suggest streams
+                  const pcmReady = streamSubjects.filter(s => /math|physics|chemistry/i.test(s.name)).every(s => s.readiness !== "preparation");
+                  const pcbReady = streamSubjects.filter(s => /math|physics|chemistry|biology/i.test(s.name) && !/computer/i.test(s.name)).some(s => /biology/i.test(s.name) && s.readiness !== "preparation");
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Layers className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Recommended Stream Readiness</h3>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Based on your US coursework, here's how your child aligns with Indian Grade 11–12 streams.
+                        SAT/AP courses are treated as rigor indicators.
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {streamSubjects.map((s) => (
+                          <div key={s.name} className={`p-3 rounded-lg border text-center ${readinessColors[s.readiness]}`}>
+                            <div className="text-sm font-semibold">{s.name}</div>
+                            <div className="text-xs mt-1">{readinessLabels[s.readiness]}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Stream suggestion */}
+                      <div className="p-3 bg-muted/30 rounded-lg border border-border">
+                        <div className="text-sm font-medium mb-1">Suggested Stream Alignment</div>
+                        <div className="flex flex-wrap gap-2">
+                          {pcmReady && <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">PCM (Science – Math)</Badge>}
+                          {pcbReady && <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">PCB (Science – Bio)</Badge>}
+                          {hasSubject(/economics|commerce|business/i) && <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0">Commerce</Badge>}
+                          {!pcmReady && !pcbReady && <Badge variant="secondary">Needs further assessment</Badge>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* D3. Social Studies Context for below Grade 10 */}
+                {analysis && formData.schoolStage !== "high" && (() => {
+                  const socialStudy = analysis.subjectAnalysis.find(s => /social|history|civics|geography/i.test(s.subject));
+                  if (!socialStudy || socialStudy.alignmentLevel === "strong") return null;
+                  return (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Social Studies Transition Note</span>
+                      </div>
+                      <p className="text-xs text-blue-700 dark:text-blue-400">
+                        Indian social science covers Indian history, civics & governance, and geography — which differs from US social studies.
+                        A 2–3 month refresher on Indian social science concepts is recommended rather than extensive gap bridging.
+                      </p>
+                    </div>
+                  );
+                })()}
+
                 {/* E. Critical Gaps - Grouped by category */}
                 {analysis && analysis.criticalGaps.length > 0 && (() => {
                   // Group gaps by detected category keywords
