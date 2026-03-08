@@ -723,58 +723,93 @@ const ReportPreview = () => {
                   </div>
                 )}
 
-                {/* D. Coverage Analysis - Simplified */}
-                {analysis && (
+                {/* D. Coverage Analysis - with toggle for subjects needing prep */}
+                {analysis && (() => {
+                  const subjectsNeedingPrep = analysis.subjectAnalysis.filter(s => s.alignmentLevel !== 'strong');
+                  const strongSubjects = analysis.subjectAnalysis.filter(s => s.alignmentLevel === 'strong');
+                  return (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <GraduationCap className="h-5 w-5 text-primary" />
                       <h3 className="text-lg font-semibold">Coverage Analysis</h3>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {analysis.subjectAnalysis.map((subject) => (
-                        <div key={subject.subject} className="p-3 bg-muted/30 rounded-lg border border-border">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-sm">{subject.subject}</span>
-                            {getAlignmentBadge(subject.alignmentLevel)}
+                    
+                    {/* Subjects needing preparation - collapsible */}
+                    {subjectsNeedingPrep.length > 0 && (
+                      <Collapsible defaultOpen={true}>
+                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors">
+                          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                            {subjectsNeedingPrep.length} subject{subjectsNeedingPrep.length !== 1 ? 's' : ''} needing preparation
+                          </span>
+                          <ChevronDown className="h-4 w-4 ml-auto text-amber-600 dark:text-amber-400 transition-transform [[data-state=closed]_&]:rotate-[-90deg]" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                            {subjectsNeedingPrep.map((subject) => (
+                              <div key={subject.subject} className="p-3 bg-muted/30 rounded-lg border border-border">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="font-medium text-sm">{subject.subject}</span>
+                                  {getAlignmentBadge(subject.alignmentLevel)}
+                                </div>
+                                <div className="text-xs text-muted-foreground mb-2">
+                                  Coverage: <span className="font-semibold text-foreground">{subject.topicsCovered}/{subject.totalTopics}</span> topics
+                                </div>
+                                {subject.keyGaps.length > 0 && (
+                                  <div className="space-y-1">
+                                    <div className="text-xs font-medium text-muted-foreground">Key Missing Topics:</div>
+                                    <ul className="text-xs text-muted-foreground space-y-1">
+                                      {subject.keyGaps.slice(0, 3).map((gap, i) => {
+                                        const syllabusRef = isIndiaReadinessGoal(formData.targetGoal) 
+                                          ? getSyllabusReferenceForTopic(gap, subject.subject) 
+                                          : null;
+                                        return (
+                                          <li key={i} className="flex items-start gap-1">
+                                            <span className="mt-0.5">•</span>
+                                            <span className="flex-1">{gap}</span>
+                                            {syllabusRef && (
+                                              <a
+                                                href={syllabusRef.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-0.5 text-primary hover:underline shrink-0 ml-1"
+                                                title={syllabusRef.label}
+                                              >
+                                                <ExternalLink className="h-3 w-3" />
+                                                <span className="sr-only">{syllabusRef.label}</span>
+                                              </a>
+                                            )}
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                          <div className="text-xs text-muted-foreground mb-2">
-                            Coverage: <span className="font-semibold text-foreground">{subject.topicsCovered}/{subject.totalTopics}</span> topics
-                          </div>
-                          {subject.keyGaps.length > 0 && (
-                            <div className="space-y-1">
-                              <div className="text-xs font-medium text-muted-foreground">Key Missing Topics:</div>
-                              <ul className="text-xs text-muted-foreground space-y-1">
-                                {subject.keyGaps.slice(0, 3).map((gap, i) => {
-                                  const syllabusRef = isIndiaReadinessGoal(formData.targetGoal) 
-                                    ? getSyllabusReferenceForTopic(gap, subject.subject) 
-                                    : null;
-                                  return (
-                                    <li key={i} className="flex items-start gap-1">
-                                      <span className="mt-0.5">•</span>
-                                      <span className="flex-1">{gap}</span>
-                                      {syllabusRef && (
-                                        <a
-                                          href={syllabusRef.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-0.5 text-primary hover:underline shrink-0 ml-1"
-                                          title={syllabusRef.label}
-                                        >
-                                          <ExternalLink className="h-3 w-3" />
-                                          <span className="sr-only">{syllabusRef.label}</span>
-                                        </a>
-                                      )}
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            </div>
-                          )}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
+
+                    {/* Strong subjects - compact display */}
+                    {strongSubjects.length > 0 && (
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300">Strong alignment ({strongSubjects.length})</span>
                         </div>
-                      ))}
-                    </div>
+                        <div className="flex flex-wrap gap-2">
+                          {strongSubjects.map((s) => (
+                            <Badge key={s.subject} className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">
+                              {s.subject} — {s.topicsCovered}/{s.totalTopics}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* E. Critical Gaps - Single Bullet List with Soft Red Background */}
                 {analysis && analysis.criticalGaps.length > 0 && (
