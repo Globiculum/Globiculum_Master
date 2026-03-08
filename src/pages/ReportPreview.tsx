@@ -766,19 +766,21 @@ const ReportPreview = () => {
                                         return (
                                           <li key={i} className="flex items-start gap-1">
                                             <span className="mt-0.5">•</span>
-                                            <span className="flex-1">{gap}</span>
-                                            {syllabusRef && (
-                                              <a
-                                                href={syllabusRef.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-0.5 text-primary hover:underline shrink-0 ml-1"
-                                                title={syllabusRef.label}
-                                              >
-                                                <ExternalLink className="h-3 w-3" />
-                                                <span className="sr-only">{syllabusRef.label}</span>
-                                              </a>
-                                            )}
+                                            <span className="flex-1">
+                                              {gap}
+                                              {syllabusRef && (
+                                                <a
+                                                  href={syllabusRef.url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="inline-flex items-center gap-0.5 text-primary hover:underline ml-1 text-[11px]"
+                                                  title={syllabusRef.label}
+                                                >
+                                                  <ExternalLink className="h-3 w-3 inline" />
+                                                  <span>{syllabusRef.label}</span>
+                                                </a>
+                                              )}
+                                            </span>
                                           </li>
                                         );
                                       })}
