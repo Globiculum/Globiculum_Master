@@ -536,15 +536,15 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     return curriculumByStage[formData.schoolStage as keyof typeof curriculumByStage] || [];
   };
 
-   // Grade-band aware subject lists (US Curriculum labels for clarity)
+   // Grade-band aware subject lists (clean labels – US context is in the question text)
   const getSubjectsByGradeBand = () => {
     switch (formData.schoolStage) {
       case "elementary":
         return [
-          "Mathematics (US Curriculum)",
-          "English / Language Arts (US Curriculum)",
-          "Science (US Curriculum)",
-          "Social Studies (US Curriculum)",
+          "Mathematics",
+          "English / Language Arts",
+          "Science",
+          "Social Studies",
           "Art / Creative Studies",
           "Music",
           "Physical Education",
@@ -552,10 +552,10 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         ];
       case "middle":
         return [
-          "Mathematics (US Curriculum)",
-          "Science (US Curriculum)",
-          "English / Language Arts (US Curriculum)",
-          "Social Studies (US Curriculum)",
+          "Mathematics",
+          "Science",
+          "English / Language Arts",
+          "Social Studies",
           "Foreign Language",
           "Elective (Art/Music/Technology)",
         ];
@@ -574,10 +574,10 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         ];
       default:
         return [
-          "Mathematics (US Curriculum)",
-          "Science (US Curriculum)",
-          "English / Language Arts (US Curriculum)",
-          "Social Studies (US Curriculum)",
+          "Mathematics",
+          "Science",
+          "English / Language Arts",
+          "Social Studies",
         ];
     }
   };
@@ -959,8 +959,8 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       
       {/* Subject selection for ALL grade bands including elementary */}
       <div className="space-y-4">
-        <h4 className="font-semibold text-lg">What subjects does the student currently study in their school?</h4>
-        <p className="text-sm text-muted-foreground">These are subjects from the student's current school curriculum.</p>
+        <h4 className="font-semibold text-lg">Which subjects does the student currently study as part of their US school curriculum or transcripts?</h4>
+        <p className="text-sm text-muted-foreground">Select all subjects the student is currently enrolled in at their school.</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {getSubjectsByGradeBand().map((subject) => (
             <button

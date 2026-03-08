@@ -174,9 +174,108 @@ const GRADE_TOPIC_CHAPTERS: Record<string, ChapterRef> = {
   "writing skills": { url: "https://ncert.nic.in/textbook.php?subject=English", label: "NCERT English" },
   "vyakaran": { url: "https://ncert.nic.in/textbook.php?subject=Hindi", label: "NCERT Hindi" },
 
-  // ── Generic subject-level fallbacks ──
-  "algebra": { url: "https://ncert.nic.in/textbook.php?subject=Mathematics", label: "NCERT Mathematics" },
-  "geometry": { url: "https://ncert.nic.in/textbook.php?subject=Mathematics", label: "NCERT Mathematics" },
+  // ── Grade 7 Science ──
+  "nutrition in plants": { url: "https://ncert.nic.in/textbook.php?ghsc1=1-1", label: "NCERT Class 7 Science – Ch 1: Nutrition in Plants" },
+  "heat": { url: "https://ncert.nic.in/textbook.php?ghsc1=4-4", label: "NCERT Class 7 Science – Ch 4: Heat" },
+  "acids bases and salts": { url: "https://ncert.nic.in/textbook.php?ghsc1=5-5", label: "NCERT Class 7 Science – Ch 5: Acids, Bases & Salts" },
+  "weather climate": { url: "https://ncert.nic.in/textbook.php?ghsc1=7-7", label: "NCERT Class 7 Science – Ch 7: Weather, Climate & Adaptations" },
+  "respiration": { url: "https://ncert.nic.in/textbook.php?ghsc1=10-10", label: "NCERT Class 7 Science – Ch 10: Respiration in Organisms" },
+  "electric current": { url: "https://ncert.nic.in/textbook.php?ghsc1=14-14", label: "NCERT Class 7 Science – Ch 14: Electric Current" },
+
+  // ── Grade 8 Science ──
+  "crop production": { url: "https://ncert.nic.in/textbook.php?hesc1=1-1", label: "NCERT Class 8 Science – Ch 1: Crop Production" },
+  "microorganisms": { url: "https://ncert.nic.in/textbook.php?hesc1=2-2", label: "NCERT Class 8 Science – Ch 2: Microorganisms" },
+  "synthetic fibres": { url: "https://ncert.nic.in/textbook.php?hesc1=3-3", label: "NCERT Class 8 Science – Ch 3: Synthetic Fibres & Plastics" },
+  "metals and non-metals": { url: "https://ncert.nic.in/textbook.php?hesc1=4-4", label: "NCERT Class 8 Science – Ch 4: Metals & Non-metals" },
+  "coal and petroleum": { url: "https://ncert.nic.in/textbook.php?hesc1=5-5", label: "NCERT Class 8 Science – Ch 5: Coal & Petroleum" },
+  "combustion": { url: "https://ncert.nic.in/textbook.php?hesc1=6-6", label: "NCERT Class 8 Science – Ch 6: Combustion & Flame" },
+  "cell structure": { url: "https://ncert.nic.in/textbook.php?hesc1=8-8", label: "NCERT Class 8 Science – Ch 8: Cell Structure & Functions" },
+  "force and pressure": { url: "https://ncert.nic.in/textbook.php?hesc1=11-11", label: "NCERT Class 8 Science – Ch 11: Force & Pressure" },
+  "friction": { url: "https://ncert.nic.in/textbook.php?hesc1=12-12", label: "NCERT Class 8 Science – Ch 12: Friction" },
+  "sound class 8": { url: "https://ncert.nic.in/textbook.php?hesc1=13-13", label: "NCERT Class 8 Science – Ch 13: Sound" },
+  "chemical effects of current": { url: "https://ncert.nic.in/textbook.php?hesc1=14-14", label: "NCERT Class 8 Science – Ch 14: Chemical Effects of Electric Current" },
+  "stars and solar system": { url: "https://ncert.nic.in/textbook.php?hesc1=17-17", label: "NCERT Class 8 Science – Ch 17: Stars & Solar System" },
+  "pollution": { url: "https://ncert.nic.in/textbook.php?hesc1=18-18", label: "NCERT Class 8 Science – Ch 18: Pollution of Air & Water" },
+
+  // ── Grade 9 Science ──
+  "matter in our surroundings": { url: "https://ncert.nic.in/textbook.php?iesc1=1-1", label: "NCERT Class 9 Science – Ch 1: Matter in Our Surroundings" },
+  "is matter around us pure": { url: "https://ncert.nic.in/textbook.php?iesc1=2-2", label: "NCERT Class 9 Science – Ch 2: Is Matter Around Us Pure" },
+  "atoms and molecules": { url: "https://ncert.nic.in/textbook.php?iesc1=3-3", label: "NCERT Class 9 Science – Ch 3: Atoms & Molecules" },
+  "structure of atom": { url: "https://ncert.nic.in/textbook.php?iesc1=4-4", label: "NCERT Class 9 Science – Ch 4: Structure of the Atom" },
+  "fundamental unit of life": { url: "https://ncert.nic.in/textbook.php?iesc1=5-5", label: "NCERT Class 9 Science – Ch 5: The Fundamental Unit of Life" },
+  "tissues": { url: "https://ncert.nic.in/textbook.php?iesc1=6-6", label: "NCERT Class 9 Science – Ch 6: Tissues" },
+  "diversity in living organisms": { url: "https://ncert.nic.in/textbook.php?iesc1=7-7", label: "NCERT Class 9 Science – Ch 7: Diversity in Living Organisms" },
+  "motion class 9": { url: "https://ncert.nic.in/textbook.php?iesc1=8-8", label: "NCERT Class 9 Science – Ch 8: Motion" },
+  "force and laws of motion": { url: "https://ncert.nic.in/textbook.php?iesc1=9-9", label: "NCERT Class 9 Science – Ch 9: Force & Laws of Motion" },
+  "gravitation": { url: "https://ncert.nic.in/textbook.php?iesc1=10-10", label: "NCERT Class 9 Science – Ch 10: Gravitation" },
+  "work and energy": { url: "https://ncert.nic.in/textbook.php?iesc1=11-11", label: "NCERT Class 9 Science – Ch 11: Work & Energy" },
+  "sound": { url: "https://ncert.nic.in/textbook.php?iesc1=12-12", label: "NCERT Class 9 Science – Ch 12: Sound" },
+
+  // ── Grade 11 Physics ──
+  "units and measurements": { url: "https://ncert.nic.in/textbook.php?keph1=2-2", label: "NCERT Class 11 Physics – Ch 2: Units & Measurements" },
+  "motion in a straight line": { url: "https://ncert.nic.in/textbook.php?keph1=3-3", label: "NCERT Class 11 Physics – Ch 3: Motion in a Straight Line" },
+  "laws of motion": { url: "https://ncert.nic.in/textbook.php?keph1=5-5", label: "NCERT Class 11 Physics – Ch 5: Laws of Motion" },
+  "work energy power": { url: "https://ncert.nic.in/textbook.php?keph1=6-6", label: "NCERT Class 11 Physics – Ch 6: Work, Energy & Power" },
+  "rotational motion": { url: "https://ncert.nic.in/textbook.php?keph1=7-7", label: "NCERT Class 11 Physics – Ch 7: System of Particles & Rotational Motion" },
+  "mechanical properties": { url: "https://ncert.nic.in/textbook.php?keph1=9-9", label: "NCERT Class 11 Physics – Ch 9: Mechanical Properties of Solids" },
+  "thermodynamics": { url: "https://ncert.nic.in/textbook.php?keph2=12-12", label: "NCERT Class 11 Physics – Ch 12: Thermodynamics" },
+  "waves": { url: "https://ncert.nic.in/textbook.php?keph2=15-15", label: "NCERT Class 11 Physics – Ch 15: Waves" },
+  "oscillations": { url: "https://ncert.nic.in/textbook.php?keph2=14-14", label: "NCERT Class 11 Physics – Ch 14: Oscillations" },
+
+  // ── Grade 11 Chemistry ──
+  "some basic concepts of chemistry": { url: "https://ncert.nic.in/textbook.php?kech1=1-1", label: "NCERT Class 11 Chemistry – Ch 1: Some Basic Concepts" },
+  "structure of atom class 11": { url: "https://ncert.nic.in/textbook.php?kech1=2-2", label: "NCERT Class 11 Chemistry – Ch 2: Structure of Atom" },
+  "classification of elements": { url: "https://ncert.nic.in/textbook.php?kech1=3-3", label: "NCERT Class 11 Chemistry – Ch 3: Classification of Elements" },
+  "chemical bonding": { url: "https://ncert.nic.in/textbook.php?kech1=4-4", label: "NCERT Class 11 Chemistry – Ch 4: Chemical Bonding" },
+  "states of matter": { url: "https://ncert.nic.in/textbook.php?kech1=5-5", label: "NCERT Class 11 Chemistry – Ch 5: States of Matter" },
+  "equilibrium": { url: "https://ncert.nic.in/textbook.php?kech1=7-7", label: "NCERT Class 11 Chemistry – Ch 7: Equilibrium" },
+  "redox reactions": { url: "https://ncert.nic.in/textbook.php?kech1=8-8", label: "NCERT Class 11 Chemistry – Ch 8: Redox Reactions" },
+  "organic chemistry basics": { url: "https://ncert.nic.in/textbook.php?kech2=12-12", label: "NCERT Class 11 Chemistry – Ch 12: Organic Chemistry Basics" },
+  "hydrocarbons": { url: "https://ncert.nic.in/textbook.php?kech2=13-13", label: "NCERT Class 11 Chemistry – Ch 13: Hydrocarbons" },
+
+  // ── Keyword aliases for common AI-generated gap terms ──
+  "fraction": { url: "https://ncert.nic.in/textbook.php?fhma1=7-7", label: "NCERT Class 6 Math – Ch 7: Fractions" },
+  "integer": { url: "https://ncert.nic.in/textbook.php?fhma1=6-6", label: "NCERT Class 6 Math – Ch 6: Integers" },
+  "decimal": { url: "https://ncert.nic.in/textbook.php?fhma1=8-8", label: "NCERT Class 6 Math – Ch 8: Decimals" },
+  "ratio": { url: "https://ncert.nic.in/textbook.php?fhma1=12-12", label: "NCERT Class 6 Math – Ch 12: Ratio & Proportion" },
+  "proportion": { url: "https://ncert.nic.in/textbook.php?fhma1=12-12", label: "NCERT Class 6 Math – Ch 12: Ratio & Proportion" },
+  "percentage": { url: "https://ncert.nic.in/textbook.php?ghma1=8-8", label: "NCERT Class 7 Math – Ch 8: Comparing Quantities" },
+  "profit and loss": { url: "https://ncert.nic.in/textbook.php?ghma1=8-8", label: "NCERT Class 7 Math – Ch 8: Comparing Quantities" },
+  "simple interest": { url: "https://ncert.nic.in/textbook.php?ghma1=8-8", label: "NCERT Class 7 Math – Ch 8: Comparing Quantities" },
+  "compound interest": { url: "https://ncert.nic.in/textbook.php?hemh1=8-8", label: "NCERT Class 8 Math – Ch 8: Comparing Quantities" },
+  "quadratic equation": { url: "https://ncert.nic.in/textbook.php?jemh1=4-4", label: "NCERT Class 10 Math – Ch 4: Quadratic Equations" },
+  "linear equation": { url: "https://ncert.nic.in/textbook.php?jemh1=3-3", label: "NCERT Class 10 Math – Ch 3: Pair of Linear Equations" },
+  "triangle": { url: "https://ncert.nic.in/textbook.php?jemh1=6-6", label: "NCERT Class 10 Math – Ch 6: Triangles" },
+  "circle": { url: "https://ncert.nic.in/textbook.php?jemh1=10-10", label: "NCERT Class 10 Math – Ch 10: Circles" },
+  "trigonometric": { url: "https://ncert.nic.in/textbook.php?jemh1=8-8", label: "NCERT Class 10 Math – Ch 8: Introduction to Trigonometry" },
+  "area and volume": { url: "https://ncert.nic.in/textbook.php?jemh1=13-13", label: "NCERT Class 10 Math – Ch 13: Surface Areas & Volumes" },
+  "surface areas and volumes": { url: "https://ncert.nic.in/textbook.php?jemh1=13-13", label: "NCERT Class 10 Math – Ch 13: Surface Areas & Volumes" },
+  "ap sequence": { url: "https://ncert.nic.in/textbook.php?jemh1=5-5", label: "NCERT Class 10 Math – Ch 5: Arithmetic Progressions" },
+  "chemical reaction": { url: "https://ncert.nic.in/textbook.php?jesc1=1-1", label: "NCERT Class 10 Science – Ch 1: Chemical Reactions & Equations" },
+  "acid": { url: "https://ncert.nic.in/textbook.php?jesc1=2-2", label: "NCERT Class 10 Science – Ch 2: Acids, Bases & Salts" },
+  "periodic table": { url: "https://ncert.nic.in/textbook.php?jesc1=5-5", label: "NCERT Class 10 Science – Ch 5: Periodic Classification" },
+  "heredity": { url: "https://ncert.nic.in/textbook.php?jesc1=9-9", label: "NCERT Class 10 Science – Ch 9: Heredity & Evolution" },
+  "magnetic": { url: "https://ncert.nic.in/textbook.php?jesc1=13-13", label: "NCERT Class 10 Science – Ch 13: Magnetic Effects" },
+  "newton": { url: "https://ncert.nic.in/textbook.php?iesc1=9-9", label: "NCERT Class 9 Science – Ch 9: Force & Laws of Motion" },
+  "force": { url: "https://ncert.nic.in/textbook.php?iesc1=9-9", label: "NCERT Class 9 Science – Ch 9: Force & Laws of Motion" },
+  "motion": { url: "https://ncert.nic.in/textbook.php?iesc1=8-8", label: "NCERT Class 9 Science – Ch 8: Motion" },
+  "atom": { url: "https://ncert.nic.in/textbook.php?iesc1=4-4", label: "NCERT Class 9 Science – Ch 4: Structure of the Atom" },
+  "molecule": { url: "https://ncert.nic.in/textbook.php?iesc1=3-3", label: "NCERT Class 9 Science – Ch 3: Atoms & Molecules" },
+  "matrix": { url: "https://ncert.nic.in/textbook.php?lemh1=3-3", label: "NCERT Class 12 Math – Ch 3: Matrices" },
+  "determinant": { url: "https://ncert.nic.in/textbook.php?lemh1=4-4", label: "NCERT Class 12 Math – Ch 4: Determinants" },
+  "integral": { url: "https://ncert.nic.in/textbook.php?lemh1=7-7", label: "NCERT Class 12 Math – Ch 7: Integrals" },
+  "derivative": { url: "https://ncert.nic.in/textbook.php?lemh1=5-5", label: "NCERT Class 12 Math – Ch 5: Continuity & Differentiability" },
+  "vector": { url: "https://ncert.nic.in/textbook.php?lemh2=10-10", label: "NCERT Class 12 Math – Ch 10: Vector Algebra" },
+  "permutation": { url: "https://ncert.nic.in/textbook.php?kemh1=7-7", label: "NCERT Class 11 Math – Ch 7: Permutations & Combinations" },
+  "combination": { url: "https://ncert.nic.in/textbook.php?kemh1=7-7", label: "NCERT Class 11 Math – Ch 7: Permutations & Combinations" },
+  "set theory": { url: "https://ncert.nic.in/textbook.php?kemh1=1-1", label: "NCERT Class 11 Math – Ch 1: Sets" },
+  "limit": { url: "https://ncert.nic.in/textbook.php?kemh1=13-13", label: "NCERT Class 11 Math – Ch 13: Limits & Derivatives" },
+
+  // ── Generic subject-level fallbacks (Khan Academy for broader coverage) ──
+  "algebra": { url: "https://www.khanacademy.org/math/algebra", label: "Khan Academy – Algebra" },
+  "geometry": { url: "https://www.khanacademy.org/math/geometry", label: "Khan Academy – Geometry" },
+  "pre-calculus": { url: "https://www.khanacademy.org/math/precalculus", label: "Khan Academy – Pre-Calculus" },
+  "arithmetic": { url: "https://www.khanacademy.org/math/arithmetic", label: "Khan Academy – Arithmetic" },
 };
 
 // CBSE official syllabus URLs by class
@@ -203,14 +302,38 @@ export function getSyllabusReferenceForTopic(topic: string, subject?: string): S
   const normalizedTopic = topic.toLowerCase().trim();
   const normalizedSubject = subject?.toLowerCase().trim() || "";
   
-  // First, check for specific topic/chapter matches
+  // 1. Exact keyword match in topic-chapter mapping
   for (const [keyword, reference] of Object.entries(GRADE_TOPIC_CHAPTERS)) {
     if (normalizedTopic.includes(keyword.toLowerCase())) {
       return reference;
     }
   }
-  
-  // If no specific topic match, try subject-based URL
+
+  // 2. Try matching individual words from the topic (3+ chars) against chapter keywords
+  const topicWords = normalizedTopic.split(/[\s,\-\/&]+/).filter(w => w.length >= 3);
+  for (const word of topicWords) {
+    for (const [keyword, reference] of Object.entries(GRADE_TOPIC_CHAPTERS)) {
+      if (keyword.toLowerCase().includes(word) && word.length >= 4) {
+        return reference;
+      }
+    }
+  }
+
+  // 3. Khan Academy concept fallback based on subject context
+  const kaFallbacks: Record<string, SyllabusReference> = {
+    mathematics: { url: "https://www.khanacademy.org/math", label: "Khan Academy – Mathematics" },
+    math: { url: "https://www.khanacademy.org/math", label: "Khan Academy – Mathematics" },
+    science: { url: "https://www.khanacademy.org/science", label: "Khan Academy – Science" },
+    physics: { url: "https://www.khanacademy.org/science/physics", label: "Khan Academy – Physics" },
+    chemistry: { url: "https://www.khanacademy.org/science/chemistry", label: "Khan Academy – Chemistry" },
+    biology: { url: "https://www.khanacademy.org/science/biology", label: "Khan Academy – Biology" },
+  };
+
+  if (normalizedSubject && kaFallbacks[normalizedSubject]) {
+    return kaFallbacks[normalizedSubject];
+  }
+
+  // 4. Try subject-based NCERT URL as last resort
   if (normalizedSubject && NCERT_SUBJECT_URLS[normalizedSubject]) {
     return {
       url: NCERT_SUBJECT_URLS[normalizedSubject],
@@ -218,14 +341,14 @@ export function getSyllabusReferenceForTopic(topic: string, subject?: string): S
     };
   }
   
-  // Check if topic text contains subject keywords
+  // 5. Check if topic text contains subject keywords
   for (const [subjectKey, url] of Object.entries(NCERT_SUBJECT_URLS)) {
     if (normalizedTopic.includes(subjectKey)) {
       return { url, label: `NCERT ${subjectKey.charAt(0).toUpperCase() + subjectKey.slice(1)} Textbooks` };
     }
   }
   
-  // No reliable reference found
+  // No reliable reference found — return null instead of generic page
   return null;
 }
 
