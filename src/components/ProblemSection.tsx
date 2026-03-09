@@ -19,10 +19,9 @@ const ProblemSection = () => {
         </div>
 
         <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-8">
-
+          <div className="flex flex-col lg:flex-row items-stretch gap-6">
             {/* Indian Curriculum */}
-            <Card className="bg-card border-2 border-primary/20 shadow-strong hover:shadow-medium transition-all duration-300">
+            <Card className="flex-1 bg-card border-2 border-primary/20 shadow-strong hover:shadow-medium transition-all duration-300">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-primary p-3 rounded-xl">
@@ -55,19 +54,19 @@ const ProblemSection = () => {
               </CardContent>
             </Card>
 
-            {/* Bridge icon between cards */}
-            <div className="flex justify-center items-center lg:col-span-2 py-4">
-              <div className="bg-card rounded-full p-5 shadow-strong border-4 border-background">
+            {/* Bridge icon */}
+            <div className="flex items-center justify-center shrink-0 py-2 lg:py-0">
+              <div className="bg-card rounded-full p-3 shadow-medium border-2 border-border">
                 <img
                   src={bridgeIcon}
                   alt="Educational bridge connecting pathways"
-                  className="w-16 h-16 object-contain"
+                  className="w-10 h-10 object-contain"
                 />
               </div>
             </div>
 
             {/* Global Curriculum */}
-            <Card className="bg-card border-2 border-secondary/20 shadow-strong hover:shadow-medium transition-all duration-300">
+            <Card className="flex-1 bg-card border-2 border-secondary/20 shadow-strong hover:shadow-medium transition-all duration-300">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-secondary p-3 rounded-xl">
