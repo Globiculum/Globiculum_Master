@@ -18,18 +18,9 @@ const ProblemSection = () => {
           </p>
         </div>
 
-        <div className="relative max-w-6xl mx-auto">
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 hidden lg:block">
-            <div className="bg-card rounded-full p-6 shadow-strong border-4 border-background">
-              <img
-                src={bridgeIcon}
-                alt="Educational bridge connecting pathways"
-                className="w-20 h-20 object-contain"
-              />
-            </div>
-          </div>
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-8">
 
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
             {/* Indian Curriculum */}
             <Card className="bg-card border-2 border-primary/20 shadow-strong hover:shadow-medium transition-all duration-300">
               <CardHeader>
