@@ -55,6 +55,17 @@ const ProblemSection = () => {
               </CardContent>
             </Card>
 
+            {/* Bridge icon between cards */}
+            <div className="flex justify-center items-center lg:col-span-2 py-4">
+              <div className="bg-card rounded-full p-5 shadow-strong border-4 border-background">
+                <img
+                  src={bridgeIcon}
+                  alt="Educational bridge connecting pathways"
+                  className="w-16 h-16 object-contain"
+                />
+              </div>
+            </div>
+
             {/* Global Curriculum */}
             <Card className="bg-card border-2 border-secondary/20 shadow-strong hover:shadow-medium transition-all duration-300">
               <CardHeader>
