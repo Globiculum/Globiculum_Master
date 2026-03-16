@@ -224,7 +224,7 @@ const Header = ({ children }: HeaderProps = {}) => {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="block px-3 py-3 rounded-md text-foreground hover:bg-accent/10 transition-colors font-medium"
+                    className="block px-3 py-3 rounded-md text-primary-foreground/80 hover:text-secondary hover:bg-primary-foreground/10 transition-colors font-medium"
                   >
                     {link.label}
                   </a>
