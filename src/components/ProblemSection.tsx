@@ -83,7 +83,7 @@ const ProblemSection = () => {
                 </p>
                 <div className="space-y-3">
                   {[
-                    { title: "SAT / AP Preparation", desc: "Strategic readiness for global college admissions success" },
+                    { title: "University Entrance Test / AP Preparation", desc: "Strategic readiness for global college admissions success" },
                     { title: "Critical Thinking & Creativity", desc: "Project-based, inquiry-led learning approaches" },
                     { title: "Global Competitiveness", desc: "Skills that travel, whichever country they live in next" },
                   ].map((item) => (

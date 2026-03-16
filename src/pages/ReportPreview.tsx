@@ -870,7 +870,7 @@ const ReportPreview = () => {
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Based on your US coursework, here's how your child aligns with Indian Grade 11–12 streams.
-                        SAT/AP courses are treated as rigor indicators.
+                        University Entrance Test/AP courses are treated as rigor indicators.
                       </p>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {streamSubjects.map((s) => (

@@ -212,9 +212,9 @@ const Header = ({ children }: HeaderProps = {}) => {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[280px] bg-background">
+            <SheetContent side="right" className="w-[280px] bg-primary border-l-primary-glow">
               <SheetHeader>
-                <SheetTitle className="flex items-center gap-2 text-foreground">
+                <SheetTitle className="flex items-center gap-2 text-primary-foreground">
                   <img src={globiculumLogo} alt="Globiculum" className="h-8 w-auto" />
                 </SheetTitle>
               </SheetHeader>
@@ -224,7 +224,7 @@ const Header = ({ children }: HeaderProps = {}) => {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="block px-3 py-3 rounded-md text-foreground hover:bg-accent/10 transition-colors font-medium"
+                    className="block px-3 py-3 rounded-md text-primary-foreground/80 hover:text-secondary hover:bg-primary-foreground/10 transition-colors font-medium"
                   >
                     {link.label}
                   </a>
@@ -238,7 +238,7 @@ const Header = ({ children }: HeaderProps = {}) => {
                       handleSignOut();
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full"
+                    className="w-full border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out

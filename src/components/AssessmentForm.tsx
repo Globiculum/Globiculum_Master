@@ -1289,14 +1289,14 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
           
           <div>
             <button
-              onClick={() => handleArrayToggle("academicPath", "SAT Prep")}
+              onClick={() => handleArrayToggle("academicPath", "University Entrance Test Prep")}
               className={`w-full p-4 rounded-lg border-2 transition-all font-medium ${
-                formData.academicPath.includes("SAT Prep")
+                formData.academicPath.includes("University Entrance Test Prep")
                   ? "border-primary bg-primary/5 text-primary"
                   : "border-border bg-card hover:border-primary/50"
               }`}
             >
-              SAT Prep (Scholastic Assessment Test)
+              University Entrance Test Prep
             </button>
           </div>
           

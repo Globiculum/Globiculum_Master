@@ -13,13 +13,13 @@ const HeroSection = () => {
             <p className="text-lg md:text-xl text-accent font-semibold tracking-wide uppercase">
               Don't Let the Move Set Your Child Behind
             </p>
-            <h1 className="text-4xl md:text-6xl font-bold leading-tight text-primary-foreground">
+            <h1 className="text-4xl md:text-6xl font-bold leading-snug md:leading-snug text-primary-foreground text-center">
               Bridge Your Child's Education
               <br />
               Between{" "}
               <TypewriterCycle />
             </h1>
-            <p className="text-lg md:text-xl text-primary-foreground/85 leading-relaxed max-w-3xl mx-auto">
+            <p className="text-lg md:text-xl text-primary-foreground/85 leading-relaxed max-w-3xl mx-auto text-center">
               Seamless academic transitions to India — Globiculum ensures a seamless shift with tailored gap analysis and customized learning pathways designed for long-term success.
             </p>
           </div>
