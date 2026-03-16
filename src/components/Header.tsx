@@ -212,7 +212,7 @@ const Header = ({ children }: HeaderProps = {}) => {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[280px] bg-background">
+            <SheetContent side="right" className="w-[280px] bg-primary border-l-primary-glow">
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2 text-foreground">
                   <img src={globiculumLogo} alt="Globiculum" className="h-8 w-auto" />
