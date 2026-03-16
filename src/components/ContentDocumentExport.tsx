@@ -199,7 +199,7 @@ const ContentDocumentExport = () => {
               createBulletPoint("Target Indian Board (CBSE, ICSE, State Board, IB, IGCSE)"),
               createBulletPoint("Transition Timeline (Immediate to 2+ years)"),
               createBulletPoint("Primary Concerns (multi-select)"),
-              createBulletPoint("Preparation Goals (SAT, ACT, JEE, NEET, Olympiads, etc.)"),
+              createBulletPoint("Preparation Goals (University Entrance Test, ACT, JEE, NEET, Olympiads, etc.)"),
               createSpacer(),
 
               // Section 6: Navigation & Footer

@@ -238,7 +238,7 @@ const Header = ({ children }: HeaderProps = {}) => {
                       handleSignOut();
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full"
+                    className="w-full border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out

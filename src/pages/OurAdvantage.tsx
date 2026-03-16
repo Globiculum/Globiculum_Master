@@ -36,7 +36,7 @@ const features = [
   {
     icon: Trophy,
     title: "Dual-Prep Excellence",
-    description: "Simultaneous preparation for US SAT/AP and Indian Board exams with proven methodologies.",
+    description: "Simultaneous preparation for US University Entrance Test/AP and Indian Board exams with proven methodologies.",
     color: "text-primary",
     badge: "Competitive Edge"
   },
