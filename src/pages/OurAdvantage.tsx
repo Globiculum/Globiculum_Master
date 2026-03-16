@@ -8,7 +8,7 @@ const features = [
   {
     icon: Brain,
     title: "AI Curriculum Gap Mapping",
-    description: "Intelligent analysis of US ↔ India ↔ SAT/AP gaps with personalized bridge recommendations.",
+    description: "Intelligent analysis of US ↔ India ↔ University Entrance Test/AP gaps with personalized bridge recommendations.",
     color: "text-primary",
     badge: "AI-Powered"
   },
