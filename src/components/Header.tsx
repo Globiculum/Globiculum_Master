@@ -214,7 +214,7 @@ const Header = ({ children }: HeaderProps = {}) => {
             </SheetTrigger>
             <SheetContent side="right" className="w-[280px] bg-primary border-l-primary-glow">
               <SheetHeader>
-                <SheetTitle className="flex items-center gap-2 text-foreground">
+                <SheetTitle className="flex items-center gap-2 text-primary-foreground">
                   <img src={globiculumLogo} alt="Globiculum" className="h-8 w-auto" />
                 </SheetTitle>
               </SheetHeader>
