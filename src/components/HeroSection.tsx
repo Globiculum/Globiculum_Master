@@ -10,6 +10,15 @@ const HeroSection = () => {
 
       <div className="container mx-auto px-4 relative">
         <div className="max-w-4xl mx-auto text-center space-y-8">
+          <div className="mb-4">
+            <img
+              src={heroImage}
+              alt="Globiculum - Bridging Western and Indian classrooms for seamless academic transitions"
+              className="w-full max-w-4xl mx-auto rounded-2xl shadow-lg"
+              loading="eager"
+            />
+          </div>
+
           <div className="space-y-6">
             <p className="text-lg md:text-xl text-accent font-semibold tracking-wide uppercase">
               Don't Let the Move Set Your Child Behind
@@ -44,15 +53,6 @@ const HeroSection = () => {
             >
               <a href="#how-it-works">How It Works</a>
             </Button>
-          </div>
-
-          <div className="mt-12">
-            <img
-              src={heroImage}
-              alt="Globiculum - Bridging Western and Indian classrooms for seamless academic transitions"
-              className="w-full max-w-4xl mx-auto rounded-2xl shadow-lg"
-              loading="eager"
-            />
           </div>
         </div>
       </div>
