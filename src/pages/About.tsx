@@ -8,10 +8,10 @@ const About = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16 space-y-4">
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground">
+      <section className="py-12 sm:py-16 md:py-20 bg-muted/30">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 sm:mb-16 space-y-4">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight">
               About <span className="text-secondary">Globiculum</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
