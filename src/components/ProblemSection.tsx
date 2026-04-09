@@ -102,12 +102,12 @@ const ProblemSection = () => {
         </div>
 
         {/* Traditional vs Globiculum Comparison */}
-        <div className="mt-20">
-          <div className="text-center mb-10">
+        <div className="mt-12 sm:mt-16 md:mt-20">
+          <div className="text-center mb-8 sm:mb-10">
             <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3">
               Why Choose Globiculum
             </p>
-            <h3 className="text-2xl md:text-4xl font-bold mb-3 text-foreground">Traditional vs. Globiculum</h3>
+            <h3 className="text-xl sm:text-2xl md:text-4xl font-bold mb-3 text-foreground leading-tight">Traditional vs. Globiculum</h3>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Traditional approaches treat every child the same. Globiculum starts from where they actually are, not where the textbook assumes.
             </p>
