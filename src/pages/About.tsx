@@ -37,7 +37,7 @@ const About = () => {
           </div>
           
           {/* Values Grid */}
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
             <Card className="bg-card border border-border shadow-soft hover:shadow-strong transition-all duration-300">
               <CardHeader>
                 <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4">
