@@ -33,13 +33,13 @@ const steps = [
 
 const HowItWorksSection = () => {
   return (
-    <section id="how-it-works" className="py-20 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-14 max-w-3xl mx-auto">
+    <section id="how-it-works" className="py-12 sm:py-16 md:py-20 bg-muted/30">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="text-center mb-8 sm:mb-14 max-w-3xl mx-auto">
           <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3">
             Simple · Fast · Personalised
           </p>
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
             From signup to study plan in under 10 minutes
           </h2>
           <p className="text-lg text-muted-foreground">
