@@ -54,12 +54,12 @@ const OurAdvantage = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16 space-y-4">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Sparkles className="h-10 w-10 text-secondary" />
-              <h1 className="text-4xl md:text-5xl font-bold text-foreground">
+      <section className="py-12 sm:py-16 md:py-20 bg-muted/30">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 sm:mb-16 space-y-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
+              <Sparkles className="h-8 w-8 sm:h-10 sm:w-10 text-secondary" />
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight">
                 What Makes <span className="text-secondary">Globiculum</span> Unique
               </h1>
             </div>
