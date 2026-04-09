@@ -30,18 +30,18 @@ const TestimonialsSection = () => {
   ];
 
   return (
-    <section className="py-20 bg-background">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-14 max-w-3xl mx-auto">
+    <section className="py-12 sm:py-16 md:py-20 bg-background">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="text-center mb-8 sm:mb-14 max-w-3xl mx-auto">
           <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3">
             Parent Stories
           </p>
-          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-foreground">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 text-foreground leading-tight">
             Real families. Real transitions. Real relief.
           </h2>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
           {testimonials.map((testimonial, index) => (
             <Card
               key={index}

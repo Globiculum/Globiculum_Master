@@ -8,10 +8,10 @@ const About = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16 space-y-4">
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground">
+      <section className="py-12 sm:py-16 md:py-20 bg-muted/30">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 sm:mb-16 space-y-4">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight">
               About <span className="text-secondary">Globiculum</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
@@ -37,7 +37,7 @@ const About = () => {
           </div>
           
           {/* Values Grid */}
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
             <Card className="bg-card border border-border shadow-soft hover:shadow-strong transition-all duration-300">
               <CardHeader>
                 <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4">
@@ -84,10 +84,10 @@ const About = () => {
       </section>
 
       {/* People & Advisors Section */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 sm:mb-16 space-y-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground leading-tight">
               People behind our vision & mission
             </h2>
           </div>
@@ -97,7 +97,7 @@ const About = () => {
             <h3 className="text-2xl font-semibold mb-8 text-center text-primary">
               Core Team — People behind the vision & mission
             </h3>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <Card key={i} className="bg-card border border-border shadow-soft text-center p-6">
                   <div className="w-20 h-20 bg-muted rounded-full mx-auto mb-4 flex items-center justify-center">
@@ -142,7 +142,7 @@ const About = () => {
             <h3 className="text-2xl font-semibold mb-8 text-center text-secondary">
               Our Tech Support / Technical Guru(s)
             </h3>
-            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto">
               {[
                 { role: "Technical Lead", tagline: "Platform architecture & scalability" },
                 { role: "Platform Architect", tagline: "System design & integration" },
@@ -165,7 +165,7 @@ const About = () => {
             <h3 className="text-2xl font-semibold mb-8 text-center text-accent">
               Our Advisors
             </h3>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 max-w-5xl mx-auto">
               {[
                 "Strategic Growth Advisor",
                 "Finance & Operations Advisor",

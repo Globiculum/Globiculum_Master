@@ -57,18 +57,18 @@ const stats = [
 
 const ResultsSection = () => {
   return (
-    <section className="py-20 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-14 max-w-3xl mx-auto">
+    <section className="py-12 sm:py-16 md:py-20 bg-muted/30">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="text-center mb-8 sm:mb-14 max-w-3xl mx-auto">
           <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3">
             Results that speak
           </p>
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
             What families report after using Globiculum
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
           {stats.map((stat) => (
             <Card
               key={stat.label}

@@ -42,12 +42,12 @@ const faqs = [
 
 const FAQSection = () => {
   return (
-    <section className="py-20 bg-background" id="faq">
-      <div className="container mx-auto px-4 max-w-3xl">
+    <section className="py-12 sm:py-16 md:py-20 bg-background" id="faq">
+      <div className="container mx-auto px-4 sm:px-6 max-w-3xl">
         <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3 text-center">
           Questions parents ask us
         </p>
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-2 text-foreground">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-2 text-foreground leading-tight">
           Everything you need to know before you get started.
         </h2>
         <p className="text-center text-muted-foreground mb-10">
