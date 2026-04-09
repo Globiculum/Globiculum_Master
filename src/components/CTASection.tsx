@@ -13,9 +13,9 @@ const bullets = [
 
 const CTASection = () => {
   return (
-    <section className="py-20 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <Card className="max-w-4xl mx-auto bg-gradient-hero text-primary-foreground border-0 shadow-strong p-12">
+    <section className="py-12 sm:py-16 md:py-20 bg-muted/30">
+      <div className="container mx-auto px-4 sm:px-6">
+        <Card className="max-w-4xl mx-auto bg-gradient-hero text-primary-foreground border-0 shadow-strong p-6 sm:p-8 md:p-12">
           <div className="text-center space-y-6">
             <p className="text-secondary font-semibold text-sm uppercase tracking-wider">
               Free to start · No credit card needed
