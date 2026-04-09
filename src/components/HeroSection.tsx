@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import TypewriterCycle from "@/components/TypewriterCycle";
+import heroImage from "@/assets/Hero_image.png";
 
 const HeroSection = () => {
   return (
