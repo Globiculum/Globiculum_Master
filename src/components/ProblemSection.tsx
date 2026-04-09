@@ -4,13 +4,13 @@ import bridgeIcon from "@/assets/bridge-icon.png";
 
 const ProblemSection = () => {
   return (
-    <section className="py-20 bg-background">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
+    <section className="py-12 sm:py-16 md:py-20 bg-background">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="text-center mb-8 sm:mb-12">
           <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3">
             The Globiculum Difference
           </p>
-          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-foreground">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 text-foreground leading-tight">
             Your child doesn't have to choose between two worlds.
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
