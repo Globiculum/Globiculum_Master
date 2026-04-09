@@ -2,9 +2,9 @@ import globiculumLogo from "@/assets/globiculum-logo.png";
 
 const Footer = () => {
   return (
-    <footer className="bg-primary border-t border-primary-glow py-12">
-      <div className="container mx-auto px-4">
-        <div className="grid md:grid-cols-4 gap-8">
+    <footer className="bg-primary border-t border-primary-glow py-8 sm:py-12">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
           {/* Brand */}
           <div className="space-y-4">
             <img src={globiculumLogo} alt="Globiculum" className="h-12 w-auto" />
