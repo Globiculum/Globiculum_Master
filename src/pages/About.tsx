@@ -84,10 +84,10 @@ const About = () => {
       </section>
 
       {/* People & Advisors Section */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+      <section className="py-12 sm:py-16 md:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 sm:mb-16 space-y-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground leading-tight">
               People behind our vision & mission
             </h2>
           </div>
