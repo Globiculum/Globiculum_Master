@@ -3,13 +3,13 @@ import { AlertTriangle, BookOpen, Clock } from "lucide-react";
 
 const ChallengeSection = () => {
   return (
-    <section className="py-20 bg-background">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12 max-w-3xl mx-auto">
+    <section className="py-12 sm:py-16 md:py-20 bg-background">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="text-center mb-8 sm:mb-12 max-w-3xl mx-auto">
           <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3">
             The challenge families face
           </p>
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-6">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-foreground mb-4 sm:mb-6 leading-tight">
             Every year, thousands of children land in India academically unprepared.
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
