@@ -11,9 +11,9 @@ const stats = [
 
 const AboutSection = () => {
   return (
-    <section id="about" className="py-16 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
+    <section id="about" className="py-10 sm:py-12 md:py-16 bg-muted/30">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="flex flex-wrap justify-center gap-3 sm:gap-4 max-w-5xl mx-auto">
           {stats.map((s) => (
             <Card
               key={s.label}

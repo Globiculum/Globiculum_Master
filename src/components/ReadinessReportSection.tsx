@@ -13,10 +13,10 @@ const ReadinessReportSection = () => {
 
   return (
     <>
-      <section className="py-16 md:py-24 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center space-y-4 mb-10">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground leading-snug">
+      <section className="py-12 sm:py-16 md:py-24 bg-muted/30">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-4xl mx-auto text-center space-y-3 sm:space-y-4 mb-8 sm:mb-10">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground leading-tight sm:leading-snug">
               Sample Transition Readiness Report
             </h2>
             <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">

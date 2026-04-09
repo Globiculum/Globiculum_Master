@@ -20,7 +20,7 @@ const CTASection = () => {
             <p className="text-secondary font-semibold text-sm uppercase tracking-wider">
               Free to start · No credit card needed
             </p>
-            <h2 className="text-3xl md:text-4xl font-bold">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight">
               In 5 minutes, know exactly where your child stands.
             </h2>
             <p className="text-lg text-primary-foreground/85 max-w-2xl mx-auto">

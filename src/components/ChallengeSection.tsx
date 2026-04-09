@@ -17,7 +17,7 @@ const ChallengeSection = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
           <Card className="bg-card border border-border shadow-soft hover:shadow-medium transition-all duration-300">
             <CardContent className="p-8">
               <div className="bg-destructive/10 p-3 rounded-xl w-fit mb-5">

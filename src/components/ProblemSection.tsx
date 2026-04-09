@@ -113,7 +113,7 @@ const ProblemSection = () => {
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
             <Card className="bg-card border-2 border-destructive/20">
               <CardHeader>
                 <div className="flex items-center gap-2 mb-2">

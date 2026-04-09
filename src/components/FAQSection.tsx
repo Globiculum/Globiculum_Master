@@ -47,7 +47,7 @@ const FAQSection = () => {
         <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3 text-center">
           Questions parents ask us
         </p>
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-2 text-foreground">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-2 text-foreground leading-tight">
           Everything you need to know before you get started.
         </h2>
         <p className="text-center text-muted-foreground mb-10">
