@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import TypewriterCycle from "@/components/TypewriterCycle";
+import heroImage from "@/assets/Hero_image.png";
 
 const HeroSection = () => {
   return (
@@ -43,6 +44,15 @@ const HeroSection = () => {
             >
               <a href="#how-it-works">How It Works</a>
             </Button>
+          </div>
+
+          <div className="mt-12">
+            <img
+              src={heroImage}
+              alt="Globiculum - Bridging Western and Indian classrooms for seamless academic transitions"
+              className="w-full max-w-4xl mx-auto rounded-2xl shadow-lg"
+              loading="eager"
+            />
           </div>
         </div>
       </div>
