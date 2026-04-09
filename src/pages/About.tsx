@@ -97,7 +97,7 @@ const About = () => {
             <h3 className="text-2xl font-semibold mb-8 text-center text-primary">
               Core Team — People behind the vision & mission
             </h3>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <Card key={i} className="bg-card border border-border shadow-soft text-center p-6">
                   <div className="w-20 h-20 bg-muted rounded-full mx-auto mb-4 flex items-center justify-center">
