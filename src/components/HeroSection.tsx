@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import TypewriterCycle from "@/components/TypewriterCycle";
-import heroImage from "@/assets/Hero_image.png";
 
 const HeroSection = () => {
   return (
@@ -10,15 +9,6 @@ const HeroSection = () => {
 
       <div className="container mx-auto px-4 sm:px-6 relative">
         <div className="max-w-4xl mx-auto text-center space-y-6 sm:space-y-8">
-          <div className="mb-2 sm:mb-4">
-            <img
-              src={heroImage}
-              alt="Globiculum - Bridging Western and Indian classrooms for seamless academic transitions"
-              className="w-full max-w-4xl mx-auto rounded-xl sm:rounded-2xl shadow-lg"
-              loading="eager"
-            />
-          </div>
-
           <div className="space-y-4 sm:space-y-6">
             <p className="text-sm sm:text-lg md:text-xl text-accent font-semibold tracking-wide uppercase">
               Don't Let the Move Set Your Child Behind
