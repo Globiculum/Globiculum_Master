@@ -545,50 +545,79 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     return curriculumByStage[formData.schoolStage as keyof typeof curriculumByStage] || [];
   };
 
-   // Grade-band aware subject lists (clean labels – US context is in the question text)
+  // Helpers for Grade 11-12 block
+  const gradeNumber = parseInt(formData.snapshotGrade, 10);
+  const isHighSchoolUpper = formData.schoolStage === "high" && (gradeNumber === 11 || gradeNumber === 12);
+
+  // Curriculum-aware + grade-band-aware subject lists for the CURRENT curriculum.
   const getSubjectsByGradeBand = () => {
-    switch (formData.schoolStage) {
-      case "elementary":
-        return [
-          "Mathematics",
-          "English / Language Arts",
-          "Science",
-          "Social Studies",
-          "Art / Creative Studies",
-          "Music",
-          "Physical Education",
-          "Foreign Language",
-        ];
-      case "middle":
-        return [
-          "Mathematics",
-          "Science",
-          "English / Language Arts",
-          "Social Studies",
-          "Foreign Language",
-          "Elective (Art/Music/Technology)",
-        ];
-      case "high":
-        return [
-          "Algebra",
-          "Geometry",
-          "Pre-Calculus / Calculus",
-          "Biology",
-          "Chemistry",
-          "Physics",
-          "English / Language Arts",
-          "Social Studies / US History",
-          "Foreign Language",
-          "Elective (Art/Music/CS/Other)",
-        ];
-      default:
-        return [
-          "Mathematics",
-          "Science",
-          "English / Language Arts",
-          "Social Studies",
-        ];
+    // Grades 1-2: simplified foundational learning areas
+    if (formData.schoolStage === "elementary" && (gradeNumber === 1 || gradeNumber === 2)) {
+      return [
+        "Reading & Comprehension",
+        "Foundational Math",
+        "Writing Skills",
+        "General Awareness / Environmental Learning",
+      ];
     }
+
+    // Grades 3-5: light elementary subjects
+    if (formData.schoolStage === "elementary") {
+      return [
+        "Mathematics",
+        "English / Language Arts",
+        "Basic Science",
+        "Social Studies",
+        "Foreign Language",
+      ];
+    }
+
+    // Middle / High: subjects depend on the CURRENT curriculum
+    const cur = (formData.currentCurriculum || "").toLowerCase();
+
+    if (cur.includes("ib")) {
+      return [
+        "Mathematics",
+        "Sciences",
+        "Language and Literature",
+        "Language Acquisition",
+        "Individuals and Societies",
+      ];
+    }
+
+    if (cur.includes("cambridge") || cur.includes("igcse") || cur.includes("a-levels")) {
+      return [
+        "Mathematics",
+        "Sciences",
+        "English Language",
+        "Humanities",
+        "Foreign Language",
+      ];
+    }
+
+    if (formData.schoolStage === "high") {
+      return [
+        "Algebra",
+        "Geometry",
+        "Pre-Calculus / Calculus",
+        "Biology",
+        "Chemistry",
+        "Physics",
+        "English / Language Arts",
+        "Social Studies / US History",
+        "Foreign Language",
+        "Elective (Art/Music/CS/Other)",
+      ];
+    }
+
+    return [
+      "Mathematics",
+      "Science",
+      "English / Language Arts",
+      "Social Studies",
+      "Foreign Language",
+      "Elective (Art/Music/Technology)",
+    ];
   };
 
   // Dynamic subjects based on what the user selected in academicPath
