@@ -1760,7 +1760,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
               ) : (
                 <Button 
                   onClick={handleSubmit} 
-                  disabled={!canProceed() || isSubmitting || isValidating} 
+                  disabled={!canProceed() || isSubmitting || isValidating || isHighSchoolUpper} 
                   className="bg-gradient-primary hover:shadow-strong"
                 >
                   {isValidating ? (
