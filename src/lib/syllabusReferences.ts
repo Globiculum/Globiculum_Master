@@ -5,7 +5,28 @@
 
 interface SyllabusReference {
   url: string;
+  /** Full label, e.g. "NCERT Class 6 Math – Ch 7: Fractions" */
   label: string;
+  /** Short chapter portion only, e.g. "Chapter 7 – Fractions" (derived from label when not set). */
+  chapter?: string;
+  /** Book/source portion, e.g. "NCERT Class 6 Mathematics" (derived from label when not set). */
+  book?: string;
+}
+
+/**
+ * Split a "Book – Chapter" style label into its two parts so callers can
+ * render Topic / Chapter / Link as a 3-line structured block.
+ *
+ * Accepts both " – " (en-dash) and " - " (hyphen) separators.
+ */
+export function splitSyllabusLabel(label: string): { book: string; chapter: string } {
+  const sep = label.includes(" – ") ? " – " : label.includes(" - ") ? " - " : null;
+  if (!sep) return { book: label, chapter: "" };
+  const idx = label.indexOf(sep);
+  return {
+    book: label.slice(0, idx).trim(),
+    chapter: label.slice(idx + sep.length).trim(),
+  };
 }
 
 // Subject-based NCERT book URLs
