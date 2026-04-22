@@ -12,7 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { generateReportPDF } from "@/lib/generateReportPDF";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { getSyllabusReferenceForTopic, parseRecommendationWithLinks } from "@/lib/syllabusReferences";
+import { getSyllabusReferenceForTopic, parseRecommendationWithLinks, splitSyllabusLabel } from "@/lib/syllabusReferences";
+import { mergeWithBaseline } from "@/lib/gradeBaselineTopics";
 
 // Goals that involve Indian academic readiness - show TRE for these
 const INDIA_READINESS_GOALS = [
@@ -738,7 +739,17 @@ const ReportPreview = () => {
 
                 {/* D. Coverage Analysis - with toggle for subjects needing prep */}
                 {analysis && (() => {
-                  const subjectsNeedingPrep = analysis.subjectAnalysis.filter(s => s.alignmentLevel !== 'strong');
+                  const gradeNum = parseInt(formData.snapshotGrade) || 0;
+                  // For Grades 2–10 (Foundation Transition), suppress detailed social-studies
+                  // breakdown — replace with the 2–3 month refresher note (rendered below).
+                  const isFoundation = gradeNum >= 2 && gradeNum <= 10;
+                  const isSocialStudy = (name: string) => /social|history|civics|geography/i.test(name);
+
+                  const subjectsNeedingPrep = analysis.subjectAnalysis.filter(s => {
+                    if (s.alignmentLevel === 'strong') return false;
+                    if (isFoundation && isSocialStudy(s.subject)) return false;
+                    return true;
+                  });
                   const strongSubjects = analysis.subjectAnalysis.filter(s => s.alignmentLevel === 'strong');
                   return (
                   <div className="space-y-3">
@@ -759,7 +770,12 @@ const ReportPreview = () => {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                            {subjectsNeedingPrep.map((subject) => (
+                            {subjectsNeedingPrep.map((subject) => {
+                              // Merge baseline expected topics for Grades 1–10 to enforce consistency.
+                              const mergedGaps = isFoundation
+                                ? mergeWithBaseline(gradeNum, subject.subject, subject.keyGaps, { maxTopics: 6 })
+                                : subject.keyGaps;
+                              return (
                               <div key={subject.subject} className="p-3 bg-muted/30 rounded-lg border border-border">
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="font-medium text-sm">{subject.subject}</span>
@@ -768,32 +784,39 @@ const ReportPreview = () => {
                                 <div className="text-xs text-muted-foreground mb-2">
                                   Coverage: <span className="font-semibold text-foreground">{subject.topicsCovered}/{subject.totalTopics}</span> topics
                                 </div>
-                                {subject.keyGaps.length > 0 && (
-                                  <div className="space-y-1">
+                                {mergedGaps.length > 0 && (
+                                  <div className="space-y-2">
                                     <div className="text-xs font-medium text-muted-foreground">Key Missing Topics:</div>
-                                    <ul className="text-xs text-muted-foreground space-y-1">
-                                      {subject.keyGaps.slice(0, 3).map((gap, i) => {
-                                        const syllabusRef = isIndiaReadinessGoal(formData.targetGoal) 
-                                          ? getSyllabusReferenceForTopic(gap, subject.subject) 
+                                    <ul className="space-y-2">
+                                      {mergedGaps.slice(0, 4).map((gap, i) => {
+                                        const syllabusRef = isIndiaReadinessGoal(formData.targetGoal)
+                                          ? getSyllabusReferenceForTopic(gap, subject.subject)
                                           : null;
+                                        const split = syllabusRef ? splitSyllabusLabel(syllabusRef.label) : null;
                                         return (
-                                          <li key={i} className="flex items-start gap-1">
-                                            <span className="mt-0.5">•</span>
-                                            <span className="flex-1">
-                                              {gap}
-                                              {syllabusRef && (
-                                                <a
-                                                  href={syllabusRef.url}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                  className="inline-flex items-center gap-0.5 text-primary hover:underline ml-1 text-[11px]"
-                                                  title={syllabusRef.label}
-                                                >
-                                                  <ExternalLink className="h-3 w-3 inline" />
-                                                  <span>{syllabusRef.label}</span>
-                                                </a>
-                                              )}
-                                            </span>
+                                          <li key={i} className="rounded-md border border-border/60 bg-background/40 p-2">
+                                            {/* Line 1: Topic */}
+                                            <div className="text-xs font-semibold text-foreground">{gap}</div>
+                                            {/* Line 2: Chapter / Book */}
+                                            {syllabusRef && split && (
+                                              <div className="text-[11px] text-muted-foreground mt-0.5">
+                                                {split.book}
+                                                {split.chapter ? <> · <span className="text-foreground/80">{split.chapter}</span></> : null}
+                                              </div>
+                                            )}
+                                            {/* Line 3: Direct chapter link */}
+                                            {syllabusRef && (
+                                              <a
+                                                href={syllabusRef.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1"
+                                                title={syllabusRef.label}
+                                              >
+                                                <ExternalLink className="h-3 w-3" />
+                                                Open chapter
+                                              </a>
+                                            )}
                                           </li>
                                         );
                                       })}
@@ -801,7 +824,8 @@ const ReportPreview = () => {
                                   </div>
                                 )}
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CollapsibleContent>
                       </Collapsible>
@@ -1183,10 +1207,23 @@ const ReportPreview = () => {
                               <span>Consider structured one-on-one tutoring sessions to strengthen key subject fundamentals before transition.</span>
                             </li>
                           )}
-                          {formData.supportNeeds.includes("Peer support groups") && (
+                          {(formData.supportNeeds.includes("Peer learning groups") ||
+                            formData.supportNeeds.includes("Peer support groups")) && (
                             <li className="flex items-start gap-1">
                               <span className="mt-0.5">•</span>
                               <span>Peer learning groups can help the student adapt to collaborative learning and discussion-based assignments common in Indian schools.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("Worksheets & practice papers") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Daily worksheets and CBSE-style practice papers will build accuracy and exam-pattern familiarity for the new curriculum.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("Mock tests") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Regular mock tests aligned with the target Indian board will track readiness and reduce exam anxiety before transition.</span>
                             </li>
                           )}
                           {formData.supportNeeds.includes("Group study programs") && (
