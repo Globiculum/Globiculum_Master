@@ -80,7 +80,9 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       challengingSubjects: [] as string[],
       strengthenGoals: [] as string[], // Indian curriculum improvement goals
       transitionConcerns: [] as string[],
-      supportNeeds: [] as string[]
+      supportNeeds: [] as string[],
+      // Per-subject comfort level: 'strong' | 'moderate' | 'needs-support'
+      subjectConfidences: {} as Record<string, string>
     };
 
     if (prefillData) {
@@ -122,6 +124,10 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         transitionConcerns: Array.isArray(prefillData.transitionConcerns) ? prefillData.transitionConcerns : defaults.transitionConcerns,
         supportNeeds: Array.isArray(prefillData.supportNeeds) ? prefillData.supportNeeds : defaults.supportNeeds,
         strengthenGoals: Array.isArray(prefillData.strengthenGoals) ? prefillData.strengthenGoals : defaults.strengthenGoals,
+        subjectConfidences:
+          prefillData.subjectConfidences && typeof prefillData.subjectConfidences === "object"
+            ? prefillData.subjectConfidences
+            : defaults.subjectConfidences,
       };
     }
 
