@@ -40,6 +40,8 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       snapshotAge: "",
       currentCurriculum: "",
       currentCurriculumOther: "",
+      // What type of US curriculum the student follows (refines gap analysis)
+      curriculumType: "",
       reportCard: null as File | null,
       
       // Step 1: Previous Education & Goals
@@ -98,6 +100,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         snapshotAge: prefillData.snapshotAge ? String(prefillData.snapshotAge) : defaults.snapshotAge,
         currentCurriculum: prefillData.currentCurriculum || defaults.currentCurriculum,
         currentCurriculumOther: prefillData.currentCurriculumOther || defaults.currentCurriculumOther,
+        curriculumType: prefillData.curriculumType || defaults.curriculumType,
         previousLocation: prefillData.previousLocation || defaults.previousLocation,
         previousLocationOther: prefillData.previousLocationOther || defaults.previousLocationOther,
         targetGoal: prefillData.targetGoal || defaults.targetGoal,
