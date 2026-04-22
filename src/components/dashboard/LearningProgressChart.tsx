@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { ChartContainer, ChartTooltip as ChartTooltipRaw, ChartTooltipContent } from "@/components/ui/chart";
+const ChartTooltip = ChartTooltipRaw as any;
+import { LineChart, Line as LineRaw, XAxis as XAxisRaw, YAxis as YAxisRaw, CartesianGrid, ResponsiveContainer } from "recharts";
+const XAxis = XAxisRaw as any;
+const YAxis = YAxisRaw as any;
+const Line = LineRaw as any;
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -112,7 +116,7 @@ const LearningProgressChart = () => {
               className="fill-muted-foreground"
               tickFormatter={(v) => `${v}%`}
             />
-            <ChartTooltip content={<ChartTooltipContent />} />
+            <ChartTooltip content={<ChartTooltipContent />} {...({} as any)} />
             <Line
               type="monotone"
               dataKey="alignment"
