@@ -1209,6 +1209,10 @@ const ReportPreview = () => {
                       <h3 className="text-lg font-semibold">Personalized Recommendations</h3>
                     </div>
 
+                    <p className="text-xs text-muted-foreground italic">
+                      Recommendations are adjusted based on the student's current performance level and readiness.
+                    </p>
+
                     {/* Same-curriculum note */}
                     {isSameCurriculum && (
                       <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -1349,6 +1353,14 @@ const ReportPreview = () => {
                     currentAnalysis={analysis}
                     previousDate={previousReport.created_at}
                   />
+                )}
+
+                {analysis && (
+                  <div className="p-3 bg-muted/30 rounded-lg border border-border text-center">
+                    <p className="text-xs text-muted-foreground italic">
+                      This report can be used by tutors or academic counselors to guide structured transition planning.
+                    </p>
+                  </div>
                 )}
 
                 {/* Download Button */}
