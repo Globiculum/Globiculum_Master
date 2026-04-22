@@ -12,7 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { generateReportPDF } from "@/lib/generateReportPDF";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { getSyllabusReferenceForTopic, parseRecommendationWithLinks } from "@/lib/syllabusReferences";
+import { getSyllabusReferenceForTopic, parseRecommendationWithLinks, splitSyllabusLabel } from "@/lib/syllabusReferences";
+import { mergeWithBaseline } from "@/lib/gradeBaselineTopics";
 
 // Goals that involve Indian academic readiness - show TRE for these
 const INDIA_READINESS_GOALS = [
