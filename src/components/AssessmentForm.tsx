@@ -1489,7 +1489,8 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   const renderEducationalAssessment = () => (
     <div className="space-y-8">
