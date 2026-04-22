@@ -200,6 +200,18 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
   };
 
   const handleSubmit = async () => {
+    // Block Grades 11–12 — feature under development, do not call backend.
+    const gradeForGate = parseInt(formData.snapshotGrade, 10);
+    if (formData.schoolStage === "high" && (gradeForGate === 11 || gradeForGate === 12)) {
+      toast({
+        title: "Grades 11–12 are not yet supported",
+        description:
+          "High school transition analysis (Grades 11–12) is currently under development. Please proceed with Grades 1–10 for academic transition insights.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsValidating(true);
     setFieldErrors({});
 
@@ -545,50 +557,79 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     return curriculumByStage[formData.schoolStage as keyof typeof curriculumByStage] || [];
   };
 
-   // Grade-band aware subject lists (clean labels – US context is in the question text)
+  // Helpers for Grade 11-12 block
+  const gradeNumber = parseInt(formData.snapshotGrade, 10);
+  const isHighSchoolUpper = formData.schoolStage === "high" && (gradeNumber === 11 || gradeNumber === 12);
+
+  // Curriculum-aware + grade-band-aware subject lists for the CURRENT curriculum.
   const getSubjectsByGradeBand = () => {
-    switch (formData.schoolStage) {
-      case "elementary":
-        return [
-          "Mathematics",
-          "English / Language Arts",
-          "Science",
-          "Social Studies",
-          "Art / Creative Studies",
-          "Music",
-          "Physical Education",
-          "Foreign Language",
-        ];
-      case "middle":
-        return [
-          "Mathematics",
-          "Science",
-          "English / Language Arts",
-          "Social Studies",
-          "Foreign Language",
-          "Elective (Art/Music/Technology)",
-        ];
-      case "high":
-        return [
-          "Algebra",
-          "Geometry",
-          "Pre-Calculus / Calculus",
-          "Biology",
-          "Chemistry",
-          "Physics",
-          "English / Language Arts",
-          "Social Studies / US History",
-          "Foreign Language",
-          "Elective (Art/Music/CS/Other)",
-        ];
-      default:
-        return [
-          "Mathematics",
-          "Science",
-          "English / Language Arts",
-          "Social Studies",
-        ];
+    // Grades 1-2: simplified foundational learning areas
+    if (formData.schoolStage === "elementary" && (gradeNumber === 1 || gradeNumber === 2)) {
+      return [
+        "Reading & Comprehension",
+        "Foundational Math",
+        "Writing Skills",
+        "General Awareness / Environmental Learning",
+      ];
     }
+
+    // Grades 3-5: light elementary subjects
+    if (formData.schoolStage === "elementary") {
+      return [
+        "Mathematics",
+        "English / Language Arts",
+        "Basic Science",
+        "Social Studies",
+        "Foreign Language",
+      ];
+    }
+
+    // Middle / High: subjects depend on the CURRENT curriculum
+    const cur = (formData.currentCurriculum || "").toLowerCase();
+
+    if (cur.includes("ib")) {
+      return [
+        "Mathematics",
+        "Sciences",
+        "Language and Literature",
+        "Language Acquisition",
+        "Individuals and Societies",
+      ];
+    }
+
+    if (cur.includes("cambridge") || cur.includes("igcse") || cur.includes("a-levels")) {
+      return [
+        "Mathematics",
+        "Sciences",
+        "English Language",
+        "Humanities",
+        "Foreign Language",
+      ];
+    }
+
+    if (formData.schoolStage === "high") {
+      return [
+        "Algebra",
+        "Geometry",
+        "Pre-Calculus / Calculus",
+        "Biology",
+        "Chemistry",
+        "Physics",
+        "English / Language Arts",
+        "Social Studies / US History",
+        "Foreign Language",
+        "Elective (Art/Music/CS/Other)",
+      ];
+    }
+
+    return [
+      "Mathematics",
+      "Science",
+      "English / Language Arts",
+      "Social Studies",
+      "Foreign Language",
+      "Elective (Art/Music/Technology)",
+    ];
   };
 
   // Dynamic subjects based on what the user selected in academicPath
@@ -700,6 +741,13 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
               </SelectContent>
             </Select>
             <FieldError field="snapshotGrade" />
+            {isHighSchoolUpper && (
+              <div className="mt-3 px-4 py-3 rounded-lg border border-warning/40 bg-warning/10">
+                <p className="text-sm text-foreground">
+                  <span className="font-semibold">Grades 11–12 are not yet supported.</span> High school transition analysis (Grades 11–12) is currently under development. Please proceed with Grades 1–10 for academic transition insights.
+                </p>
+              </div>
+            )}
           </div>
           
           <div>
@@ -977,21 +1025,31 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     </div>
   );
 
-  const renderAcademicPath = () => (
+  const renderAcademicPath = () => {
+    const isEarlyElementary =
+      formData.schoolStage === "elementary" && (gradeNumber === 1 || gradeNumber === 2);
+    const subjectQuestion = isEarlyElementary
+      ? "Which areas would you like to strengthen for your child?"
+      : "Which subjects does the student currently study in their school curriculum?";
+    const subjectHelp = isEarlyElementary
+      ? "Select the foundational learning areas you'd like the report to focus on."
+      : "Select all subjects the student is currently enrolled in. These reflect the student's CURRENT curriculum.";
+
+    return (
     <div className="space-y-8">
       <div className="text-center">
         <h3 className="text-2xl font-bold text-foreground mb-2">Current Academic Path</h3>
         <p className="text-muted-foreground">
-          {formData.schoolStage === "elementary" 
-            ? "Help us understand your child's foundational learning" 
-            : "What subjects does the student currently study in their US curriculum?"}
+          {isEarlyElementary
+            ? "Help us understand your child's foundational learning"
+            : "Tell us what the student studies today"}
         </p>
       </div>
       
-      {/* Subject selection for ALL grade bands including elementary */}
+      {/* Subject selection — curriculum & grade-band aware */}
       <div className="space-y-4">
-        <h4 className="font-semibold text-lg">Which subjects does the student currently study as part of their US school curriculum or transcripts?</h4>
-        <p className="text-sm text-muted-foreground">Select all subjects the student is currently enrolled in at their school.</p>
+        <h4 className="font-semibold text-lg">{subjectQuestion}</h4>
+        <p className="text-sm text-muted-foreground">{subjectHelp}</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {getSubjectsByGradeBand().map((subject) => (
             <button
@@ -1060,7 +1118,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       )}
 
       {/* Elementary: Additional foundational confidence assessment */}
-      {formData.schoolStage === "elementary" && (
+      {formData.schoolStage === "elementary" && gradeNumber >= 3 && (
         <ElementaryFoundations 
           confidences={formData.elementaryConfidences}
           onChange={handleElementaryConfidenceChange}
@@ -1438,7 +1496,8 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   const renderEducationalAssessment = () => (
     <div className="space-y-8">
@@ -1701,7 +1760,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
               ) : (
                 <Button 
                   onClick={handleSubmit} 
-                  disabled={!canProceed() || isSubmitting || isValidating} 
+                  disabled={!canProceed() || isSubmitting || isValidating || isHighSchoolUpper} 
                   className="bg-gradient-primary hover:shadow-strong"
                 >
                   {isValidating ? (

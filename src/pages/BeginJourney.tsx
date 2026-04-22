@@ -32,10 +32,15 @@ const BeginJourney = () => {
                 : "Answer a few simple questions to unlock your AI-generated readiness report."}
             </p>
             {!prefillFormData && (
-              <p className="text-base text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base text-muted-foreground max-w-2xl mx-auto">
                 This assessment takes just 5-10 minutes and provides a comprehensive analysis of your child's educational alignment across US and Indian curricula.
               </p>
             )}
+            <div className="max-w-2xl mx-auto mt-4 px-4 py-3 rounded-lg border border-primary/30 bg-primary/5">
+              <p className="text-sm text-foreground">
+                This assessment is currently designed for students in <span className="font-semibold">Grades 1–10</span> transitioning between curricula.
+              </p>
+            </div>
           </div>
           
           <AssessmentForm prefillData={prefillFormData} prevReportId={prevReportId} />
