@@ -738,106 +738,122 @@ const ReportPreview = () => {
                   </div>
                 )}
 
-                {/* D. Coverage Analysis - with toggle for subjects needing prep */}
+                {/* D. Coverage Analysis — layered: Strong → Moderate → Critical */}
                 {analysis && (() => {
                   const gradeNum = parseInt(formData.snapshotGrade) || 0;
                   // For Grades 2–10 (Foundation Transition), suppress detailed social-studies
                   // breakdown — replace with the 2–3 month refresher note (rendered below).
                   const isFoundation = gradeNum >= 2 && gradeNum <= 10;
                   const isSocialStudy = (name: string) => /social|history|civics|geography/i.test(name);
+                  const ibTarget = isIBTarget(formData.targetGoal);
 
-                  const subjectsNeedingPrep = analysis.subjectAnalysis.filter(s => {
-                    if (s.alignmentLevel === 'strong') return false;
+                  // ── Filter to relevant subjects only ──
+                  // Show detailed coverage only for: subjects the user selected
+                  // (academicPath) OR subjects flagged as challenging.
+                  const selected: string[] = Array.isArray(formData.academicPath) ? formData.academicPath : [];
+                  const challenging: string[] = Array.isArray(formData.challengingSubjects) ? formData.challengingSubjects : [];
+                  const focusList = [...selected, ...challenging].map((s) => s.toLowerCase());
+                  const isRelevant = (subjectName: string) => {
+                    if (focusList.length === 0) return true; // fallback: show all
+                    const n = subjectName.toLowerCase();
+                    return focusList.some((f) => n.includes(f) || f.includes(n));
+                  };
+
+                  // Partition into three layers
+                  const allSubjects = analysis.subjectAnalysis.filter((s) => {
                     if (isFoundation && isSocialStudy(s.subject)) return false;
                     return true;
                   });
-                  const strongSubjects = analysis.subjectAnalysis.filter(s => s.alignmentLevel === 'strong');
+                  const strongSubjects = allSubjects.filter((s) => s.alignmentLevel === "strong");
+                  const moderateSubjects = allSubjects
+                    .filter((s) => s.alignmentLevel === "moderate")
+                    .filter((s) => isRelevant(s.subject));
+                  const criticalSubjects = allSubjects
+                    .filter((s) => s.alignmentLevel === "high_gap")
+                    .filter((s) => isRelevant(s.subject));
+                  const otherIrrelevant = allSubjects
+                    .filter((s) => s.alignmentLevel !== "strong" && !isRelevant(s.subject));
+
+                  const renderSubjectGapCard = (subject: SubjectAnalysis) => {
+                    const mergedGaps = isFoundation
+                      ? mergeWithBaseline(gradeNum, subject.subject, subject.keyGaps, { maxTopics: 6 })
+                      : subject.keyGaps;
+                    return (
+                      <div key={subject.subject} className="p-3 bg-muted/30 rounded-lg border border-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-sm">{subject.subject}</span>
+                          {getAlignmentBadge(subject.alignmentLevel)}
+                        </div>
+                        <div className="text-xs text-muted-foreground mb-2">
+                          Coverage: <span className="font-semibold text-foreground">{subject.topicsCovered}/{subject.totalTopics}</span> topics
+                        </div>
+                        {mergedGaps.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="text-xs font-medium text-muted-foreground">Key Missing Topics:</div>
+                            <ul className="space-y-2">
+                              {mergedGaps.slice(0, 4).map((gap, i) => {
+                                // IB targets: use concept-based references, NOT NCERT links.
+                                const ref = ibTarget
+                                  ? getIBConceptReference(gap, subject.subject)
+                                  : isIndiaReadinessGoal(formData.targetGoal)
+                                    ? getSyllabusReferenceForTopic(gap, subject.subject)
+                                    : null;
+                                const split = ref ? splitSyllabusLabel(ref.label) : null;
+                                const reason = getGapReason(gap, subject.subject);
+                                return (
+                                  <li key={i} className="rounded-md border border-border/60 bg-background/40 p-2">
+                                    {/* Line 1: Topic */}
+                                    <div className="text-xs font-semibold text-foreground">{gap}</div>
+                                    {/* Reason — explains why this is a gap */}
+                                    <div className="text-[11px] text-muted-foreground italic mt-1">
+                                      Reason: {reason}
+                                    </div>
+                                    {/* Chapter / Concept reference label */}
+                                    {ref && split && (
+                                      <div className="text-[11px] text-muted-foreground mt-1">
+                                        {split.book}
+                                        {split.chapter ? <> · <span className="text-foreground/80">{split.chapter}</span></> : null}
+                                      </div>
+                                    )}
+                                    {/* Direct link */}
+                                    {ref && (
+                                      <a
+                                        href={ref.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1"
+                                        title={ref.label}
+                                      >
+                                        <ExternalLink className="h-3 w-3" />
+                                        {ibTarget ? "Open IB concept guide" : "Open chapter"}
+                                      </a>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  };
+
                   return (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <GraduationCap className="h-5 w-5 text-primary" />
                       <h3 className="text-lg font-semibold">Coverage Analysis</h3>
                     </div>
-                    
-                    {/* Subjects needing preparation - collapsible */}
-                    {subjectsNeedingPrep.length > 0 && (
-                      <Collapsible defaultOpen={true}>
-                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors">
-                          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                          <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                            {subjectsNeedingPrep.length} subject{subjectsNeedingPrep.length !== 1 ? 's' : ''} needing preparation
-                          </span>
-                          <ChevronDown className="h-4 w-4 ml-auto text-amber-600 dark:text-amber-400 transition-transform [[data-state=closed]_&]:rotate-[-90deg]" />
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                            {subjectsNeedingPrep.map((subject) => {
-                              // Merge baseline expected topics for Grades 1–10 to enforce consistency.
-                              const mergedGaps = isFoundation
-                                ? mergeWithBaseline(gradeNum, subject.subject, subject.keyGaps, { maxTopics: 6 })
-                                : subject.keyGaps;
-                              return (
-                              <div key={subject.subject} className="p-3 bg-muted/30 rounded-lg border border-border">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="font-medium text-sm">{subject.subject}</span>
-                                  {getAlignmentBadge(subject.alignmentLevel)}
-                                </div>
-                                <div className="text-xs text-muted-foreground mb-2">
-                                  Coverage: <span className="font-semibold text-foreground">{subject.topicsCovered}/{subject.totalTopics}</span> topics
-                                </div>
-                                {mergedGaps.length > 0 && (
-                                  <div className="space-y-2">
-                                    <div className="text-xs font-medium text-muted-foreground">Key Missing Topics:</div>
-                                    <ul className="space-y-2">
-                                      {mergedGaps.slice(0, 4).map((gap, i) => {
-                                        const syllabusRef = isIndiaReadinessGoal(formData.targetGoal)
-                                          ? getSyllabusReferenceForTopic(gap, subject.subject)
-                                          : null;
-                                        const split = syllabusRef ? splitSyllabusLabel(syllabusRef.label) : null;
-                                        return (
-                                          <li key={i} className="rounded-md border border-border/60 bg-background/40 p-2">
-                                            {/* Line 1: Topic */}
-                                            <div className="text-xs font-semibold text-foreground">{gap}</div>
-                                            {/* Line 2: Chapter / Book */}
-                                            {syllabusRef && split && (
-                                              <div className="text-[11px] text-muted-foreground mt-0.5">
-                                                {split.book}
-                                                {split.chapter ? <> · <span className="text-foreground/80">{split.chapter}</span></> : null}
-                                              </div>
-                                            )}
-                                            {/* Line 3: Direct chapter link */}
-                                            {syllabusRef && (
-                                              <a
-                                                href={syllabusRef.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-1"
-                                                title={syllabusRef.label}
-                                              >
-                                                <ExternalLink className="h-3 w-3" />
-                                                Open chapter
-                                              </a>
-                                            )}
-                                          </li>
-                                        );
-                                      })}
-                                    </ul>
-                                  </div>
-                                )}
-                              </div>
-                              );
-                            })}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
 
-                    {/* Strong subjects - compact display */}
+                    {/* Layer 1: Strong Areas — shown first to build confidence */}
                     {strongSubjects.length > 0 && (
                       <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300">Strong alignment ({strongSubjects.length})</span>
+                          <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Strong Areas ({strongSubjects.length})</span>
                         </div>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-2">
+                          The student is well-prepared in these subjects — minimal bridging needed.
+                        </p>
                         <div className="flex flex-wrap gap-2">
                           {strongSubjects.map((s) => (
                             <Badge key={s.subject} className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">
@@ -846,6 +862,62 @@ const ReportPreview = () => {
                           ))}
                         </div>
                       </div>
+                    )}
+
+                    {/* Layer 2: Moderate Gaps */}
+                    {moderateSubjects.length > 0 && (
+                      <Collapsible defaultOpen={true}>
+                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors">
+                          <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                            Moderate Gaps · {moderateSubjects.length} subject{moderateSubjects.length !== 1 ? "s" : ""}
+                          </span>
+                          <ChevronDown className="h-4 w-4 ml-auto text-amber-600 dark:text-amber-400 transition-transform [[data-state=closed]_&]:rotate-[-90deg]" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                            {moderateSubjects.map(renderSubjectGapCard)}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
+
+                    {/* Layer 3: Critical Gaps — primary focus */}
+                    {criticalSubjects.length > 0 && (
+                      <Collapsible defaultOpen={true}>
+                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-rose-50 dark:bg-rose-950/20 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/30 transition-colors">
+                          <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                          <span className="text-sm font-semibold text-rose-800 dark:text-rose-300">
+                            Critical Gaps · Primary focus ({criticalSubjects.length})
+                          </span>
+                          <ChevronDown className="h-4 w-4 ml-auto text-rose-600 dark:text-rose-400 transition-transform [[data-state=closed]_&]:rotate-[-90deg]" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                            {criticalSubjects.map(renderSubjectGapCard)}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
+
+                    {/* Optional: minimised display for non-selected subjects */}
+                    {otherIrrelevant.length > 0 && (
+                      <Collapsible>
+                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 bg-muted/40 rounded-md border border-border text-xs text-muted-foreground hover:bg-muted/60 transition-colors">
+                          <ChevronRight className="h-3 w-3" />
+                          <span>Other subjects (optional reference)</span>
+                          <span className="ml-auto">{otherIrrelevant.length}</span>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {otherIrrelevant.map((s) => (
+                              <Badge key={s.subject} variant="outline" className="text-xs">
+                                {s.subject} — {s.topicsCovered}/{s.totalTopics}
+                              </Badge>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     )}
                   </div>
                   );
