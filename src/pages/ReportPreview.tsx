@@ -1207,10 +1207,23 @@ const ReportPreview = () => {
                               <span>Consider structured one-on-one tutoring sessions to strengthen key subject fundamentals before transition.</span>
                             </li>
                           )}
-                          {formData.supportNeeds.includes("Peer support groups") && (
+                          {(formData.supportNeeds.includes("Peer learning groups") ||
+                            formData.supportNeeds.includes("Peer support groups")) && (
                             <li className="flex items-start gap-1">
                               <span className="mt-0.5">•</span>
                               <span>Peer learning groups can help the student adapt to collaborative learning and discussion-based assignments common in Indian schools.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("Worksheets & practice papers") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Daily worksheets and CBSE-style practice papers will build accuracy and exam-pattern familiarity for the new curriculum.</span>
+                            </li>
+                          )}
+                          {formData.supportNeeds.includes("Mock tests") && (
+                            <li className="flex items-start gap-1">
+                              <span className="mt-0.5">•</span>
+                              <span>Regular mock tests aligned with the target Indian board will track readiness and reduce exam anxiety before transition.</span>
                             </li>
                           )}
                           {formData.supportNeeds.includes("Group study programs") && (
