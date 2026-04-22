@@ -40,6 +40,8 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       snapshotAge: "",
       currentCurriculum: "",
       currentCurriculumOther: "",
+      // What type of US curriculum the student follows (refines gap analysis)
+      curriculumType: "",
       reportCard: null as File | null,
       
       // Step 1: Previous Education & Goals
@@ -98,6 +100,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         snapshotAge: prefillData.snapshotAge ? String(prefillData.snapshotAge) : defaults.snapshotAge,
         currentCurriculum: prefillData.currentCurriculum || defaults.currentCurriculum,
         currentCurriculumOther: prefillData.currentCurriculumOther || defaults.currentCurriculumOther,
+        curriculumType: prefillData.curriculumType || defaults.curriculumType,
         previousLocation: prefillData.previousLocation || defaults.previousLocation,
         previousLocationOther: prefillData.previousLocationOther || defaults.previousLocationOther,
         targetGoal: prefillData.targetGoal || defaults.targetGoal,
@@ -825,8 +828,30 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
             />
           </div>
         )}
-      </div>
 
+        {/* Curriculum Type — refines gap identification (input refinement only) */}
+        <div>
+          <Label htmlFor="curriculum-type">What type of curriculum does the student follow?</Label>
+          <p className="text-sm text-muted-foreground mb-2">
+            This helps us calibrate expectations against the right academic baseline.
+          </p>
+          <Select
+            value={formData.curriculumType}
+            onValueChange={(value) => handleSelectChange("curriculumType", value)}
+          >
+            <SelectTrigger id="curriculum-type">
+              <SelectValue placeholder="Select curriculum type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="standard-public">Standard Public School</SelectItem>
+              <SelectItem value="honors-advanced">Honors / Advanced</SelectItem>
+              <SelectItem value="ib">IB</SelectItem>
+              <SelectItem value="private-charter">Private / Charter</SelectItem>
+              <SelectItem value="not-sure">Not sure</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {/* Optional Insights */}
       <div className="space-y-4 pt-6 border-t border-border/50">
