@@ -1018,21 +1018,31 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
     </div>
   );
 
-  const renderAcademicPath = () => (
+  const renderAcademicPath = () => {
+    const isEarlyElementary =
+      formData.schoolStage === "elementary" && (gradeNumber === 1 || gradeNumber === 2);
+    const subjectQuestion = isEarlyElementary
+      ? "Which areas would you like to strengthen for your child?"
+      : "Which subjects does the student currently study in their school curriculum?";
+    const subjectHelp = isEarlyElementary
+      ? "Select the foundational learning areas you'd like the report to focus on."
+      : "Select all subjects the student is currently enrolled in. These reflect the student's CURRENT curriculum.";
+
+    return (
     <div className="space-y-8">
       <div className="text-center">
         <h3 className="text-2xl font-bold text-foreground mb-2">Current Academic Path</h3>
         <p className="text-muted-foreground">
-          {formData.schoolStage === "elementary" 
-            ? "Help us understand your child's foundational learning" 
-            : "What subjects does the student currently study in their US curriculum?"}
+          {isEarlyElementary
+            ? "Help us understand your child's foundational learning"
+            : "Tell us what the student studies today"}
         </p>
       </div>
       
-      {/* Subject selection for ALL grade bands including elementary */}
+      {/* Subject selection — curriculum & grade-band aware */}
       <div className="space-y-4">
-        <h4 className="font-semibold text-lg">Which subjects does the student currently study as part of their US school curriculum or transcripts?</h4>
-        <p className="text-sm text-muted-foreground">Select all subjects the student is currently enrolled in at their school.</p>
+        <h4 className="font-semibold text-lg">{subjectQuestion}</h4>
+        <p className="text-sm text-muted-foreground">{subjectHelp}</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {getSubjectsByGradeBand().map((subject) => (
             <button
