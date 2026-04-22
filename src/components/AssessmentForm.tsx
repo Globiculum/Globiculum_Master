@@ -741,6 +741,13 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
               </SelectContent>
             </Select>
             <FieldError field="snapshotGrade" />
+            {isHighSchoolUpper && (
+              <div className="mt-3 px-4 py-3 rounded-lg border border-warning/40 bg-warning/10">
+                <p className="text-sm text-foreground">
+                  <span className="font-semibold">Grades 11–12 are not yet supported.</span> High school transition analysis (Grades 11–12) is currently under development. Please proceed with Grades 1–10 for academic transition insights.
+                </p>
+              </div>
+            )}
           </div>
           
           <div>
