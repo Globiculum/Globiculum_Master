@@ -984,6 +984,56 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         </div>
       </div>
 
+      {/* Subject Confidence — refines gap identification (input refinement only) */}
+      {formData.academicPath.length > 0 && (
+        <div className="space-y-3">
+          <div>
+            <Label className="text-base font-medium">How comfortable is the student with each subject?</Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              This helps us prioritize gap identification — it does not change the alignment scoring.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {formData.academicPath.map((subject) => (
+              <div
+                key={`conf-${subject}`}
+                className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 p-3 rounded-lg border border-border bg-card/50"
+              >
+                <span className="text-sm font-medium">{subject}</span>
+                <div className="grid grid-cols-3 gap-2 md:flex md:gap-2">
+                  {[
+                    { value: "strong", label: "Strong" },
+                    { value: "moderate", label: "Moderate" },
+                    { value: "needs-support", label: "Needs support" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          subjectConfidences: {
+                            ...prev.subjectConfidences,
+                            [subject]: opt.value,
+                          },
+                        }))
+                      }
+                      className={`px-3 py-1.5 rounded-md border text-xs md:text-sm transition-all ${
+                        formData.subjectConfidences[subject] === opt.value
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border bg-card hover:border-primary/50"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Elementary: Additional foundational confidence assessment */}
       {formData.schoolStage === "elementary" && (
         <ElementaryFoundations 
@@ -1545,13 +1595,15 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
             "1-on-1 tutoring sessions",
+            "Peer learning groups",
+            "Worksheets & practice papers",
+            "Mock tests",
             "Group study programs",
             "Parent counseling calls",
             "Cultural mentorship",
             "Regular progress tracking",
             "Emergency academic support",
             "College admission guidance",
-            "Peer support groups"
           ].map((need) => (
             <div key={need} className="flex items-center space-x-2">
               <Checkbox 
