@@ -1118,7 +1118,7 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
       )}
 
       {/* Elementary: Additional foundational confidence assessment */}
-      {formData.schoolStage === "elementary" && (
+      {formData.schoolStage === "elementary" && gradeNumber >= 3 && (
         <ElementaryFoundations 
           confidences={formData.elementaryConfidences}
           onChange={handleElementaryConfidenceChange}
