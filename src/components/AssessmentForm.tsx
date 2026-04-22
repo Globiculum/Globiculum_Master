@@ -200,6 +200,18 @@ const AssessmentForm = ({ prefillData, prevReportId }: AssessmentFormProps) => {
   };
 
   const handleSubmit = async () => {
+    // Block Grades 11–12 — feature under development, do not call backend.
+    const gradeForGate = parseInt(formData.snapshotGrade, 10);
+    if (formData.schoolStage === "high" && (gradeForGate === 11 || gradeForGate === 12)) {
+      toast({
+        title: "Grades 11–12 are not yet supported",
+        description:
+          "High school transition analysis (Grades 11–12) is currently under development. Please proceed with Grades 1–10 for academic transition insights.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsValidating(true);
     setFieldErrors({});
 
