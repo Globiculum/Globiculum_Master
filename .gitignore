@@ -34,7 +34,8 @@ env/
 # Supabase
 supabase/.temp/
 .supabase/
-
+# Supabase temporary files
+**/.temp/
 # IDE
 .vscode/*
 !.vscode/extensions.json
@@ -47,4 +48,4 @@ supabase/.temp/
 *.sw?
 
 # OS
-Thumbs.db
+Thumbs.db   
