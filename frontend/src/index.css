@@ -1,0 +1,286 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* EduSetu Brand Design System */
+
+@layer base {
+  :root {
+    /* Primary: Deep Navy #0F172A */
+    --primary: 222 47% 11%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 222 47% 25%;
+
+    /* Background: Soft Off-White #F8FAFC */
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    /* Card surfaces */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Secondary: Academic Teal #0D9488 */
+    --secondary: 175 84% 32%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted: Slate Grey based */
+    --muted: 215 16% 95%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Accent: Warm Amber #F59E0B */
+    --accent: 38 92% 50%;
+    --accent-foreground: 222 47% 11%;
+    --accent-light: 38 92% 85%;
+
+    /* Success states */
+    --success: 175 84% 32%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 175 84% 92%;
+
+    /* Warning states */
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --warning-light: 38 92% 95%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border and input using slate tones */
+    --border: 215 16% 90%;
+    --input: 215 16% 90%;
+    --ring: 222 47% 11%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-success: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--success)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+
+    /* Shadows using primary color */
+    --shadow-soft: 0 2px 8px -2px hsl(var(--primary) / 0.08);
+    --shadow-medium: 0 4px 12px -4px hsl(var(--primary) / 0.12);
+    --shadow-strong: 0 8px 24px -8px hsl(var(--primary) / 0.16);
+
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+    --radius: 0.5rem;
+
+    /* Sidebar */
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 215 16% 26%;
+    --sidebar-primary: 222 47% 11%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 16% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 215 16% 91%;
+    --sidebar-ring: 222 47% 11%;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 175 84% 32%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 222 47% 15%;
+    --muted-foreground: 215 16% 65%;
+
+    --accent: 38 92% 50%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 222 47% 17%;
+    --input: 222 47% 17%;
+    --ring: 210 40% 84%;
+
+    --sidebar-background: 222 47% 8%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 175 84% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 47% 14%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 222 47% 14%;
+    --sidebar-ring: 175 84% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Poppins', sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+  }
+}
+
+/* ============================================================
+   PRINT STYLES
+   Activated by generateReportPDF.ts adding class "printing-report"
+   to <html>, which ensures print rules only fire when we trigger
+   them — not on normal Ctrl+P.
+   ============================================================ */
+@media print {
+
+  /* ── Page setup ───────────────────────────────────────── */
+  @page {
+    size: A4 portrait;
+    margin: 15mm 18mm;
+  }
+
+  /* Force color printing (backgrounds, badges, etc.) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ── Hide chrome that shouldn't appear in the PDF ─────── */
+  html.printing-report header,
+  html.printing-report footer,
+  html.printing-report nav,
+  html.printing-report .no-print,
+  html.printing-report [data-radix-popper-content-wrapper],
+  html.printing-report button {
+    display: none !important;
+  }
+
+  /* ── Page background ──────────────────────────────────── */
+  html.printing-report,
+  html.printing-report body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10.5pt;
+    line-height: 1.45;
+  }
+
+  /* ── Shadows and overlays ─────────────────────────────── */
+  html.printing-report * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* ── Layout: full width, no scroll container ──────────── */
+  html.printing-report .container,
+  html.printing-report section {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* ── Card borders ─────────────────────────────────────── */
+  html.printing-report [class*="border"] {
+    border-color: #d1d5db !important;
+  }
+
+  /* ── PAGE BREAK RULES ─────────────────────────────────── */
+
+  /* Each top-level report section starts cleanly */
+  html.printing-report .report-section {
+    break-before: auto;
+    break-after: auto;
+  }
+
+  /* Individual cards (gap cards, phase cards, rec cards) must
+     not be split across page boundaries */
+  html.printing-report [class*="rounded-lg"][class*="border"],
+  html.printing-report [class*="rounded-lg"][class*="bg-"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Headings must stay with the content that follows them */
+  html.printing-report h2,
+  html.printing-report h3,
+  html.printing-report h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Lists: keep each item together */
+  html.printing-report li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* ── Color backgrounds (badges, sections) ─────────────── */
+  html.printing-report .bg-muted\/30,
+  html.printing-report .bg-muted\/50 {
+    background: #f8fafc !important;
+  }
+
+  html.printing-report .bg-rose-50\/50,
+  html.printing-report [class*="bg-rose-50"] { background: #fff5f5 !important; }
+  html.printing-report .bg-amber-50\/50,
+  html.printing-report [class*="bg-amber-50"] { background: #fffbeb !important; }
+  html.printing-report .bg-emerald-50\/50,
+  html.printing-report [class*="bg-emerald-50"] { background: #f0fdf4 !important; }
+  html.printing-report .bg-blue-50,
+  html.printing-report [class*="bg-blue-50"] { background: #eff6ff !important; }
+
+  /* ── Badge background colours ─────────────────────────── */
+  html.printing-report .bg-emerald-100 { background: #d1fae5 !important; }
+  html.printing-report .bg-amber-100   { background: #fef3c7 !important; }
+  html.printing-report .bg-rose-100    { background: #fee2e2 !important; }
+
+  /* ── Typography scale for A4 ─────────────────────────── */
+  html.printing-report .text-2xl { font-size: 16pt !important; }
+  html.printing-report .text-xl  { font-size: 14pt !important; }
+  html.printing-report .text-lg  { font-size: 12pt !important; }
+  html.printing-report .text-sm  { font-size: 9.5pt !important; }
+  html.printing-report .text-xs  { font-size: 8.5pt !important; }
+
+  /* ── Grid: collapse to 2 columns max on A4 ─────────────── */
+  html.printing-report .grid-cols-1,
+  html.printing-report [class*="md:grid-cols-2"],
+  html.printing-report [class*="md:grid-cols-3"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  html.printing-report [class*="md:grid-cols-4"] {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  /* ── Links: show URL inline so PDF is informative ──────── */
+  html.printing-report a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 8pt;
+    color: #6b7280;
+  }
+
+  /* ── Collapsibles: force open in print ─────────────────── */
+  html.printing-report [data-state="closed"] > [data-radix-collapsible-content] {
+    display: block !important;
+    height: auto !important;
+  }
+
+}
