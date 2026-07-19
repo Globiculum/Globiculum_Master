@@ -30,16 +30,16 @@ export function AcademicSignals({ selectedSignals, onToggle }: AcademicSignalsPr
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {academicSignalOptions.map((signal) => (
-          <div 
+          <div
             key={signal.id}
-            className={`flex items-center space-x-2 p-3 rounded-lg border transition-all cursor-pointer ${
+            className={`flex items-center space-x-2 rounded-xl border-2 p-3 transition-all duration-200 ease-smooth cursor-pointer hover:-translate-y-0.5 hover:shadow-soft ${
               selectedSignals.includes(signal.id)
-                ? "border-primary bg-primary/5"
-                : "border-border bg-card hover:border-primary/50"
+                ? "border-secondary bg-secondary/5 shadow-soft"
+                : "border-border bg-card hover:border-secondary/40"
             }`}
             onClick={() => onToggle(signal.id)}
           >
-            <Checkbox 
+            <Checkbox
               id={`signal-${signal.id}`}
               checked={selectedSignals.includes(signal.id)}
               onCheckedChange={() => onToggle(signal.id)}

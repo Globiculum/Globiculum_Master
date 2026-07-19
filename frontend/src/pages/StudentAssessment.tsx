@@ -23,17 +23,13 @@ const StudentAssessment = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="py-10 md:py-20">
+      <section className="py-10 md:py-16">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-8 space-y-2">
-            <button type="button" onClick={handleChangePersona} className="text-sm text-muted-foreground underline">
-              Change persona
-            </button>
-            <h1 className="text-3xl font-bold">Student Assessment</h1>
-            <p className="text-muted-foreground">Answer a few questions to generate your readiness report.</p>
-          </div>
-
-          <StudentAssessmentController prefillData={prefillFormData} prevReportId={prevReportId} />
+          <StudentAssessmentController
+            prefillData={prefillFormData}
+            prevReportId={prevReportId}
+            onChangePersona={handleChangePersona}
+          />
         </div>
       </section>
 

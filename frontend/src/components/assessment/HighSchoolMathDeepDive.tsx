@@ -29,7 +29,7 @@ export function HighSchoolMathDeepDive({
   const isStateSpecific = usState === 'TX' || usState === 'FL';
   
   return (
-    <div className="space-y-6 p-6 rounded-xl border-2 border-primary/20 bg-primary/5">
+    <div className="space-y-6 p-6 rounded-2xl border-2 border-secondary/20 bg-secondary/5 shadow-soft">
       <div>
         <h4 className="font-semibold text-lg flex items-center gap-2">
           <span className="text-2xl">📐</span>

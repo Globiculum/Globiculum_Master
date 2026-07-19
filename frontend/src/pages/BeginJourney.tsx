@@ -3,8 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ParentAssessment from "@/components/assessment/parent/ParentAssessment";
+import AssessmentHero from "@/components/assessment/shared/AssessmentHero";
 import PersonaSelection, { type Persona } from "@/components/PersonaSelection";
-import { ArrowLeft, BookOpen, Sparkles } from "lucide-react";
+import { BookOpen, GraduationCap, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const PERSONA_STORAGE_KEY = "globiculum-selected-persona";
 
@@ -62,19 +64,40 @@ const BeginJourney = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="py-10 md:py-20 bg-gradient-subtle">
-        <div className="container mx-auto px-4">
+      <section
+        className={cn(
+          "py-10 md:py-20",
+          showPersonaStep ? "relative overflow-hidden bg-background" : "bg-gradient-subtle"
+        )}
+      >
+        {showPersonaStep && (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-secondary/10 blur-3xl" />
+            <div className="absolute top-10 -right-24 h-80 w-80 rounded-full bg-violet/10 blur-3xl" />
+            <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-mint/20 blur-3xl" />
+            <GraduationCap className="absolute right-[8%] top-16 hidden h-16 w-16 -rotate-6 text-secondary/10 md:block" />
+            <BookOpen className="absolute left-[10%] bottom-10 hidden h-14 w-14 rotate-6 text-violet/10 md:block" />
+          </div>
+        )}
+        <div className="container relative mx-auto px-4">
           {showPersonaStep ? (
             <>
               <div className="text-center mb-12 space-y-4">
-                <div className="flex items-center justify-center gap-3 mb-4">
-                  <Sparkles className="h-10 w-10 text-secondary" />
-                  <h1 className="text-4xl md:text-5xl font-bold">
-                    Choose Your <span className="text-primary">Persona</span>
-                  </h1>
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <Sparkles className="h-4 w-4 text-secondary" />
+                  <span className="text-sm font-semibold uppercase tracking-wide text-secondary">
+                    Begin Your Journey
+                  </span>
                 </div>
-                <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                  Tell us who you are so we can personalize your curriculum mapping journey.
+                <h1 className="text-4xl md:text-5xl font-bold leading-tight">
+                  Let's build your{" "}
+                  <span className="bg-gradient-cta bg-clip-text text-transparent">
+                    personalized transition roadmap
+                  </span>
+                </h1>
+                <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+                  Every learner's journey is unique. Tell us who this assessment is for so we
+                  can personalize every question and recommendation.
                 </p>
               </div>
 
@@ -82,43 +105,36 @@ const BeginJourney = () => {
             </>
           ) : (
             <>
-              <div className="text-center mb-12 space-y-4">
-                {!isRetake && persona && (
-                  <button
-                    type="button"
-                    onClick={handleChangePersona}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Change persona
-                  </button>
-                )}
-                <div className="flex items-center justify-center gap-3 mb-4">
-                  <BookOpen className="h-10 w-10 text-primary" />
-                  <h1 className="text-4xl md:text-5xl font-bold">
-                    {prefillFormData ? (
-                      <>Retake Your <span className="text-primary">Assessment</span></>
-                    ) : (
-                      <>Start Your <span className="text-primary">Personalized Curriculum Mapping</span></>
-                    )}
-                  </h1>
-                </div>
-                <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                  {prefillFormData
+              <AssessmentHero
+                eyebrow="Parent Assessment"
+                showChangePersona={!isRetake && Boolean(persona)}
+                onChangePersona={handleChangePersona}
+                title={
+                  prefillFormData ? (
+                    <>
+                      Retake Your <span className="bg-gradient-cta bg-clip-text text-transparent">Assessment</span>
+                    </>
+                  ) : (
+                    <>
+                      Let's build your child's{" "}
+                      <span className="bg-gradient-cta bg-clip-text text-transparent">personalized transition roadmap</span>
+                    </>
+                  )
+                }
+                subtitle={
+                  prefillFormData
                     ? "Your previous answers have been pre-filled. Update any fields and submit to generate a new report."
-                    : "Answer a few simple questions to unlock your AI-generated readiness report."}
-                </p>
-                {!prefillFormData && (
-                <p className="text-base text-muted-foreground max-w-2xl mx-auto">
-                    This assessment takes just 5-10 minutes and provides a comprehensive analysis of your child's educational alignment across US and Indian curricula.
-                  </p>
-                )}
-                <div className="max-w-2xl mx-auto mt-4 px-4 py-3 rounded-lg border border-primary/30 bg-primary/5">
-                  <p className="text-sm text-foreground">
-                    This assessment is currently designed for students in <span className="font-semibold">Grades 1–10</span> transitioning between curricula.
-                  </p>
-                </div>
-              </div>
+                    : "Answer a few simple questions and our AI will generate a detailed curriculum transition report with learning gaps, strengths, and a personalized bridge plan."
+                }
+                notice={
+                  !prefillFormData && (
+                    <>
+                      This assessment takes just 5-10 minutes and is currently designed for students in{" "}
+                      <span className="font-semibold">Grades 1–10</span> transitioning between curricula.
+                    </>
+                  )
+                }
+              />
 
               <ParentAssessment prefillData={prefillFormData} prevReportId={prevReportId} />
             </>

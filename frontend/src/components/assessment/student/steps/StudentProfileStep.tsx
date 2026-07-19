@@ -1,7 +1,10 @@
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StepFieldError, type StudentStepProps } from "./types";
+import { User } from "lucide-react";
+import type { StudentStepProps } from "./types";
+import SectionCard from "../ui/SectionCard";
+import QuestionCard from "../ui/QuestionCard";
+import InputCard from "../ui/InputCard";
 
 // Step 1: Student Profile.
 // Reuses the existing backend field vocabulary (schoolStage, snapshotGrade,
@@ -10,9 +13,9 @@ import { StepFieldError, type StudentStepProps } from "./types";
 // without any transformation layer.
 
 const SCHOOL_STAGES = [
-  { value: "elementary", label: "Elementary (Grades 1-5)" },
-  { value: "middle", label: "Middle School (Grades 6-8)" },
-  { value: "high", label: "High School (Grades 9-12)" },
+  { value: "elementary", label: "Elementary", description: "Grades 1-5" },
+  { value: "middle", label: "Middle School", description: "Grades 6-8" },
+  { value: "high", label: "High School", description: "Grades 9-12" },
 ];
 
 const getGradeOptions = (schoolStage: string) => {
@@ -51,34 +54,27 @@ const US_STATES = [
 
 const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) => {
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Student Profile</h2>
+    <SectionCard icon={User} title="Student Profile" description="Tell us a little about yourself before we begin.">
+      <QuestionCard label="School Stage" required error={errors.schoolStage}>
+        <div role="radiogroup" aria-label="School Stage" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {SCHOOL_STAGES.map((stage) => (
+            <InputCard
+              key={stage.value}
+              variant="large"
+              mode="radio"
+              label={stage.label}
+              description={stage.description}
+              selected={formData.schoolStage === stage.value}
+              onClick={() => {
+                setField("schoolStage", stage.value);
+                setField("snapshotGrade", "");
+              }}
+            />
+          ))}
+        </div>
+      </QuestionCard>
 
-      <div>
-        <Label htmlFor="school-stage">School Stage</Label>
-        <Select
-          value={formData.schoolStage}
-          onValueChange={(value) => {
-            setField("schoolStage", value);
-            setField("snapshotGrade", "");
-          }}
-        >
-          <SelectTrigger id="school-stage">
-            <SelectValue placeholder="Select school stage" />
-          </SelectTrigger>
-          <SelectContent>
-            {SCHOOL_STAGES.map((stage) => (
-              <SelectItem key={stage.value} value={stage.value}>
-                {stage.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <StepFieldError errors={errors} field="schoolStage" />
-      </div>
-
-      <div>
-        <Label htmlFor="snapshot-grade">Current Grade</Label>
+      <QuestionCard label="Current Grade" htmlFor="snapshot-grade" required error={errors.snapshotGrade}>
         <Select
           value={formData.snapshotGrade}
           onValueChange={(value) => setField("snapshotGrade", value)}
@@ -95,11 +91,9 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
             ))}
           </SelectContent>
         </Select>
-        <StepFieldError errors={errors} field="snapshotGrade" />
-      </div>
+      </QuestionCard>
 
-      <div>
-        <Label htmlFor="snapshot-age">Age (optional)</Label>
+      <QuestionCard label="Age" htmlFor="snapshot-age" hint="Optional">
         <Input
           id="snapshot-age"
           type="number"
@@ -108,28 +102,24 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
           value={formData.snapshotAge}
           onChange={(e) => setField("snapshotAge", e.target.value)}
         />
-      </div>
+      </QuestionCard>
 
-      <div>
-        <Label htmlFor="snapshot-location">Current Location</Label>
-        <Select value={formData.snapshotLocation} onValueChange={(value) => setField("snapshotLocation", value)}>
-          <SelectTrigger id="snapshot-location">
-            <SelectValue placeholder="Select location" />
-          </SelectTrigger>
-          <SelectContent>
-            {LOCATIONS.map((loc) => (
-              <SelectItem key={loc.value} value={loc.value}>
-                {loc.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <StepFieldError errors={errors} field="snapshotLocation" />
-      </div>
+      <QuestionCard label="Current Location" required error={errors.snapshotLocation}>
+        <div role="radiogroup" aria-label="Current Location" className="flex flex-wrap gap-2">
+          {LOCATIONS.map((loc) => (
+            <InputCard
+              key={loc.value}
+              mode="radio"
+              label={loc.label}
+              selected={formData.snapshotLocation === loc.value}
+              onClick={() => setField("snapshotLocation", loc.value)}
+            />
+          ))}
+        </div>
+      </QuestionCard>
 
       {formData.snapshotLocation === "us" && (
-        <div>
-          <Label htmlFor="us-state">US State</Label>
+        <QuestionCard label="US State" htmlFor="us-state">
           <Select value={formData.usState} onValueChange={(value) => setField("usState", value)}>
             <SelectTrigger id="us-state">
               <SelectValue placeholder="Select your state" />
@@ -142,22 +132,20 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </QuestionCard>
       )}
 
       {formData.snapshotLocation === "other" && (
-        <div>
-          <Label htmlFor="snapshot-location-other">Please specify your country</Label>
+        <QuestionCard label="Please specify your country" htmlFor="snapshot-location-other">
           <Input
             id="snapshot-location-other"
             value={formData.snapshotLocationOther}
             onChange={(e) => setField("snapshotLocationOther", e.target.value)}
           />
-        </div>
+        </QuestionCard>
       )}
 
-      <div>
-        <Label htmlFor="previous-location">Previous Education Country</Label>
+      <QuestionCard label="Previous Education Country" htmlFor="previous-location">
         <Select value={formData.previousLocation} onValueChange={(value) => setField("previousLocation", value)}>
           <SelectTrigger id="previous-location">
             <SelectValue placeholder="Where did you study before?" />
@@ -170,19 +158,18 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </QuestionCard>
 
       {formData.previousLocation === "other" && (
-        <div>
-          <Label htmlFor="previous-location-other">Please specify</Label>
+        <QuestionCard label="Please specify" htmlFor="previous-location-other">
           <Input
             id="previous-location-other"
             value={formData.previousLocationOther}
             onChange={(e) => setField("previousLocationOther", e.target.value)}
           />
-        </div>
+        </QuestionCard>
       )}
-    </div>
+    </SectionCard>
   );
 };
 

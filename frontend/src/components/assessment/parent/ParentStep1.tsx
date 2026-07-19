@@ -1,9 +1,12 @@
-import { BookOpen, MapPin, Target, BarChart3, Globe } from "lucide-react";
-import { Label } from "@/components/ui/label";
+import { BarChart3, BookOpen, Globe, MapPin, Target, Upload, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import OptionCard from "../shared/OptionCard";
-import { ParentFieldError, type ParentStepProps } from "./types";
+import SectionContainer from "../shared/SectionContainer";
+import QuestionCard from "../shared/QuestionCard";
+import TimelineSelector from "../shared/TimelineSelector";
+import { type ParentStepProps } from "./types";
 
 // Step 1: School Profile.
 // Ported verbatim from AssessmentForm.tsx's renderEducationalStart() +
@@ -24,6 +27,13 @@ const getGradeOptions = (schoolStage: string) => {
       return Array.from({ length: 12 }, (_, i) => i + 1);
   }
 };
+
+const TIMELINES = [
+  { value: "3months", label: "3 months" },
+  { value: "6months", label: "6 months" },
+  { value: "1year", label: "1 year" },
+  { value: "2years", label: "2+ years" },
+];
 
 const curriculumByStage = {
   elementary: [
@@ -102,18 +112,12 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
   };
 
   return (
-    <div className="space-y-8">
-      {/* School Stage Selection */}
-      <div className="space-y-4">
-        <div className="text-center">
-          <h3 className="text-2xl font-bold text-foreground mb-2">1. Select School Stage</h3>
-          <p className="text-muted-foreground">Which stage best describes your child?</p>
-        </div>
-
+    <div className="space-y-10">
+      <SectionContainer icon={MapPin} title="1. Select School Stage" description="Which stage best describes your child?">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <OptionCard variant="large" selected={formData.schoolStage === "elementary"} onClick={() => handleSchoolStageChange("elementary")}>
+          <OptionCard variant="large" mode="radio" selected={formData.schoolStage === "elementary"} onClick={() => handleSchoolStageChange("elementary")}>
             <div className="flex flex-col items-center gap-3">
-              <BookOpen className="h-12 w-12 text-primary" />
+              <BookOpen className="h-12 w-12 text-secondary" />
               <div className="text-center">
                 <div className="font-semibold text-lg">Elementary</div>
                 <div className="text-sm text-muted-foreground">(Grades 1–5)</div>
@@ -121,9 +125,9 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             </div>
           </OptionCard>
 
-          <OptionCard variant="large" selected={formData.schoolStage === "middle"} onClick={() => handleSchoolStageChange("middle")}>
+          <OptionCard variant="large" mode="radio" selected={formData.schoolStage === "middle"} onClick={() => handleSchoolStageChange("middle")}>
             <div className="flex flex-col items-center gap-3">
-              <Target className="h-12 w-12 text-primary" />
+              <Target className="h-12 w-12 text-secondary" />
               <div className="text-center">
                 <div className="font-semibold text-lg">Middle School</div>
                 <div className="text-sm text-muted-foreground">(Grades 6–8)</div>
@@ -131,9 +135,9 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             </div>
           </OptionCard>
 
-          <OptionCard variant="large" selected={formData.schoolStage === "high"} onClick={() => handleSchoolStageChange("high")}>
+          <OptionCard variant="large" mode="radio" selected={formData.schoolStage === "high"} onClick={() => handleSchoolStageChange("high")}>
             <div className="flex flex-col items-center gap-3">
-              <BarChart3 className="h-12 w-12 text-primary" />
+              <BarChart3 className="h-12 w-12 text-secondary" />
               <div className="text-center">
                 <div className="font-semibold text-lg">High School</div>
                 <div className="text-sm text-muted-foreground">(Grades 9–12)</div>
@@ -141,18 +145,11 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             </div>
           </OptionCard>
         </div>
-      </div>
+      </SectionContainer>
 
-      {/* Student Snapshot */}
-      <div className="space-y-4">
-        <div className="text-center">
-          <h3 className="text-2xl font-bold text-foreground mb-2">2. Student Snapshot</h3>
-          <p className="text-muted-foreground">Tell us about your child's current education</p>
-        </div>
-
+      <SectionContainer icon={User} title="2. Student Snapshot" description="Tell us about your child's current education">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="snapshot-grade">Current Grade</Label>
+          <QuestionCard label="Current Grade" htmlFor="snapshot-grade" required error={fieldErrors.snapshotGrade}>
             <Select
               value={formData.snapshotGrade}
               onValueChange={(value) => onFieldChange("snapshotGrade", value)}
@@ -169,11 +166,9 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
                 ))}
               </SelectContent>
             </Select>
-            <ParentFieldError errors={fieldErrors} field="snapshotGrade" />
-          </div>
+          </QuestionCard>
 
-          <div>
-            <Label htmlFor="snapshot-location">Location</Label>
+          <QuestionCard label="Location" htmlFor="snapshot-location" required>
             <Select value={formData.snapshotLocation} onValueChange={(value) => onFieldChange("snapshotLocation", value)}>
               <SelectTrigger id="snapshot-location">
                 <SelectValue placeholder="Select location" />
@@ -196,12 +191,11 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
                 <SelectItem value="other">Other Country</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </QuestionCard>
         </div>
 
         {formData.snapshotLocation === "us" && (
-          <div>
-            <Label htmlFor="us-state">Which US State?</Label>
+          <QuestionCard label="Which US State?" htmlFor="us-state" error={fieldErrors.usState}>
             <Select value={formData.usState} onValueChange={(value) => onFieldChange("usState", value)}>
               <SelectTrigger id="us-state">
                 <SelectValue placeholder="Select your state" />
@@ -214,13 +208,11 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
                 ))}
               </SelectContent>
             </Select>
-            <ParentFieldError errors={fieldErrors} field="usState" />
-          </div>
+          </QuestionCard>
         )}
 
         {formData.usState === "other" && (
-          <div>
-            <Label htmlFor="us-state-other">Please enter your state</Label>
+          <QuestionCard label="Please enter your state" htmlFor="us-state-other">
             <Input
               id="us-state-other"
               type="text"
@@ -228,12 +220,11 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
               value={formData.usStateOther}
               onChange={(e) => onFieldChange("usStateOther", e.target.value)}
             />
-          </div>
+          </QuestionCard>
         )}
 
         {formData.snapshotLocation === "other" && (
-          <div>
-            <Label htmlFor="snapshot-location-other">Please specify your country</Label>
+          <QuestionCard label="Please specify your country" htmlFor="snapshot-location-other">
             <Input
               id="snapshot-location-other"
               type="text"
@@ -241,11 +232,10 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
               value={formData.snapshotLocationOther}
               onChange={(e) => onFieldChange("snapshotLocationOther", e.target.value)}
             />
-          </div>
+          </QuestionCard>
         )}
 
-        <div>
-          <Label htmlFor="snapshot-age">Age (optional)</Label>
+        <QuestionCard label="Age" htmlFor="snapshot-age" hint="Optional" error={fieldErrors.snapshotAge}>
           <Input
             id="snapshot-age"
             type="number"
@@ -255,15 +245,17 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             value={formData.snapshotAge}
             onChange={(e) => onFieldChange("snapshotAge", e.target.value)}
           />
-          <ParentFieldError errors={fieldErrors} field="snapshotAge" />
-        </div>
-      </div>
+        </QuestionCard>
+      </SectionContainer>
 
-      {/* Current Curriculum */}
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="current-curriculum">Select your current curriculum system</Label>
-          <p className="text-sm text-muted-foreground mb-2">Choose the curriculum your child is currently studying.</p>
+      <SectionContainer icon={BookOpen} title="3. Current Curriculum">
+        <QuestionCard
+          label="Select your current curriculum system"
+          htmlFor="current-curriculum"
+          hint="Choose the curriculum your child is currently studying."
+          required
+          error={fieldErrors.currentCurriculum}
+        >
           <Select
             value={formData.currentCurriculum}
             onValueChange={(value) => onFieldChange("currentCurriculum", value)}
@@ -283,12 +275,10 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
               ))}
             </SelectContent>
           </Select>
-          <ParentFieldError errors={fieldErrors} field="currentCurriculum" />
-        </div>
+        </QuestionCard>
 
         {formData.currentCurriculum === "other" && (
-          <div>
-            <Label htmlFor="current-curriculum-other">Please specify the curriculum system</Label>
+          <QuestionCard label="Please specify the curriculum system" htmlFor="current-curriculum-other">
             <Input
               id="current-curriculum-other"
               type="text"
@@ -296,14 +286,14 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
               value={formData.currentCurriculumOther}
               onChange={(e) => onFieldChange("currentCurriculumOther", e.target.value)}
             />
-          </div>
+          </QuestionCard>
         )}
 
-        <div>
-          <Label htmlFor="curriculum-type">What type of curriculum does the student follow?</Label>
-          <p className="text-sm text-muted-foreground mb-2">
-            This helps us calibrate expectations against the right academic baseline.
-          </p>
+        <QuestionCard
+          label="What type of curriculum does the student follow?"
+          htmlFor="curriculum-type"
+          hint="This helps us calibrate expectations against the right academic baseline."
+        >
           <Select value={formData.curriculumType} onValueChange={(value) => onFieldChange("curriculumType", value)}>
             <SelectTrigger id="curriculum-type">
               <SelectValue placeholder="Select curriculum type" />
@@ -316,21 +306,15 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
               <SelectItem value="not-sure">Not sure</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-      </div>
+        </QuestionCard>
+      </SectionContainer>
 
-      {/* Optional Insights */}
-      <div className="space-y-4 pt-6 border-t border-border/50">
-        <div className="text-center">
-          <h3 className="text-xl font-semibold text-muted-foreground mb-2">Optional Insights</h3>
-          <p className="text-sm text-muted-foreground">Upload a recent report card (PDF or image) - Optional</p>
-        </div>
-
+      <SectionContainer title="Optional Insights" description="Upload a recent report card (PDF or image) - Optional">
         <div className="flex justify-center">
-          <label className="flex items-center gap-3 px-6 py-3 rounded-lg border-2 border-dashed border-border bg-card hover:border-primary transition-all cursor-pointer">
-            <MapPin className="h-5 w-5 text-muted-foreground" />
-            <span className="font-medium text-sm">Choose File</span>
-            <span className="text-muted-foreground text-xs">{formData.reportCard ? formData.reportCard.name : "No file chosen"}</span>
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-border bg-card px-6 py-3 transition-all duration-200 ease-smooth hover:border-secondary hover:shadow-soft">
+            <Upload className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm font-medium">Choose File</span>
+            <span className="text-xs text-muted-foreground">{formData.reportCard ? formData.reportCard.name : "No file chosen"}</span>
             <input
               type="file"
               accept=".pdf,image/*"
@@ -339,99 +323,82 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             />
           </label>
         </div>
-      </div>
+      </SectionContainer>
 
-      {/* Goals & Timeline (originally a separate step, merged here per this sprint's grouping) */}
-      <div className="space-y-6 pt-6 border-t border-border/50">
-        <div className="flex items-center gap-2 text-lg font-semibold text-primary">
-          <BookOpen className="h-5 w-5" />
-          Education & Goals
-        </div>
+      <SectionContainer icon={Globe} title="4. Education & Goals" description="Where your child is coming from, and where they're headed">
+        <QuestionCard
+          label="Previous Education Country"
+          htmlFor="previous-location"
+          hint="This helps us align curriculum expectations accurately."
+        >
+          <Select value={formData.previousLocation} onValueChange={(value) => onFieldChange("previousLocation", value)}>
+            <SelectTrigger id="previous-location">
+              <SelectValue placeholder="Where did your child study before?" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="us">USA</SelectItem>
+              <SelectItem value="india">India</SelectItem>
+              <SelectItem value="uae">UAE / Dubai / Abu Dhabi</SelectItem>
+              <SelectItem value="singapore">Singapore</SelectItem>
+              <SelectItem value="uk">United Kingdom</SelectItem>
+              <SelectItem value="australia">Australia</SelectItem>
+              <SelectItem value="canada">Canada</SelectItem>
+              <SelectItem value="qatar">Qatar</SelectItem>
+              <SelectItem value="saudi">Saudi Arabia</SelectItem>
+              <SelectItem value="kuwait">Kuwait</SelectItem>
+              <SelectItem value="malaysia">Malaysia</SelectItem>
+              <SelectItem value="germany">Germany</SelectItem>
+              <SelectItem value="nz">New Zealand</SelectItem>
+              <SelectItem value="sa">South Africa</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </QuestionCard>
 
-        <div className="space-y-4">
+        {formData.previousLocation === "other" && (
+          <QuestionCard label="Please specify" htmlFor="previous-location-other">
+            <Input
+              id="previous-location-other"
+              type="text"
+              placeholder="Enter country name"
+              value={formData.previousLocationOther}
+              onChange={(e) => onFieldChange("previousLocationOther", e.target.value)}
+            />
+          </QuestionCard>
+        )}
+
+        <QuestionCard
+          label="Transition Pathway"
+          htmlFor="target-goal"
+          hint="Select the Indian school system your child will be transitioning into."
+        >
+          <Select value={formData.targetGoal} onValueChange={(value) => onFieldChange("targetGoal", value)}>
+            <SelectTrigger id="target-goal">
+              <SelectValue placeholder="Which Indian school system are you preparing for?" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              <SelectItem value="india-cbse">Prepare for Indian CBSE Schools</SelectItem>
+              <SelectItem value="india-igcse">Prepare for Indian IGCSE Schools</SelectItem>
+              <SelectItem value="india-ib">Prepare for Indian IB Schools</SelectItem>
+            </SelectContent>
+          </Select>
+        </QuestionCard>
+
+        <div className="flex items-start gap-3 rounded-xl border border-secondary/20 bg-secondary/5 p-4">
+          <Globe className="mt-0.5 h-5 w-5 shrink-0 text-secondary" />
           <div>
-            <Label htmlFor="previous-location">Previous Education Country</Label>
-            <p className="text-xs text-muted-foreground mt-1 mb-2">This helps us align curriculum expectations accurately.</p>
-            <Select value={formData.previousLocation} onValueChange={(value) => onFieldChange("previousLocation", value)}>
-              <SelectTrigger id="previous-location">
-                <SelectValue placeholder="Where did your child study before?" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="us">USA</SelectItem>
-                <SelectItem value="india">India</SelectItem>
-                <SelectItem value="uae">UAE / Dubai / Abu Dhabi</SelectItem>
-                <SelectItem value="singapore">Singapore</SelectItem>
-                <SelectItem value="uk">United Kingdom</SelectItem>
-                <SelectItem value="australia">Australia</SelectItem>
-                <SelectItem value="canada">Canada</SelectItem>
-                <SelectItem value="qatar">Qatar</SelectItem>
-                <SelectItem value="saudi">Saudi Arabia</SelectItem>
-                <SelectItem value="kuwait">Kuwait</SelectItem>
-                <SelectItem value="malaysia">Malaysia</SelectItem>
-                <SelectItem value="germany">Germany</SelectItem>
-                <SelectItem value="nz">New Zealand</SelectItem>
-                <SelectItem value="sa">South Africa</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {formData.previousLocation === "other" && (
-            <div>
-              <Label htmlFor="previous-location-other">Please specify</Label>
-              <Input
-                id="previous-location-other"
-                type="text"
-                placeholder="Enter country name"
-                value={formData.previousLocationOther}
-                onChange={(e) => onFieldChange("previousLocationOther", e.target.value)}
-              />
-            </div>
-          )}
-
-          <div>
-            <Label htmlFor="target-goal">Transition Pathway</Label>
-            <p className="text-xs text-muted-foreground mt-1 mb-2">Select the Indian school system your child will be transitioning into.</p>
-            <Select value={formData.targetGoal} onValueChange={(value) => onFieldChange("targetGoal", value)}>
-              <SelectTrigger id="target-goal">
-                <SelectValue placeholder="Which Indian school system are you preparing for?" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="india-cbse">Prepare for Indian CBSE Schools</SelectItem>
-                <SelectItem value="india-igcse">Prepare for Indian IGCSE Schools</SelectItem>
-                <SelectItem value="india-ib">Prepare for Indian IB Schools</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-2">
-            <div className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-primary" />
-              <Label className="text-base font-semibold">Cultural Readiness for India</Label>
-            </div>
-            <p className="text-sm text-muted-foreground">
+            <Label className="text-base font-semibold">Cultural Readiness for India</Label>
+            <p className="mt-1 text-sm text-muted-foreground">
               Your report will include guidance on classroom expectations, academic rigor differences, social
               adaptation, and cultural adjustment to help your child thrive in their new school environment.
             </p>
           </div>
-
-          <div>
-            <Label htmlFor="timeline">Preparation Timeline</Label>
-            <Select value={formData.timeline} onValueChange={(value) => onFieldChange("timeline", value)}>
-              <SelectTrigger id="timeline">
-                <SelectValue placeholder="When do you need to be ready?" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="3months">3 months</SelectItem>
-                <SelectItem value="6months">6 months</SelectItem>
-                <SelectItem value="1year">1 year</SelectItem>
-                <SelectItem value="2years">2+ years</SelectItem>
-              </SelectContent>
-            </Select>
-            <ParentFieldError errors={fieldErrors} field="timeline" />
-          </div>
         </div>
-      </div>
+
+        <QuestionCard label="Preparation Timeline" required error={fieldErrors.timeline}>
+          <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => onFieldChange("timeline", value)} />
+        </QuestionCard>
+      </SectionContainer>
     </div>
   );
 };

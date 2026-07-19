@@ -1,8 +1,9 @@
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StepFieldError, type StudentStepProps } from "./types";
+import { Brain } from "lucide-react";
+import type { StudentStepProps } from "./types";
+import SectionCard from "../ui/SectionCard";
+import QuestionCard from "../ui/QuestionCard";
+import InputCard from "../ui/InputCard";
 
 // Step 3: Learning Profile — learning style, study time, per-subject confidence.
 
@@ -28,117 +29,106 @@ const CONFIDENCE_LEVELS = [
 
 const LearningProfileStep = ({ formData, setField, toggleArrayField, setRecordField, errors }: StudentStepProps) => {
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Learning Profile</h2>
-
-      <div>
-        <Label>Learning Style</Label>
-        <div className="space-y-2 mt-2">
+    <SectionCard icon={Brain} title="Learning Profile" description="Tell us how you learn best.">
+      <QuestionCard label="Learning Style" required error={errors.learningStyles}>
+        <div role="group" aria-label="Learning Style" className="flex flex-wrap gap-2">
           {LEARNING_STYLES.map((style) => (
-            <label key={style.value} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={formData.learningStyles.includes(style.value)}
-                onCheckedChange={() => toggleArrayField("learningStyles", style.value)}
-              />
-              {style.label}
-            </label>
+            <InputCard
+              key={style.value}
+              mode="checkbox"
+              label={style.label}
+              selected={formData.learningStyles.includes(style.value)}
+              onClick={() => toggleArrayField("learningStyles", style.value)}
+            />
           ))}
         </div>
-        <StepFieldError errors={errors} field="learningStyles" />
-      </div>
+      </QuestionCard>
 
-      <div>
-        <Label htmlFor="study-time">Realistic Weekly Study Time</Label>
-        <Select value={formData.studyTime} onValueChange={(value) => setField("studyTime", value)}>
-          <SelectTrigger id="study-time">
-            <SelectValue placeholder="Select study time pattern" />
-          </SelectTrigger>
-          <SelectContent>
-            {STUDY_TIME_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <StepFieldError errors={errors} field="studyTime" />
-      </div>
+      <QuestionCard label="Realistic Weekly Study Time" required error={errors.studyTime}>
+        <div role="radiogroup" aria-label="Weekly Study Time" className="flex flex-wrap gap-2">
+          {STUDY_TIME_OPTIONS.map((opt) => (
+            <InputCard
+              key={opt.value}
+              mode="radio"
+              label={opt.label}
+              selected={formData.studyTime === opt.value}
+              onClick={() => setField("studyTime", opt.value)}
+            />
+          ))}
+        </div>
+      </QuestionCard>
 
-      <div>
-        <Label htmlFor="previous-grades">Previous Grades / Performance (optional)</Label>
+      <QuestionCard label="Previous Grades / Performance" htmlFor="previous-grades" hint="Optional">
         <Input
           id="previous-grades"
           placeholder="e.g. A- average, top 20% of class"
           value={formData.previousGrades}
           onChange={(e) => setField("previousGrades", e.target.value)}
         />
-      </div>
+      </QuestionCard>
 
       {formData.academicPath.length > 0 && (
-        <div>
-          <Label>Subject Confidence</Label>
-          <div className="space-y-2 mt-2">
+        <QuestionCard label="Subject Confidence">
+          <div className="space-y-3">
             {formData.academicPath.map((subject) => (
-              <div key={subject} className="flex items-center justify-between gap-2 text-sm">
-                <span>{subject}</span>
-                <div className="flex gap-2">
+              <div
+                key={subject}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-3"
+              >
+                <span className="text-sm font-medium text-foreground">{subject}</span>
+                <div role="radiogroup" aria-label={`${subject} confidence`} className="flex gap-1.5">
                   {CONFIDENCE_LEVELS.map((level) => (
-                    <button
+                    <InputCard
                       key={level.value}
-                      type="button"
+                      mode="radio"
+                      label={level.label}
+                      selected={formData.subjectConfidences[subject] === level.value}
                       onClick={() => setRecordField("subjectConfidences", subject, level.value)}
-                      className={
-                        formData.subjectConfidences[subject] === level.value
-                          ? "px-2 py-1 border rounded border-primary text-primary"
-                          : "px-2 py-1 border rounded"
-                      }
-                    >
-                      {level.label}
-                    </button>
+                    />
                   ))}
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </QuestionCard>
       )}
 
-      <div>
-        <Label>Strongest Subjects</Label>
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          {formData.academicPath.map((subject) => (
-            <label key={`strong-${subject}`} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={formData.strongestSubjects.includes(subject)}
-                onCheckedChange={() => toggleArrayField("strongestSubjects", subject)}
+      <QuestionCard label="Strongest Subjects">
+        {formData.academicPath.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Select subjects in Academic Profile first.</p>
+        ) : (
+          <div role="group" aria-label="Strongest Subjects" className="flex flex-wrap gap-2">
+            {formData.academicPath.map((subject) => (
+              <InputCard
+                key={`strong-${subject}`}
+                mode="checkbox"
+                label={subject}
+                selected={formData.strongestSubjects.includes(subject)}
+                onClick={() => toggleArrayField("strongestSubjects", subject)}
               />
-              {subject}
-            </label>
-          ))}
-          {formData.academicPath.length === 0 && (
-            <p className="text-sm text-muted-foreground col-span-2">Select subjects in Academic Profile first.</p>
-          )}
-        </div>
-      </div>
+            ))}
+          </div>
+        )}
+      </QuestionCard>
 
-      <div>
-        <Label>Challenging Subjects</Label>
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          {formData.academicPath.map((subject) => (
-            <label key={`challenge-${subject}`} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={formData.challengingSubjects.includes(subject)}
-                onCheckedChange={() => toggleArrayField("challengingSubjects", subject)}
+      <QuestionCard label="Challenging Subjects">
+        {formData.academicPath.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Select subjects in Academic Profile first.</p>
+        ) : (
+          <div role="group" aria-label="Challenging Subjects" className="flex flex-wrap gap-2">
+            {formData.academicPath.map((subject) => (
+              <InputCard
+                key={`challenge-${subject}`}
+                mode="checkbox"
+                label={subject}
+                selected={formData.challengingSubjects.includes(subject)}
+                onClick={() => toggleArrayField("challengingSubjects", subject)}
               />
-              {subject}
-            </label>
-          ))}
-          {formData.academicPath.length === 0 && (
-            <p className="text-sm text-muted-foreground col-span-2">Select subjects in Academic Profile first.</p>
-          )}
-        </div>
-      </div>
-    </div>
+            ))}
+          </div>
+        )}
+      </QuestionCard>
+    </SectionCard>
   );
 };
 

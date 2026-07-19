@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ArrowLeft, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { logAuditEvent } from "@/lib/logAuditEvent";
-import StepFooter from "../shared/StepFooter";
 import LoadingScreen from "../shared/LoadingScreen";
+import SectionContainer from "../shared/SectionContainer";
 import { buildValidationPayload, buildAnalyzeCurriculumPayload, type ParentFormData } from "./parentMapper";
 
 // Step 5: Generate Report.
@@ -228,19 +229,37 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors }: Par
 
   return (
     <div className="space-y-8">
-      <div className="text-center">
-        <h3 className="text-2xl font-bold text-foreground mb-2">Generate Report</h3>
-        <p className="text-muted-foreground">Review your answers, then generate the AI-powered readiness report.</p>
-      </div>
+      <SectionContainer icon={Sparkles} title="Generate Report" description="Review your answers, then generate the AI-powered readiness report.">
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-mint/10 p-3 text-xs text-muted-foreground">
+          <ShieldCheck className="h-4 w-4 shrink-0 text-secondary" />
+          Your child's information is encrypted and only used to personalize this report.
+        </div>
+      </SectionContainer>
 
-      <StepFooter>
-        <Button variant="outline" onClick={onPrev} disabled={isSubmitting || isValidating} className="min-w-24">
-          Previous
-        </Button>
-        <Button onClick={handleSubmit} disabled={isSubmitting || isValidating} className="bg-gradient-primary hover:shadow-strong">
-          <LoadingScreen isValidating={isValidating} isSubmitting={isSubmitting} idleLabel="View Alignment Report" />
-        </Button>
-      </StepFooter>
+      <div className="sticky bottom-0 z-10 -mx-6 border-t border-border bg-background/90 px-6 py-4 backdrop-blur-sm md:-mx-10 md:px-10">
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            onClick={onPrev}
+            disabled={isSubmitting || isValidating}
+            className="gap-2 rounded-full"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Previous
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            onClick={handleSubmit}
+            disabled={isSubmitting || isValidating}
+            className="group gap-2 rounded-full bg-gradient-cta px-8 shadow-medium transition-all duration-300 hover:shadow-strong hover:brightness-105"
+          >
+            <LoadingScreen isValidating={isValidating} isSubmitting={isSubmitting} idleLabel="View Alignment Report" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

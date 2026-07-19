@@ -1,8 +1,9 @@
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StepFieldError, type StudentStepProps } from "./types";
+import { Target } from "lucide-react";
+import type { StudentStepProps } from "./types";
+import SectionCard from "../ui/SectionCard";
+import QuestionCard from "../ui/QuestionCard";
+import InputCard from "../ui/InputCard";
 
 // Step 4: Goals & Challenges.
 // `additionalNotes` is a frontend-only placeholder field (see shared/types.ts)
@@ -34,86 +35,77 @@ const SUPPORT_NEEDS = ["Tutoring", "Counseling", "Peer mentoring", "Parent guida
 
 const GoalsChallengesStep = ({ formData, setField, toggleArrayField, errors }: StudentStepProps) => {
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Goals & Challenges</h2>
+    <SectionCard icon={Target} title="Goals & Challenges" description="Let's map out what you're working towards.">
+      <QuestionCard label="Target Curriculum / Goal" required error={errors.targetGoal}>
+        <div role="radiogroup" aria-label="Target Curriculum / Goal" className="grid grid-cols-1 gap-3">
+          {TARGET_GOALS.map((g) => (
+            <InputCard
+              key={g.value}
+              variant="large"
+              mode="radio"
+              label={g.label}
+              selected={formData.targetGoal === g.value}
+              onClick={() => setField("targetGoal", g.value)}
+            />
+          ))}
+        </div>
+      </QuestionCard>
 
-      <div>
-        <Label htmlFor="target-goal">Target Curriculum / Goal</Label>
-        <Select value={formData.targetGoal} onValueChange={(value) => setField("targetGoal", value)}>
-          <SelectTrigger id="target-goal">
-            <SelectValue placeholder="Which school system are you preparing for?" />
-          </SelectTrigger>
-          <SelectContent>
-            {TARGET_GOALS.map((g) => (
-              <SelectItem key={g.value} value={g.value}>
-                {g.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <StepFieldError errors={errors} field="targetGoal" />
-      </div>
+      <QuestionCard label="Preparation Timeline" required error={errors.timeline}>
+        <div role="radiogroup" aria-label="Preparation Timeline" className="flex flex-wrap gap-2">
+          {TIMELINES.map((t) => (
+            <InputCard
+              key={t.value}
+              mode="radio"
+              label={t.label}
+              selected={formData.timeline === t.value}
+              onClick={() => setField("timeline", t.value)}
+            />
+          ))}
+        </div>
+      </QuestionCard>
 
-      <div>
-        <Label htmlFor="timeline">Preparation Timeline</Label>
-        <Select value={formData.timeline} onValueChange={(value) => setField("timeline", value)}>
-          <SelectTrigger id="timeline">
-            <SelectValue placeholder="When do you need to be ready?" />
-          </SelectTrigger>
-          <SelectContent>
-            {TIMELINES.map((t) => (
-              <SelectItem key={t.value} value={t.value}>
-                {t.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <StepFieldError errors={errors} field="timeline" />
-      </div>
-
-      <div>
-        <Label>Transition Challenges</Label>
-        <div className="grid grid-cols-2 gap-2 mt-2">
+      <QuestionCard label="Transition Challenges" hint="What worries you most about the move?">
+        <div role="group" aria-label="Transition Challenges" className="flex flex-wrap gap-2">
           {TRANSITION_CONCERNS.map((concern) => (
-            <label key={concern} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={formData.transitionConcerns.includes(concern)}
-                onCheckedChange={() => toggleArrayField("transitionConcerns", concern)}
-              />
-              {concern}
-            </label>
+            <InputCard
+              key={concern}
+              mode="checkbox"
+              label={concern}
+              selected={formData.transitionConcerns.includes(concern)}
+              onClick={() => toggleArrayField("transitionConcerns", concern)}
+            />
           ))}
         </div>
-      </div>
+      </QuestionCard>
 
-      <div>
-        <Label>Support Needed</Label>
-        <div className="grid grid-cols-2 gap-2 mt-2">
+      <QuestionCard label="Support Needed">
+        <div role="group" aria-label="Support Needed" className="flex flex-wrap gap-2">
           {SUPPORT_NEEDS.map((need) => (
-            <label key={need} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={formData.supportNeeds.includes(need)}
-                onCheckedChange={() => toggleArrayField("supportNeeds", need)}
-              />
-              {need}
-            </label>
+            <InputCard
+              key={need}
+              mode="checkbox"
+              label={need}
+              selected={formData.supportNeeds.includes(need)}
+              onClick={() => toggleArrayField("supportNeeds", need)}
+            />
           ))}
         </div>
-      </div>
+      </QuestionCard>
 
-      <div>
-        <Label htmlFor="additional-notes">Extra Notes (optional)</Label>
-        <p className="text-xs text-muted-foreground mb-1">
-          Frontend-only for now — not yet sent to the report generator.
-        </p>
+      <QuestionCard
+        label="Extra Notes"
+        htmlFor="additional-notes"
+        hint="Optional — frontend-only for now, not yet sent to the report generator."
+      >
         <Textarea
           id="additional-notes"
           rows={4}
           value={formData.additionalNotes}
           onChange={(e) => setField("additionalNotes", e.target.value)}
         />
-      </div>
-    </div>
+      </QuestionCard>
+    </SectionCard>
   );
 };
 

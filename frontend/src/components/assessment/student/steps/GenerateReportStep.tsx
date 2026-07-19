@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { submitAssessment, ValidationFailedError } from "../../shared/submitAssessment";
 import type { AssessmentFormData } from "../../shared/types";
+import SectionCard from "../ui/SectionCard";
 
 // Step 5: Generate Report.
 // Reuses the exact submission pipeline (validate-student-data ->
@@ -18,6 +19,10 @@ interface GenerateReportStepProps {
   prevReportId?: string;
   onValidationErrors: (errors: Record<string, string>) => void;
 }
+
+// Display-only formatting for the review summary below — never touches formData.
+const prettify = (value: string) =>
+  value ? value.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
 
 const GenerateReportStep = ({ formData, prevReportId, onValidationErrors }: GenerateReportStepProps) => {
   const navigate = useNavigate();
@@ -56,24 +61,62 @@ const GenerateReportStep = ({ formData, prevReportId, onValidationErrors }: Gene
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Generate Report</h2>
-      <p className="text-sm text-muted-foreground">
-        Review your answers in the previous steps, then generate your AI-powered readiness report.
-      </p>
+  const summary = [
+    { label: "School Stage", value: prettify(formData.schoolStage) },
+    { label: "Current Grade", value: formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "—" },
+    {
+      label: "Location",
+      value:
+        formData.snapshotLocation === "us"
+          ? `United States${formData.usState ? ` (${formData.usState})` : ""}`
+          : formData.snapshotLocationOther || prettify(formData.snapshotLocation),
+    },
+    { label: "Current Curriculum", value: prettify(formData.currentCurriculumOther || formData.currentCurriculum) },
+    { label: "Subjects Selected", value: String(formData.academicPath.length) },
+    { label: "Learning Styles", value: String(formData.learningStyles.length) },
+    { label: "Target Goal", value: prettify(formData.targetGoal) },
+    { label: "Preparation Timeline", value: prettify(formData.timeline) },
+  ];
 
-      <Button onClick={handleGenerate} disabled={isSubmitting}>
+  return (
+    <SectionCard
+      icon={Sparkles}
+      title="Generate Report"
+      description="Review your answers, then generate your AI-powered readiness report."
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {summary.map((item) => (
+          <div key={item.label} className="rounded-xl border border-border bg-muted/40 p-3">
+            <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
+            <p className="mt-0.5 text-sm font-semibold text-foreground">{item.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 rounded-xl border border-border bg-mint/10 p-3 text-xs text-muted-foreground">
+        <ShieldCheck className="h-4 w-4 shrink-0 text-secondary" />
+        Your answers are private and only used to personalize your readiness report.
+      </div>
+
+      <Button
+        onClick={handleGenerate}
+        disabled={isSubmitting}
+        size="lg"
+        className="group w-full gap-2 rounded-full bg-gradient-cta shadow-medium transition-all duration-300 hover:shadow-strong hover:brightness-105 sm:w-auto"
+      >
         {isSubmitting ? (
           <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
             Generating Report...
           </>
         ) : (
-          "Generate Report"
+          <>
+            Generate Report
+            <Sparkles className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+          </>
         )}
       </Button>
-    </div>
+    </SectionCard>
   );
 };
 

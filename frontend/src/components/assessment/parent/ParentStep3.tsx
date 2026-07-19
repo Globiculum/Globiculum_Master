@@ -1,6 +1,8 @@
-import { Label } from "@/components/ui/label";
+import { BarChart3, User } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+import OptionCard from "../shared/OptionCard";
+import SectionContainer from "../shared/SectionContainer";
+import QuestionCard from "../shared/QuestionCard";
 import { LearningStyleObservations } from "../LearningStyleObservations";
 import { StudyTimePatterns } from "../StudyTimePatterns";
 import type { ParentStepProps } from "./types";
@@ -31,19 +33,13 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
   })();
 
   return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h3 className="text-2xl font-bold text-foreground mb-2">Educational Assessment</h3>
-        <p className="text-muted-foreground">Help us understand your child's learning profile</p>
-      </div>
+    <div className="space-y-10">
+      <SectionContainer icon={User} title="Educational Assessment" description="Help us understand your child's learning profile">
+        <LearningStyleObservations selectedStyles={formData.learningStyles} onToggle={(styleId) => onArrayToggle("learningStyles", styleId)} />
 
-      <LearningStyleObservations selectedStyles={formData.learningStyles} onToggle={(styleId) => onArrayToggle("learningStyles", styleId)} />
+        <StudyTimePatterns selectedTime={formData.studyTime} onChange={(value) => onFieldChange("studyTime", value)} />
 
-      <StudyTimePatterns selectedTime={formData.studyTime} onChange={(value) => onFieldChange("studyTime", value)} />
-
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="previous-grades">Overall Academic Performance</Label>
+        <QuestionCard label="Overall Academic Performance" htmlFor="previous-grades">
           <Select value={formData.previousGrades} onValueChange={(value) => onFieldChange("previousGrades", value)}>
             <SelectTrigger id="previous-grades">
               <SelectValue placeholder="Typical grade range" />
@@ -56,66 +52,72 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
               <SelectItem value="struggling">Struggling (&lt;60%)</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-      </div>
+        </QuestionCard>
+      </SectionContainer>
 
-      {/* Strongest Subjects - Dynamic based on selected subjects */}
-      <div className="space-y-4">
-        <Label className="text-base font-medium">
-          {selectedSubjectOptions.length > 0 ? "Which of the subjects you selected is the student's strongest?" : "Strongest Subjects (select subjects in Step 3 first)"}
-        </Label>
+      <QuestionCard
+        label={
+          selectedSubjectOptions.length > 0
+            ? "Which of the subjects you selected is the student's strongest?"
+            : "Strongest Subjects (select subjects in Step 3 first)"
+        }
+      >
         {selectedSubjectOptions.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div role="group" aria-label="Strongest Subjects" className="flex flex-wrap gap-2">
             {selectedSubjectOptions.map((subject) => (
-              <div key={subject} className="flex items-center space-x-2">
-                <Checkbox id={`strong-${subject}`} checked={formData.strongestSubjects.includes(subject)} onCheckedChange={() => onArrayToggle("strongestSubjects", subject)} />
-                <Label htmlFor={`strong-${subject}`} className="text-sm cursor-pointer">
-                  {subject}
-                </Label>
-              </div>
+              <OptionCard
+                key={`strong-${subject}`}
+                variant="pill"
+                selected={formData.strongestSubjects.includes(subject)}
+                onClick={() => onArrayToggle("strongestSubjects", subject)}
+              >
+                {subject}
+              </OptionCard>
             ))}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground italic">Please select subjects in the Academic Path step to populate this list.</p>
         )}
-      </div>
+      </QuestionCard>
 
-      {/* Most Challenging Subjects - Dynamic */}
-      <div className="space-y-4">
-        <Label className="text-base font-medium">
-          {selectedSubjectOptions.length > 0 ? "Which subject is currently most challenging for the student?" : "Most Challenging Subjects (select subjects in Step 3 first)"}
-        </Label>
+      <QuestionCard
+        label={
+          selectedSubjectOptions.length > 0
+            ? "Which subject is currently most challenging for the student?"
+            : "Most Challenging Subjects (select subjects in Step 3 first)"
+        }
+      >
         {selectedSubjectOptions.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div role="group" aria-label="Most Challenging Subjects" className="flex flex-wrap gap-2">
             {selectedSubjectOptions.map((subject) => (
-              <div key={subject} className="flex items-center space-x-2">
-                <Checkbox id={`challenge-${subject}`} checked={formData.challengingSubjects.includes(subject)} onCheckedChange={() => onArrayToggle("challengingSubjects", subject)} />
-                <Label htmlFor={`challenge-${subject}`} className="text-sm cursor-pointer">
-                  {subject}
-                </Label>
-              </div>
+              <OptionCard
+                key={`challenge-${subject}`}
+                variant="pill"
+                selected={formData.challengingSubjects.includes(subject)}
+                onClick={() => onArrayToggle("challengingSubjects", subject)}
+              >
+                {subject}
+              </OptionCard>
             ))}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground italic">Please select subjects in the Academic Path step to populate this list.</p>
         )}
-      </div>
+      </QuestionCard>
 
-      {/* Skills to strengthen for Indian schooling (board-aware) */}
-      <div className="space-y-4">
-        <Label className="text-base font-medium">Which subjects would you most like the student to strengthen for Indian schooling?</Label>
-        <p className="text-sm text-muted-foreground">Select all that apply — helps identify priority transition goals.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <SectionContainer
+        icon={BarChart3}
+        title="Strengthen for Indian Schooling"
+        description="Which subjects would you most like the student to strengthen? Select all that apply — helps identify priority transition goals."
+      >
+        <div role="group" aria-label="Subjects to strengthen" className="flex flex-wrap gap-2">
           {boardSubjects.map((goal) => (
-            <div key={goal} className="flex items-center space-x-2">
-              <Checkbox id={`strengthen-${goal}`} checked={formData.strengthenGoals.includes(goal)} onCheckedChange={() => onArrayToggle("strengthenGoals", goal)} />
-              <Label htmlFor={`strengthen-${goal}`} className="text-sm cursor-pointer">
-                {goal}
-              </Label>
-            </div>
+            <OptionCard key={goal} variant="pill" selected={formData.strengthenGoals.includes(goal)} onClick={() => onArrayToggle("strengthenGoals", goal)}>
+              {goal}
+            </OptionCard>
           ))}
         </div>
-      </div>
+      </SectionContainer>
     </div>
   );
 };

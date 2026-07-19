@@ -1,5 +1,6 @@
-import { Button } from "@/components/ui/button";
-import StepProgress from "../shared/StepProgress";
+import { BookOpen, Brain, Sparkles, Target, User } from "lucide-react";
+import AssessmentLayout from "./ui/AssessmentLayout";
+import type { StepperStep } from "./ui/ProgressStepper";
 import { useStudentAssessmentState } from "./state/useStudentAssessmentState";
 import { useStudentAssessmentNavigation } from "./navigation/useStudentAssessmentNavigation";
 import StudentProfileStep from "./steps/StudentProfileStep";
@@ -11,21 +12,23 @@ import type { AssessmentFormData } from "../shared/types";
 
 // Data-driven step controller — the Student flow's counterpart to
 // AssessmentForm.tsx's hardcoded renderStep() switch, but scalable: adding,
-// removing, or reordering a step means editing this one array.
-const STEPS: Array<{ id: string; title: string }> = [
-  { id: "profile", title: "Student Profile" },
-  { id: "academic", title: "Academic Profile" },
-  { id: "learning", title: "Learning Profile" },
-  { id: "goals", title: "Goals & Challenges" },
-  { id: "generate", title: "Generate Report" },
+// removing, or reordering a step means editing this one array. `id` values
+// must stay in sync with STUDENT_ASSESSMENT_STEP_IDS in validation/.
+const STEPS: StepperStep[] = [
+  { id: "profile", title: "Student Profile", icon: User },
+  { id: "academic", title: "Academic Profile", icon: BookOpen },
+  { id: "learning", title: "Learning Profile", icon: Brain },
+  { id: "goals", title: "Goals & Challenges", icon: Target },
+  { id: "generate", title: "Generate Report", icon: Sparkles },
 ];
 
 interface StudentAssessmentControllerProps {
   prefillData?: Partial<AssessmentFormData>;
   prevReportId?: string;
+  onChangePersona: () => void;
 }
 
-const StudentAssessmentController = ({ prefillData, prevReportId }: StudentAssessmentControllerProps) => {
+const StudentAssessmentController = ({ prefillData, prevReportId, onChangePersona }: StudentAssessmentControllerProps) => {
   const { formData, setField, toggleArrayField, setRecordField } = useStudentAssessmentState(prefillData);
   const navigation = useStudentAssessmentNavigation();
 
@@ -55,20 +58,17 @@ const StudentAssessmentController = ({ prefillData, prevReportId }: StudentAsses
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <StepProgress steps={STEPS.map((s) => s.title)} currentStep={navigation.stepIndex} />
-
+    <AssessmentLayout
+      onChangePersona={onChangePersona}
+      steps={STEPS}
+      currentIndex={navigation.stepIndex}
+      onBack={navigation.goPrev}
+      onNext={() => navigation.goNext(formData)}
+      isFirstStep={navigation.isFirstStep}
+      isLastStep={navigation.isLastStep}
+    >
       {renderStep()}
-
-      <div className="flex justify-between mt-8">
-        <Button variant="outline" onClick={navigation.goPrev} disabled={navigation.isFirstStep}>
-          Back
-        </Button>
-        {!navigation.isLastStep && (
-          <Button onClick={() => navigation.goNext(formData)}>Next</Button>
-        )}
-      </div>
-    </div>
+    </AssessmentLayout>
   );
 };
 

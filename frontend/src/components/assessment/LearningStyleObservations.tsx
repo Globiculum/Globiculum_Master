@@ -42,16 +42,16 @@ export function LearningStyleObservations({ selectedStyles, onToggle }: Learning
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {learningStyleOptions.map((style) => (
-          <div 
+          <div
             key={style.id}
-            className={`flex items-start space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
+            className={`flex items-start space-x-3 rounded-2xl border-2 p-4 transition-all duration-200 ease-smooth cursor-pointer hover:-translate-y-0.5 hover:shadow-medium ${
               selectedStyles.includes(style.id)
-                ? "border-primary bg-primary/5"
-                : "border-border bg-card hover:border-primary/50"
+                ? "border-secondary bg-secondary/5 shadow-soft"
+                : "border-border bg-card hover:border-secondary/40"
             }`}
             onClick={() => onToggle(style.id)}
           >
-            <Checkbox 
+            <Checkbox
               id={`style-${style.id}`}
               checked={selectedStyles.includes(style.id)}
               onCheckedChange={() => onToggle(style.id)}

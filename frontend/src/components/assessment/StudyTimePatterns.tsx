@@ -44,29 +44,31 @@ export function StudyTimePatterns({ selectedTime, onChange }: StudyTimePatternsP
         </p>
       </div>
       
-      <div className="grid grid-cols-1 gap-2">
+      <div className="grid grid-cols-1 gap-2.5">
         {studyTimeOptions.map((option) => (
           <button
             key={option.value}
             type="button"
+            role="radio"
+            aria-checked={selectedTime === option.value}
             onClick={() => onChange(option.value)}
-            className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all text-left ${
+            className={`flex items-center justify-between rounded-2xl border-2 p-4 text-left transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
               selectedTime === option.value
-                ? "border-primary bg-primary/5"
-                : "border-border bg-card hover:border-primary/50"
+                ? "border-secondary bg-secondary/5 shadow-soft"
+                : "border-border bg-card hover:border-secondary/40"
             }`}
           >
             <div className="flex-1">
               <div className="font-medium">{option.label}</div>
               <div className="text-sm text-muted-foreground">{option.description}</div>
             </div>
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
               selectedTime === option.value
-                ? "border-primary bg-primary"
+                ? "border-secondary bg-secondary"
                 : "border-muted-foreground"
             }`}>
               {selectedTime === option.value && (
-                <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                <div className="w-2 h-2 rounded-full bg-secondary-foreground" />
               )}
             </div>
           </button>

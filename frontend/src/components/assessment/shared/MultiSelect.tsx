@@ -1,31 +1,41 @@
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import { Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// Generalizes the repeated Checkbox+Label grid pattern used throughout
-// AssessmentForm.tsx (languages at home, extracurriculars, transition
-// concerns, support needs, etc.). `columns` matches the exact grid class
-// each original usage had, so layouts don't shift.
+// Same prop contract as before (idPrefix/options/selected/onToggle/columns)
+// so every existing call site keeps working unchanged — internal rendering
+// is now premium chip buttons instead of raw checkbox+label rows.
 
 interface MultiSelectProps {
   idPrefix: string;
   options: string[];
   selected: string[];
   onToggle: (option: string) => void;
-  columns?: string; // e.g. "grid-cols-2 md:grid-cols-3"
+  columns?: string;
 }
 
-const MultiSelect = ({ idPrefix, options, selected, onToggle, columns = "grid-cols-2 md:grid-cols-3" }: MultiSelectProps) => {
+const MultiSelect = ({ idPrefix, options, selected, onToggle }: MultiSelectProps) => {
   return (
-    <div className={`grid ${columns} gap-3`}>
+    <div role="group" aria-label={idPrefix} className="flex flex-wrap gap-2">
       {options.map((option) => {
-        const id = `${idPrefix}-${option}`;
+        const isSelected = selected.includes(option);
         return (
-          <div key={option} className="flex items-center space-x-2">
-            <Checkbox id={id} checked={selected.includes(option)} onCheckedChange={() => onToggle(option)} />
-            <Label htmlFor={id} className="text-sm cursor-pointer">
-              {option}
-            </Label>
-          </div>
+          <button
+            key={`${idPrefix}-${option}`}
+            type="button"
+            role="checkbox"
+            aria-checked={isSelected}
+            onClick={() => onToggle(option)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-sm font-medium transition-all duration-200 ease-smooth",
+              "hover:-translate-y-0.5 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              isSelected
+                ? "border-secondary bg-secondary text-secondary-foreground shadow-soft"
+                : "border-border bg-card text-foreground hover:border-secondary/50"
+            )}
+          >
+            {isSelected && <Check className="h-3.5 w-3.5" />}
+            {option}
+          </button>
         );
       })}
     </div>

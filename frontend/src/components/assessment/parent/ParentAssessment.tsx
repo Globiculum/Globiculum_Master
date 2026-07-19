@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { CardContent } from "@/components/ui/card";
-import AssessmentLayout from "../shared/AssessmentLayout";
-import AssessmentHeader from "../shared/AssessmentHeader";
-import ProgressBar from "../shared/ProgressBar";
-import StepNavigation from "../shared/StepNavigation";
+import { BookOpen, HeartHandshake, MapPin, Sparkles, User } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import ParentAssessmentLayout from "../shared/ParentAssessmentLayout";
+import AssessmentStepper, { type AssessmentStepperStep } from "../shared/AssessmentStepper";
+import ProgressSidebar from "../shared/ProgressSidebar";
+import AssessmentFooter from "../shared/AssessmentFooter";
 import ParentStep1 from "./ParentStep1";
 import ParentStep2 from "./ParentStep2";
 import ParentStep3 from "./ParentStep3";
@@ -23,6 +24,14 @@ interface ParentAssessmentProps {
   prefillData?: Record<string, any>;
   prevReportId?: string;
 }
+
+const STEPPER_STEPS: AssessmentStepperStep[] = [
+  { title: "School Profile", icon: MapPin },
+  { title: "Academic Profile", icon: BookOpen },
+  { title: "Learning Profile", icon: User },
+  { title: "Concerns & Support", icon: HeartHandshake },
+  { title: "Generate Report", icon: Sparkles },
+];
 
 const createDefaultParentFormData = (): ParentFormData => ({
   schoolStage: "",
@@ -161,6 +170,13 @@ const ParentAssessment = ({ prefillData, prevReportId }: ParentAssessmentProps) 
     setCurrentStep(0);
   };
 
+  // Local-only convenience save (sessionStorage, same key/shape submitAssessment
+  // already persists on submit) — no Supabase call, no payload/validation change.
+  const handleSaveProgress = () => {
+    sessionStorage.setItem("assessment-form-data", JSON.stringify(formData));
+    toast({ title: "Progress saved", description: "Pick up right where you left off in this browser." });
+  };
+
   const stepProps = { formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors };
 
   const renderStep = () => {
@@ -181,31 +197,23 @@ const ParentAssessment = ({ prefillData, prevReportId }: ParentAssessmentProps) 
   };
 
   return (
-    <AssessmentLayout
-      title={
-        <>
-          Begin Your <span className="text-primary">Personalized Curriculum Mapping</span>
-        </>
-      }
-      subtitle="Answer a few questions to unlock your AI-generated alignment report"
-    >
-      <AssessmentHeader
-        stepNumber={currentStep + 1}
-        totalSteps={PARENT_TOTAL_STEPS}
-        title="Educational Assessment"
-        description="Comprehensive assessment for personalized curriculum alignment"
-      />
+    <ParentAssessmentLayout sidebar={<ProgressSidebar steps={STEPPER_STEPS} currentStep={currentStep} />}>
+      <AssessmentStepper steps={STEPPER_STEPS} currentStep={currentStep} />
 
-      <CardContent className="space-y-8">
-        <ProgressBar totalSteps={PARENT_TOTAL_STEPS} currentStep={currentStep} />
-
+      <div key={currentStep} className="animate-in fade-in-0 slide-in-from-right-2 duration-300">
         {renderStep()}
+      </div>
 
-        {currentStep < PARENT_TOTAL_STEPS - 1 && (
-          <StepNavigation onPrev={goPrev} onNext={goNext} isFirstStep={currentStep === 0} canProceed={canProceedFromStep(currentStep, formData)} />
-        )}
-      </CardContent>
-    </AssessmentLayout>
+      {currentStep < PARENT_TOTAL_STEPS - 1 && (
+        <AssessmentFooter
+          onPrev={goPrev}
+          onNext={goNext}
+          onSaveProgress={handleSaveProgress}
+          isFirstStep={currentStep === 0}
+          canProceed={canProceedFromStep(currentStep, formData)}
+        />
+      )}
+    </ParentAssessmentLayout>
   );
 };
 

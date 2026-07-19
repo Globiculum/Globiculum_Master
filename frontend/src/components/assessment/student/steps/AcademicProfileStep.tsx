@@ -1,8 +1,10 @@
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StepFieldError, type StudentStepProps } from "./types";
+import { BookOpen } from "lucide-react";
+import type { StudentStepProps } from "./types";
+import SectionCard from "../ui/SectionCard";
+import QuestionCard from "../ui/QuestionCard";
+import InputCard from "../ui/InputCard";
 
 // Step 2: Academic Profile — current curriculum, current subjects, languages.
 // Structural only: a simplified subject list (not the full grade-band logic
@@ -39,11 +41,8 @@ const INDIAN_LANGUAGES = ["Hindi", "Sanskrit", "Telugu", "Tamil", "Kannada", "Ma
 
 const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordField, errors }: StudentStepProps) => {
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Academic Profile</h2>
-
-      <div>
-        <Label htmlFor="current-curriculum">Current Curriculum</Label>
+    <SectionCard icon={BookOpen} title="Academic Profile" description="Help us understand your current academic setup.">
+      <QuestionCard label="Current Curriculum" htmlFor="current-curriculum" required error={errors.currentCurriculum}>
         <Select value={formData.currentCurriculum} onValueChange={(value) => setField("currentCurriculum", value)}>
           <SelectTrigger id="current-curriculum">
             <SelectValue placeholder="Select current curriculum" />
@@ -56,22 +55,19 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
             ))}
           </SelectContent>
         </Select>
-        <StepFieldError errors={errors} field="currentCurriculum" />
-      </div>
+      </QuestionCard>
 
       {formData.currentCurriculum === "other" && (
-        <div>
-          <Label htmlFor="current-curriculum-other">Please specify</Label>
+        <QuestionCard label="Please specify" htmlFor="current-curriculum-other">
           <Input
             id="current-curriculum-other"
             value={formData.currentCurriculumOther}
             onChange={(e) => setField("currentCurriculumOther", e.target.value)}
           />
-        </div>
+        </QuestionCard>
       )}
 
-      <div>
-        <Label htmlFor="curriculum-type">Curriculum Type</Label>
+      <QuestionCard label="Curriculum Type" htmlFor="curriculum-type">
         <Select value={formData.curriculumType} onValueChange={(value) => setField("curriculumType", value)}>
           <SelectTrigger id="curriculum-type">
             <SelectValue placeholder="Select curriculum type" />
@@ -84,74 +80,71 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </QuestionCard>
 
-      <div>
-        <Label>Current Subjects</Label>
-        <div className="grid grid-cols-2 gap-2 mt-2">
+      <QuestionCard label="Current Subjects" required hint="Select all subjects you're currently studying." error={errors.academicPath}>
+        <div role="group" aria-label="Current Subjects" className="flex flex-wrap gap-2">
           {SUBJECTS.map((subject) => (
-            <label key={subject} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={formData.academicPath.includes(subject)}
-                onCheckedChange={() => toggleArrayField("academicPath", subject)}
-              />
-              {subject}
-            </label>
+            <InputCard
+              key={subject}
+              mode="checkbox"
+              label={subject}
+              selected={formData.academicPath.includes(subject)}
+              onClick={() => toggleArrayField("academicPath", subject)}
+            />
           ))}
         </div>
-        <StepFieldError errors={errors} field="academicPath" />
-      </div>
+      </QuestionCard>
 
-      <div>
-        <Label>Languages (exposure to Indian languages)</Label>
-        <div className="grid grid-cols-2 gap-2 mt-2">
+      <QuestionCard label="Languages" hint="Exposure to Indian languages">
+        <div role="group" aria-label="Languages" className="flex flex-wrap gap-2">
           {INDIAN_LANGUAGES.map((lang) => (
-            <label key={lang} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={formData.selectedLanguages.includes(lang)}
-                onCheckedChange={() => toggleArrayField("selectedLanguages", lang)}
-              />
-              {lang}
-            </label>
+            <InputCard
+              key={lang}
+              mode="checkbox"
+              label={lang}
+              selected={formData.selectedLanguages.includes(lang)}
+              onClick={() => toggleArrayField("selectedLanguages", lang)}
+            />
           ))}
         </div>
-      </div>
+      </QuestionCard>
 
       {formData.selectedLanguages.length > 0 && (
-        <div className="space-y-2">
-          <Label>Proficiency per language</Label>
-          {formData.selectedLanguages.map((lang) => (
-            <div key={lang} className="flex items-center gap-3">
-              <span className="text-sm min-w-[90px]">{lang}</span>
-              <Select
-                value={formData.languageProficiencies[lang] || ""}
-                onValueChange={(value) => setRecordField("languageProficiencies", lang, value)}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select proficiency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Exposure</SelectItem>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="fluent">Fluent</SelectItem>
-                  <SelectItem value="native">Native</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
+        <QuestionCard label="Proficiency per language">
+          <div className="space-y-3">
+            {formData.selectedLanguages.map((lang) => (
+              <div key={lang} className="flex items-center gap-3">
+                <span className="min-w-[90px] text-sm font-medium text-foreground">{lang}</span>
+                <Select
+                  value={formData.languageProficiencies[lang] || ""}
+                  onValueChange={(value) => setRecordField("languageProficiencies", lang, value)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select proficiency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Exposure</SelectItem>
+                    <SelectItem value="beginner">Beginner</SelectItem>
+                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                    <SelectItem value="fluent">Fluent</SelectItem>
+                    <SelectItem value="native">Native</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+        </QuestionCard>
       )}
 
-      <div>
-        <Label htmlFor="custom-language">Other language (optional)</Label>
+      <QuestionCard label="Other language" htmlFor="custom-language" hint="Optional">
         <Input
           id="custom-language"
           value={formData.customLanguage}
           onChange={(e) => setField("customLanguage", e.target.value)}
         />
-      </div>
-    </div>
+      </QuestionCard>
+    </SectionCard>
   );
 };
 
