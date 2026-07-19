@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import BeginJourney from "./pages/BeginJourney";
+import StudentAssessment from "./pages/StudentAssessment";
 import Onboarding from "./pages/Onboarding";
 import OurAdvantage from "./pages/OurAdvantage";
 import About from "./pages/About";
@@ -31,6 +32,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/begin-journey" element={<BeginJourney />} />
+          <Route path="/student-assessment" element={<StudentAssessment />} />
           <Route path="/our-advantage" element={<OurAdvantage />} />
           <Route path="/about" element={<About />} />
           <Route 
