@@ -127,6 +127,20 @@ interface GapNodeWithSeverity extends GapNode {
  * Groups gaps by subject, shows target node name + closest source match.
  * Severity is pre-computed by adaptive percentile (not absolute similarity).
  */
+/**
+ * Auto-generate an NCERT textbook URL from metadata when no explicit URL is stored.
+ * Pattern: https://ncert.nic.in/textbook.php?<bookcode> — approximated from grade + subject.
+ */
+function inferNcertUrl(meta: Record<string, unknown>, gradeLevelMin: number): string | null {
+  const subject = ((meta.subject as string) || '').toLowerCase();
+  const book = ((meta.book as string) || '').toLowerCase();
+  if (!subject) return null;
+  // NCERT portal search URL by grade + subject
+  const gradeStr = gradeLevelMin ? `class+${gradeLevelMin}` : '';
+  const subjectSlug = subject.replace(/[^a-z0-9]+/g, '+');
+  return `https://ncert.nic.in/textbook.php?subject=${subjectSlug}&grade=${gradeStr}`;
+}
+
 function buildRagContext(
   gaps: GapNodeWithSeverity[],
   sourceLabel: string,
@@ -157,21 +171,28 @@ function buildRagContext(
 
   let totalShown = 0;
   for (const [subject, subjectGaps] of Object.entries(bySubject)) {
-    if (totalShown >= 25) break;
+    if (totalShown >= 30) break;
     lines.push(`\n[${subject}]`);
-    for (const gap of subjectGaps.slice(0, 5)) {
-      if (totalShown >= 25) break;
+    for (const gap of subjectGaps.slice(0, 8)) {
+      if (totalShown >= 30) break;
       const matchNote = gap.best_source_match
         ? `nearest source match: "${gap.best_source_match.substring(0, 60)}"`
         : 'no source node covers this topic';
       const targetTopic = (gap.target_node_name || '').substring(0, 100);
       const desc = (gap.target_description || '').substring(0, 80);
       const gapMeta = (gap.target_metadata || {}) as Record<string, unknown>;
-      const resourceUrl: string | null =
+      let resourceUrl: string | null =
         (gapMeta.url as string) ||
         (gapMeta.source_url as string) ||
         null;
-      lines.push(`  [${gap._severity}] ${targetTopic}`);
+      // Auto-generate NCERT URL when not present in source data
+      if (!resourceUrl && gap.target_node_type === 'topic') {
+        const curriculum = (gapMeta.source_type === 'chapter') ? 'ncert' : '';
+        if (curriculum || targetLabel.toLowerCase().includes('ncert') || targetLabel.toLowerCase().includes('cbse')) {
+          resourceUrl = inferNcertUrl(gapMeta, gap.target_grade_min);
+        }
+      }
+      lines.push(`  [${gap._severity}] EXACT_TOPIC_NAME: "${targetTopic}"`);
       if (desc) lines.push(`    Context: ${desc}`);
       lines.push(`    ${matchNote}`);
       if (resourceUrl) lines.push(`    RESOURCE_URL: ${resourceUrl}`);
@@ -485,6 +506,7 @@ serve(async (req) => {
     // ==========================================================================
     let ragContext = '';
     let ragGapCount = 0;
+    let subjectCoverageStats = '';  // per-subject coverage for LLM grounding
 
     // Resolve source and target curricula from the registry
     const sourceEntry = mapToDBEntry(formData.currentCurriculum);
@@ -584,7 +606,7 @@ serve(async (req) => {
           // Take the bottom 35% — these are the real curriculum gaps
           const rawGapNodes = sortedAsc.slice(0, gapIdx + 1);
           const gapNodesWithSeverity: GapNodeWithSeverity[] = rawGapNodes
-            .slice(0, 25)
+            .slice(0, 30)
             .map(g => ({ ...g, _severity: assignSeverity(g.best_similarity) }));
 
           const severityCounts = {
@@ -597,6 +619,30 @@ serve(async (req) => {
           const alignmentPct = Math.round((coveredCount / total) * 100);
 
           ragGapCount = gapNodesWithSeverity.length;
+
+          // ── Compute per-subject coverage stats from ALL nodes (not just gaps) ──
+          const subjectStats: Record<string, { total: number; gaps: number; covered: number }> = {};
+          for (let ni = 0; ni < sortedAsc.length; ni++) {
+            const node = sortedAsc[ni];
+            const meta = (node.target_metadata || {}) as Record<string, unknown>;
+            const subj = ((meta.subject as string) || (meta.domain as string) || 'General').substring(0, 40);
+            if (!subjectStats[subj]) subjectStats[subj] = { total: 0, gaps: 0, covered: 0 };
+            subjectStats[subj].total++;
+            if (ni <= gapIdx) {
+              subjectStats[subj].gaps++;
+            } else {
+              subjectStats[subj].covered++;
+            }
+          }
+
+          // Format as structured data for the LLM
+          const coverageLines: string[] = ['\nSUBJECT COVERAGE STATS (from database — use these for topicsCovered/totalTopics):'];
+          for (const [subj, stats] of Object.entries(subjectStats)) {
+            const pct = Math.round((stats.covered / stats.total) * 100);
+            coverageLines.push(`  ${subj}: ${stats.covered} covered / ${stats.total} total (${pct}% alignment) — ${stats.gaps} gaps`);
+          }
+          subjectCoverageStats = coverageLines.join('\n');
+
           ragContext = buildRagContext(
             gapNodesWithSeverity,
             sourceEntry.label,
@@ -722,7 +768,9 @@ NON-NEGOTIABLE RULES
 - NEVER generate inconsistent outputs across same grade
 - NEVER mix curriculum systems incorrectly
 - NEVER provide generic or incomplete references
-- Include the disclaimer text inside the JSON structure (not outside it)
+- For keyGaps and criticalGaps: use the EXACT topic name from EXACT_TOPIC_NAME in the VERIFIED GAP DATA — do NOT paraphrase, summarize, or combine multiple topics into one
+- For resourceUrl: copy the RESOURCE_URL value EXACTLY as shown in the gap data — every gap that has a RESOURCE_URL MUST have it in the output
+- For topicsCovered and totalTopics: use the SUBJECT COVERAGE STATS numbers when provided — do NOT invent coverage numbers
 
 OUTPUT FORMAT
 Return ONLY valid JSON. No markdown fences, no explanation before or after the JSON object. The response must start with { and end with } — nothing else.`;
@@ -731,7 +779,7 @@ Return ONLY valid JSON. No markdown fences, no explanation before or after the J
     console.log(`[GEMINI] Model: gemini-3.1-flash-lite | Grade: ${formData.snapshotGrade} | Source: ${formData.currentCurriculum} | Target: ${formData.targetGoal || formData.targetCurriculum}`);
 
     const ragSection = ragContext
-      ? `\n**VERIFIED GAPS FROM CURRICULUM DATABASE (${ragGapCount} priority gaps):**\n${ragContext}\n\nIMPORTANT: Use the VERIFIED GAPS above (from semantic similarity analysis of ${sourceEntry?.label || formData.currentCurriculum || 'source'} vs ${targetEntry?.label || formData.targetGoal || 'target'} standards) to populate keyGaps and criticalGaps. These are grounded in real DB data, not estimates. CRITICAL = bottom 10% by similarity (urgent); MAJOR = 10-20% (bridge before grade-level); MODERATE = 20-35% (address concurrently).\n`
+      ? `\n**VERIFIED GAPS FROM CURRICULUM DATABASE (${ragGapCount} priority gaps):**\n${ragContext}${subjectCoverageStats}\n\nIMPORTANT: Use the VERIFIED GAPS above (from semantic similarity analysis of ${sourceEntry?.label || formData.currentCurriculum || 'source'} vs ${targetEntry?.label || formData.targetGoal || 'target'} standards) to populate keyGaps and criticalGaps. These are grounded in real DB data, not estimates. CRITICAL = bottom 10% by similarity (urgent); MAJOR = 10-20% (bridge before grade-level); MODERATE = 20-35% (address concurrently).\nFor each gap, use the EXACT_TOPIC_NAME and RESOURCE_URL from the data above — do NOT paraphrase or omit URLs.\nFor topicsCovered/totalTopics, use the SUBJECT COVERAGE STATS numbers above.\n`
       : '';
 
     const userPrompt = `Analyze curriculum alignment for this student${ragContext ? ' using the VERIFIED GAP DATA from our curriculum database' : ''}:
@@ -758,8 +806,8 @@ ${ragSection}
   "subjectAnalysis": [
     {
       "subject": "<name>",
-      "topicsCovered": <number>,
-      "totalTopics": <number>,
+      "topicsCovered": <number from SUBJECT COVERAGE STATS 'covered' count>,
+      "totalTopics": <number from SUBJECT COVERAGE STATS 'total' count>,
       "alignmentLevel": "strong" | "moderate" | "high_gap",
       "keyGaps": [
         { "topic": "<topic name from RAG data>", "resourceUrl": "<exact RESOURCE_URL from RAG data if present>" }
