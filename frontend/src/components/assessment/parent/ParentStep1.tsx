@@ -68,8 +68,35 @@ const PREVIOUS_LOCATIONS = [
   { value: "other", label: "Other" },
 ];
 
-// MVP scope: only US Common Core is offered, for every school stage.
-const CURRICULUM_OPTIONS = [{ value: "us-common-core", label: "US Common Core" }];
+// Mirrors the Student flow's per-stage curriculum options (StudentProfileStep.tsx)
+// so both journeys offer the same choices.
+const CURRICULUM_BY_STAGE: Record<string, { value: string; label: string }[]> = {
+  elementary: [
+    { value: "us-common-core", label: "US Common Core" },
+    { value: "state-specific", label: "State-Specific Standards" },
+    { value: "ib-pyp", label: "IB PYP" },
+    { value: "cambridge-primary", label: "Cambridge Primary" },
+    { value: "montessori", label: "Montessori Curriculum" },
+    { value: "other", label: "Other" },
+  ],
+  middle: [
+    { value: "us-common-core", label: "US Common Core" },
+    { value: "state-specific", label: "State-Specific Standards" },
+    { value: "ib-myp", label: "IB MYP" },
+    { value: "cambridge-lower", label: "Cambridge Lower Secondary" },
+    { value: "honors-advanced", label: "Honors / Advanced Programs" },
+    { value: "other", label: "Other" },
+  ],
+  high: [
+    { value: "us-common-core", label: "US Common Core" },
+    { value: "state-specific", label: "State-Specific Standards" },
+    { value: "ap", label: "AP Track (Advanced Placement)" },
+    { value: "ib-dp", label: "IB DP" },
+    { value: "cambridge-igcse", label: "Cambridge IGCSE" },
+    { value: "a-levels", label: "A-Levels" },
+    { value: "other", label: "Other" },
+  ],
+};
 
 // Value stays the two-letter abbreviation (existing usState payload shape);
 // only the displayed label is expanded to "Full Name (Abbreviation)".
@@ -93,7 +120,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
 
   const getCurrentCurriculumOptions = () => {
     if (!formData.schoolStage) return [];
-    return CURRICULUM_OPTIONS;
+    return CURRICULUM_BY_STAGE[formData.schoolStage] || [];
   };
 
   const handleSchoolStageChange = (stage: string) => {
@@ -270,7 +297,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         )}
       </SectionContainer>
 
-      <SectionContainer icon={BookOpen} title="3. Current Curriculum" description="Standard academic benchmarks used in most US states.">
+      <SectionContainer icon={BookOpen} title="3. Current Curriculum" description="Curriculum options change based on school stage.">
         <QuestionCard
           label="Select your current curriculum system"
           htmlFor="current-curriculum"
