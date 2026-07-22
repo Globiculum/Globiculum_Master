@@ -1,12 +1,24 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ParentAssessment from "@/components/assessment/parent/ParentAssessment";
-import AssessmentHero from "@/components/assessment/shared/AssessmentHero";
+import { PARENT_TOTAL_STEPS } from "@/components/assessment/parent/parentValidation";
+import { STUDENT_TOTAL_STEPS } from "@/components/assessment/student/StudentAssessmentController";
 import PersonaSelection, { type Persona } from "@/components/PersonaSelection";
-import { BookOpen, GraduationCap, Sparkles } from "lucide-react";
+import PersonaBackground from "@/components/persona/PersonaBackground";
+import LivingIllustration from "@/components/persona/LivingIllustration";
+import { Clock, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Parent (5 steps) and Student (4 steps) are different lengths — the step
+// indicator on this screen previews whichever flow is currently highlighted,
+// defaulting to Parent's count until a card is picked.
+const STEP_TOTALS: Record<Persona, number> = {
+  parent: PARENT_TOTAL_STEPS,
+  student: STUDENT_TOTAL_STEPS,
+};
 
 const PERSONA_STORAGE_KEY = "globiculum-selected-persona";
 
@@ -26,6 +38,8 @@ const BeginJourney = () => {
   const isRetake = Boolean(prefillFormData);
 
   const [persona, setPersona] = useState<Persona | null>(readStoredPersona);
+  const [previewPersona, setPreviewPersona] = useState<Persona | null>(null);
+  const previewTotalSteps = STEP_TOTALS[previewPersona ?? "parent"];
 
   const showPersonaStep = !isRetake && !persona;
   const isStudentRedirect = !isRetake && persona === "student";
@@ -46,6 +60,7 @@ const BeginJourney = () => {
   const handleChangePersona = () => {
     sessionStorage.removeItem(PERSONA_STORAGE_KEY);
     setPersona(null);
+    setPreviewPersona(null);
   };
 
   // Covers landing on /begin-journey directly with "student" already stored
@@ -66,79 +81,120 @@ const BeginJourney = () => {
 
       <section
         className={cn(
-          "py-10 md:py-20",
+          "py-8 md:py-12",
           showPersonaStep ? "relative overflow-hidden bg-background" : "bg-gradient-subtle"
         )}
       >
-        {showPersonaStep && (
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-secondary/10 blur-3xl" />
-            <div className="absolute top-10 -right-24 h-80 w-80 rounded-full bg-violet/10 blur-3xl" />
-            <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-mint/20 blur-3xl" />
-            <GraduationCap className="absolute right-[8%] top-16 hidden h-16 w-16 -rotate-6 text-secondary/10 md:block" />
-            <BookOpen className="absolute left-[10%] bottom-10 hidden h-14 w-14 rotate-6 text-violet/10 md:block" />
-          </div>
-        )}
+        {showPersonaStep && <PersonaBackground />}
         <div className="container relative mx-auto px-4">
-          {showPersonaStep ? (
-            <>
-              <div className="text-center mb-12 space-y-4">
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <Sparkles className="h-4 w-4 text-secondary" />
-                  <span className="text-sm font-semibold uppercase tracking-wide text-secondary">
-                    Begin Your Journey
-                  </span>
-                </div>
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-                  Let's build your{" "}
-                  <span className="bg-gradient-cta bg-clip-text text-transparent">
-                    personalized transition roadmap
-                  </span>
-                </h1>
-                <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-                  Every learner's journey is unique. Tell us who this assessment is for so we
-                  can personalize every question and recommendation.
-                </p>
-              </div>
+          <MotionConfig reducedMotion="user">
+            <AnimatePresence mode="wait">
+              {showPersonaStep ? (
+                <motion.div
+                  key="persona-step"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.35, ease: "easeInOut" }}
+                >
+                  <div className="mb-8 grid grid-cols-1 items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className="text-center lg:text-left">
+                      <div className="mb-3 flex items-center justify-center gap-2.5 lg:justify-start">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-secondary">
+                          Step 1 of {previewTotalSteps}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: previewTotalSteps }).map((_, index) => (
+                            <span
+                              key={index}
+                              className={cn(
+                                "h-1.5 rounded-full transition-all",
+                                index === 0 ? "w-4 bg-secondary" : "w-1.5 bg-muted"
+                              )}
+                            />
+                          ))}
+                        </div>
+                      </div>
 
-              <PersonaSelection onContinue={handlePersonaContinue} />
-            </>
-          ) : (
-            <>
-              <AssessmentHero
-                eyebrow="Parent Assessment"
-                showChangePersona={!isRetake && Boolean(persona)}
-                onChangePersona={handleChangePersona}
-                title={
-                  prefillFormData ? (
-                    <>
-                      Retake Your <span className="bg-gradient-cta bg-clip-text text-transparent">Assessment</span>
-                    </>
-                  ) : (
-                    <>
-                      Let's build your child's{" "}
-                      <span className="bg-gradient-cta bg-clip-text text-transparent">personalized transition roadmap</span>
-                    </>
-                  )
-                }
-                subtitle={
-                  prefillFormData
-                    ? "Your previous answers have been pre-filled. Update any fields and submit to generate a new report."
-                    : "Answer a few simple questions and our AI will generate a detailed curriculum transition report with learning gaps, strengths, and a personalized bridge plan."
-                }
-                notice={
-                  !prefillFormData && (
-                    <>
-                      This assessment takes just 5-10 minutes and is currently designed for students in{" "}
-                      <span className="font-semibold">Grades 1–10</span> transitioning between curricula.
-                    </>
-                  )
-                }
-              />
+                      <motion.h1
+                        className="text-h1 text-foreground"
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                      >
+                        Choose Your <span className="bg-gradient-cta bg-clip-text text-transparent">Journey</span>
+                      </motion.h1>
+                      <motion.p
+                        className="mx-auto mt-3 max-w-md text-body text-muted-foreground lg:mx-0"
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                      >
+                        Tell us who this assessment is for so we can personalize your experience.
+                      </motion.p>
 
-              <ParentAssessment prefillData={prefillFormData} prevReportId={prevReportId} />
-            </>
-          )}
+                      <motion.div
+                        className="mx-auto mt-4 inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-caption text-muted-foreground lg:mx-0 lg:justify-start"
+                        initial="hidden"
+                        animate="show"
+                        variants={{
+                          hidden: {},
+                          show: { transition: { staggerChildren: 0.08, delayChildren: 0.25 } },
+                        }}
+                      >
+                        <motion.span
+                          className="inline-flex items-center gap-1.5"
+                          variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+                          transition={{ duration: 0.3 }}
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          <Lock className="h-3.5 w-3.5 text-secondary" />
+                          Private &amp; Secure
+                        </motion.span>
+                        <span className="text-border">•</span>
+                        <motion.span
+                          className="inline-flex items-center gap-1.5"
+                          variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+                          transition={{ duration: 0.3 }}
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          <Clock className="h-3.5 w-3.5 text-secondary" />
+                          8–10 Minutes
+                        </motion.span>
+                      </motion.div>
+                    </div>
+
+                    <div className="hidden justify-center lg:flex">
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.94 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.15 }}
+                      >
+                        <LivingIllustration />
+                      </motion.div>
+                    </div>
+                  </div>
+
+                  <PersonaSelection onContinue={handlePersonaContinue} onSelectionChange={setPreviewPersona} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="parent-assessment-step"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.35, ease: "easeInOut" }}
+                >
+                  <ParentAssessment
+                    prefillData={prefillFormData}
+                    prevReportId={prevReportId}
+                    onChangePersona={handleChangePersona}
+                    showChangePersona={!isRetake}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </MotionConfig>
         </div>
       </section>
 

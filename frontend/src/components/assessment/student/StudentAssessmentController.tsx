@@ -1,26 +1,31 @@
-import { BookOpen, Brain, Sparkles, Target, User } from "lucide-react";
+import { BookOpen, ClipboardCheck, User, Wand2 } from "lucide-react";
 import AssessmentLayout from "./ui/AssessmentLayout";
 import type { StepperStep } from "./ui/ProgressStepper";
 import { useStudentAssessmentState } from "./state/useStudentAssessmentState";
 import { useStudentAssessmentNavigation } from "./navigation/useStudentAssessmentNavigation";
 import StudentProfileStep from "./steps/StudentProfileStep";
 import AcademicProfileStep from "./steps/AcademicProfileStep";
-import LearningProfileStep from "./steps/LearningProfileStep";
-import GoalsChallengesStep from "./steps/GoalsChallengesStep";
-import GenerateReportStep from "./steps/GenerateReportStep";
+import WrapUpStep from "./steps/WrapUpStep";
+import StudentReviewStep from "./steps/StudentReviewStep";
 import type { AssessmentFormData } from "../shared/types";
 
 // Data-driven step controller — the Student flow's counterpart to
 // AssessmentForm.tsx's hardcoded renderStep() switch, but scalable: adding,
 // removing, or reordering a step means editing this one array. `id` values
 // must stay in sync with STUDENT_ASSESSMENT_STEP_IDS in validation/.
+// Student journey is 4 steps, ending in a Review step (mirrors Parent) whose
+// own button triggers submission — no more immediate-generate step.
 const STEPS: StepperStep[] = [
   { id: "profile", title: "Student Profile", icon: User },
   { id: "academic", title: "Academic Profile", icon: BookOpen },
-  { id: "learning", title: "Learning Profile", icon: Brain },
-  { id: "goals", title: "Goals & Challenges", icon: Target },
-  { id: "generate", title: "Generate Report", icon: Sparkles },
+  { id: "wrapup", title: "Almost Done", icon: Wand2 },
+  { id: "review", title: "Review", icon: ClipboardCheck },
 ];
+
+// Single source of truth for the Student flow's step count, so pages that
+// reference it before this controller mounts (e.g. the persona-selection
+// step indicator) don't duplicate the number.
+export const STUDENT_TOTAL_STEPS = STEPS.length;
 
 interface StudentAssessmentControllerProps {
   prefillData?: Partial<AssessmentFormData>;
@@ -40,16 +45,15 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
         return <StudentProfileStep {...stepProps} />;
       case "academic":
         return <AcademicProfileStep {...stepProps} />;
-      case "learning":
-        return <LearningProfileStep {...stepProps} />;
-      case "goals":
-        return <GoalsChallengesStep {...stepProps} />;
-      case "generate":
+      case "wrapup":
+        return <WrapUpStep {...stepProps} />;
+      case "review":
         return (
-          <GenerateReportStep
+          <StudentReviewStep
             formData={formData}
             prevReportId={prevReportId}
             onValidationErrors={() => navigation.goToStep(0)}
+            onEditStep={navigation.goToStep}
           />
         );
       default:

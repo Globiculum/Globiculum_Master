@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { BookOpen, HeartHandshake, MapPin, Sparkles, User } from "lucide-react";
+import { BookOpen, ClipboardCheck, HeartHandshake, MapPin, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ParentAssessmentLayout from "../shared/ParentAssessmentLayout";
+import AssessmentHeader from "../shared/AssessmentHeader";
 import AssessmentStepper, { type AssessmentStepperStep } from "../shared/AssessmentStepper";
 import ProgressSidebar from "../shared/ProgressSidebar";
 import AssessmentFooter from "../shared/AssessmentFooter";
@@ -23,17 +24,21 @@ import type { ParentFormData } from "./parentMapper";
 interface ParentAssessmentProps {
   prefillData?: Record<string, any>;
   prevReportId?: string;
+  onChangePersona: () => void;
+  showChangePersona?: boolean;
 }
 
 const STEPPER_STEPS: AssessmentStepperStep[] = [
   { title: "School Profile", icon: MapPin },
-  { title: "Academic Profile", icon: BookOpen },
+  { title: "Academic Path", icon: BookOpen },
   { title: "Learning Profile", icon: User },
-  { title: "Concerns & Support", icon: HeartHandshake },
-  { title: "Generate Report", icon: Sparkles },
+  { title: "Support", icon: HeartHandshake },
+  { title: "Review", icon: ClipboardCheck },
 ];
 
 const createDefaultParentFormData = (): ParentFormData => ({
+  childName: "",
+  childLastName: "",
   schoolStage: "",
   snapshotGrade: "",
   snapshotLocation: "",
@@ -51,8 +56,10 @@ const createDefaultParentFormData = (): ParentFormData => ({
   targetGoal: "",
   targetGoalOther: "",
   timeline: "",
+  educationHistory: [],
 
   academicPath: [],
+  otherSubject: "",
   selectedLanguages: [],
   languageProficiencies: {},
   customLanguage: "",
@@ -69,6 +76,7 @@ const createDefaultParentFormData = (): ParentFormData => ({
   learningStyles: [],
   studyTime: "",
   previousGrades: "",
+  overallPerformance: "",
   strongestSubjects: [],
   challengingSubjects: [],
   strengthenGoals: [],
@@ -85,6 +93,7 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
 
   return {
     ...defaults,
+    childName: prefillData.childName || defaults.childName,
     schoolStage: prefillData.schoolStage || defaults.schoolStage,
     snapshotGrade: prefillData.snapshotGrade ? String(prefillData.snapshotGrade) : defaults.snapshotGrade,
     snapshotLocation: prefillData.snapshotLocation || defaults.snapshotLocation,
@@ -100,6 +109,7 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
     targetGoal: prefillData.targetGoal || defaults.targetGoal,
     targetGoalOther: prefillData.targetGoalOther || defaults.targetGoalOther,
     timeline: prefillData.timeline || defaults.timeline,
+    educationHistory: Array.isArray(prefillData.educationHistory) ? prefillData.educationHistory : defaults.educationHistory,
     academicPath: Array.isArray(prefillData.academicPath) ? prefillData.academicPath : defaults.academicPath,
     selectedLanguages: Array.isArray(prefillData.selectedLanguages) ? prefillData.selectedLanguages : defaults.selectedLanguages,
     languageProficiencies: prefillData.languageProficiencies || defaults.languageProficiencies,
@@ -116,6 +126,7 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
     learningStyles: Array.isArray(prefillData.learningStyles) ? prefillData.learningStyles : defaults.learningStyles,
     studyTime: prefillData.studyTime || defaults.studyTime,
     previousGrades: prefillData.previousGrades || defaults.previousGrades,
+    overallPerformance: prefillData.overallPerformance || defaults.overallPerformance,
     strongestSubjects: Array.isArray(prefillData.strongestSubjects) ? prefillData.strongestSubjects : defaults.strongestSubjects,
     challengingSubjects: Array.isArray(prefillData.challengingSubjects) ? prefillData.challengingSubjects : defaults.challengingSubjects,
     transitionConcerns: Array.isArray(prefillData.transitionConcerns) ? prefillData.transitionConcerns : defaults.transitionConcerns,
@@ -129,7 +140,7 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
   };
 };
 
-const ParentAssessment = ({ prefillData, prevReportId }: ParentAssessmentProps) => {
+const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChangePersona = true }: ParentAssessmentProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<ParentFormData>(() => mergePrefillData(createDefaultParentFormData(), prefillData));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -165,6 +176,10 @@ const ParentAssessment = ({ prefillData, prevReportId }: ParentAssessmentProps) 
     if (currentStep > 0) setCurrentStep((prev) => prev - 1);
   };
 
+  const goToStep = (index: number) => {
+    setCurrentStep(Math.max(0, Math.min(index, PARENT_TOTAL_STEPS - 1)));
+  };
+
   const handleValidationErrors = (errors: Record<string, string>) => {
     setFieldErrors(errors);
     setCurrentStep(0);
@@ -190,7 +205,15 @@ const ParentAssessment = ({ prefillData, prevReportId }: ParentAssessmentProps) 
       case 3:
         return <ParentStep4 {...stepProps} />;
       case 4:
-        return <ParentStep5 formData={formData} prevReportId={prevReportId} onPrev={goPrev} onValidationErrors={handleValidationErrors} />;
+        return (
+          <ParentStep5
+            formData={formData}
+            prevReportId={prevReportId}
+            onPrev={goPrev}
+            onValidationErrors={handleValidationErrors}
+            onEditStep={goToStep}
+          />
+        );
       default:
         return null;
     }
@@ -198,6 +221,12 @@ const ParentAssessment = ({ prefillData, prevReportId }: ParentAssessmentProps) 
 
   return (
     <ParentAssessmentLayout sidebar={<ProgressSidebar steps={STEPPER_STEPS} currentStep={currentStep} />}>
+      <AssessmentHeader
+        onChangePersona={onChangePersona}
+        title="Parent Assessment"
+        subtitle="Answer a few questions to generate your child's personalized curriculum transition report."
+        showChangePersona={showChangePersona}
+      />
       <AssessmentStepper steps={STEPPER_STEPS} currentStep={currentStep} />
 
       <div key={currentStep} className="animate-in fade-in-0 slide-in-from-right-2 duration-300">

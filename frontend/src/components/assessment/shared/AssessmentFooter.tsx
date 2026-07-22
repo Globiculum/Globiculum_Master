@@ -15,7 +15,7 @@ interface AssessmentFooterProps {
 // an optional "Save Progress" action that only persists formData locally
 // (sessionStorage) and never touches Supabase/validation/payload logic.
 const AssessmentFooter = ({ onPrev, onNext, onSaveProgress, isFirstStep, canProceed }: AssessmentFooterProps) => (
-  <div className="sticky bottom-0 z-10 -mx-6 mt-8 border-t border-border bg-background/90 px-6 py-4 backdrop-blur-sm md:-mx-10 md:px-10">
+  <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-border bg-background/90 px-4 py-4 backdrop-blur-sm sm:mx-0 sm:rounded-2xl sm:border sm:shadow-soft">
     <div className="flex items-center justify-between gap-3">
       <Button type="button" variant="outline" size="lg" onClick={onPrev} disabled={isFirstStep} className="gap-2 rounded-full">
         <ArrowLeft className="h-4 w-4" />

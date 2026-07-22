@@ -7,21 +7,13 @@ interface ProgressSidebarProps {
   currentStep: number; // 0-indexed
 }
 
-const WHAT_YOU_RECEIVE = [
-  "Curriculum Gap Analysis",
-  "Subject-wise Readiness",
-  "AI Learning Roadmap",
-  "Transition Recommendations",
-  "Personalized Parent Guidance",
-  "Downloadable PDF Report",
-];
+const WHAT_YOU_GET = ["Curriculum Gap Report", "Personalized Roadmap", "AI Recommendations", "Downloadable PDF"];
 
 // Presentational only — the step list is a status display, not a navigation
 // shortcut, so the only way to move between steps is still Previous/Continue.
 const ProgressSidebar = ({ steps, currentStep }: ProgressSidebarProps) => {
   const total = steps.length;
   const percent = Math.round(((currentStep + 1) / total) * 100);
-  const minutesLeft = Math.max((total - currentStep - 1) * 2, 0);
 
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
@@ -60,9 +52,6 @@ const ProgressSidebar = ({ steps, currentStep }: ProgressSidebarProps) => {
         <p className="mt-3 text-center text-sm text-muted-foreground">
           Step {currentStep + 1} of {total}
         </p>
-        {minutesLeft > 0 && (
-          <p className="text-center text-xs text-muted-foreground">~{minutesLeft} minutes remaining</p>
-        )}
 
         <ul className="mt-5 space-y-2.5 border-t border-border pt-4">
           {steps.map((step, index) => {
@@ -91,10 +80,10 @@ const ProgressSidebar = ({ steps, currentStep }: ProgressSidebarProps) => {
 
       <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
         <h3 className="mb-3 text-sm font-semibold text-foreground">
-          What <span className="text-secondary">you'll receive</span>
+          What <span className="text-secondary">you'll get</span>
         </h3>
         <ul className="space-y-2.5">
-          {WHAT_YOU_RECEIVE.map((item) => (
+          {WHAT_YOU_GET.map((item) => (
             <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
               <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-secondary" />
               {item}

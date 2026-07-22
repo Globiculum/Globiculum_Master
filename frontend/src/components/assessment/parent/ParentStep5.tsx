@@ -1,37 +1,45 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { logAuditEvent } from "@/lib/logAuditEvent";
 import LoadingScreen from "../shared/LoadingScreen";
+import ReportGenerationLoader from "../shared/ReportGenerationLoader";
 import SectionContainer from "../shared/SectionContainer";
 import { buildValidationPayload, buildAnalyzeCurriculumPayload, type ParentFormData } from "./parentMapper";
 
-// Step 5: Generate Report.
-// This is a verbatim port of AssessmentForm.tsx's handleSubmit() — same
-// sequence of calls (validate-student-data -> assessments insert ->
-// analyze-curriculum fire-and-forget -> diagnostics-engine ->
-// diagnostic_results insert -> /report-preview), same error handling, same
-// toasts. Only the payload construction is delegated to parentMapper.ts;
-// field-level validation errors are reported back via onValidationErrors
-// instead of local step-index state, since this component doesn't own the
-// step index.
+// Step 5: Review.
+// Submission logic below (handleSubmit) is a verbatim port of
+// AssessmentForm.tsx's handleSubmit() — same sequence of calls
+// (validate-student-data -> assessments insert -> analyze-curriculum
+// fire-and-forget -> diagnostics-engine -> diagnostic_results insert ->
+// /report-preview), same error handling, same toasts. Only the payload
+// construction is delegated to parentMapper.ts; field-level validation
+// errors are reported back via onValidationErrors instead of local
+// step-index state, since this component doesn't own the step index.
+// The read-only summary below is purely presentational — it never
+// constructs or sends any payload itself, only reads formData for display.
 
 interface ParentStep5Props {
   formData: ParentFormData;
   prevReportId?: string;
   onPrev: () => void;
   onValidationErrors: (errors: Record<string, string>) => void;
+  onEditStep: (index: number) => void;
 }
 
-const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors }: ParentStep5Props) => {
+const prettify = (value: string) =>
+  value ? value.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
+
+const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEditStep }: ParentStep5Props) => {
   const navigate = useNavigate();
   const [isValidating, setIsValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    if (isValidating || isSubmitting) return; // guard against double-click / duplicate submission
     setIsValidating(true);
 
     const formDataJson = JSON.stringify(formData);
@@ -227,16 +235,85 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors }: Par
     }
   };
 
+  const sections = [
+    {
+      stepIndex: 0,
+      title: "School Profile",
+      rows: [
+        { label: "Child's Name", value: formData.childName || "—" },
+        { label: "School Stage", value: prettify(formData.schoolStage) },
+        { label: "Current Grade", value: formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "—" },
+        {
+          label: "Current School Country",
+          value:
+            formData.snapshotLocation === "us"
+              ? `United States${formData.usState ? ` (${formData.usState})` : ""}`
+              : formData.snapshotLocationOther || prettify(formData.snapshotLocation),
+        },
+        { label: "Current Curriculum", value: prettify(formData.currentCurriculumOther || formData.currentCurriculum) },
+        { label: "Target Indian Board", value: prettify(formData.targetGoal) },
+        { label: "Transition Timeline", value: prettify(formData.timeline) },
+      ],
+    },
+    {
+      stepIndex: 1,
+      title: "Academic Path",
+      rows: [
+        { label: "Current Subjects", value: String(formData.academicPath.length) },
+        { label: "Language Exposure", value: String(formData.selectedLanguages.length) },
+      ],
+    },
+    {
+      stepIndex: 2,
+      title: "Learning Profile",
+      rows: [
+        { label: "Learning Styles", value: String(formData.learningStyles.length) },
+        { label: "Overall Performance", value: prettify(formData.overallPerformance) },
+      ],
+    },
+    {
+      stepIndex: 3,
+      title: "Support",
+      rows: [
+        { label: "Biggest Concerns", value: String(formData.transitionConcerns.length) },
+        { label: "Preferred Support", value: String(formData.supportNeeds.length) },
+      ],
+    },
+  ];
+
   return (
-    <div className="space-y-8">
-      <SectionContainer icon={Sparkles} title="Generate Report" description="Review your answers, then generate the AI-powered readiness report.">
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-mint/10 p-3 text-xs text-muted-foreground">
-          <ShieldCheck className="h-4 w-4 shrink-0 text-secondary" />
-          Your child's information is encrypted and only used to personalize this report.
+    <>
+      <SectionContainer variant="card" icon={ClipboardCheck} title="Review" description="Check your answers, then generate the AI-powered readiness report.">
+        <div className="space-y-4">
+          {sections.map((section) => (
+            <div key={section.title} className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground">{section.title}</h4>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEditStep(section.stepIndex)}
+                  className="h-auto gap-1 px-2 py-1 text-xs text-secondary hover:text-secondary"
+                >
+                  <Pencil className="h-3 w-3" />
+                  Edit
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {section.rows.map((row) => (
+                  <div key={row.label}>
+                    <p className="text-xs text-muted-foreground">{row.label}</p>
+                    <p className="text-sm font-medium text-foreground">{row.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </SectionContainer>
 
-      <div className="sticky bottom-0 z-10 -mx-6 border-t border-border bg-background/90 px-6 py-4 backdrop-blur-sm md:-mx-10 md:px-10">
+      <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-border bg-background/90 px-4 py-4 backdrop-blur-sm sm:mx-0 sm:rounded-2xl sm:border sm:shadow-soft">
         <div className="flex items-center justify-between gap-3">
           <Button
             type="button"
@@ -260,7 +337,9 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors }: Par
           </Button>
         </div>
       </div>
-    </div>
+
+      {(isValidating || isSubmitting) && <ReportGenerationLoader persona="parent" />}
+    </>
   );
 };
 

@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { Check, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StepperStep } from "./ProgressStepper";
@@ -20,7 +21,6 @@ const WHAT_YOU_GET = [
 const FloatingSidebar = ({ steps, currentIndex }: FloatingSidebarProps) => {
   const total = steps.length;
   const percent = Math.round(((currentIndex + 1) / total) * 100);
-  const minutesLeft = Math.max((total - currentIndex - 1) * 2, 0);
 
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
@@ -28,13 +28,18 @@ const FloatingSidebar = ({ steps, currentIndex }: FloatingSidebarProps) => {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+      <motion.div
+        className="rounded-2xl border border-border bg-card p-6 shadow-soft"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
         <h3 className="mb-4 text-sm font-semibold text-foreground">Your Progress</h3>
 
         <div className="relative mx-auto flex h-28 w-28 items-center justify-center">
           <svg viewBox="0 0 100 100" className="h-28 w-28 -rotate-90">
             <circle cx="50" cy="50" r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-            <circle
+            <motion.circle
               cx="50"
               cy="50"
               r={radius}
@@ -43,8 +48,8 @@ const FloatingSidebar = ({ steps, currentIndex }: FloatingSidebarProps) => {
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={circumference}
-              strokeDashoffset={offset}
-              style={{ transition: "stroke-dashoffset 0.5s ease" }}
+              animate={{ strokeDashoffset: offset }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             />
             <defs>
               <linearGradient id="sidebar-progress-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -53,15 +58,20 @@ const FloatingSidebar = ({ steps, currentIndex }: FloatingSidebarProps) => {
               </linearGradient>
             </defs>
           </svg>
-          <span className="absolute text-xl font-bold text-foreground">{percent}%</span>
+          <motion.span
+            key={percent}
+            className="absolute text-xl font-bold text-foreground"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            {percent}%
+          </motion.span>
         </div>
 
         <p className="mt-3 text-center text-sm text-muted-foreground">
           Step {currentIndex + 1} of {total}
         </p>
-        {minutesLeft > 0 && (
-          <p className="text-center text-xs text-muted-foreground">~{minutesLeft} min left</p>
-        )}
 
         <ul className="mt-5 space-y-2.5 border-t border-border pt-4">
           {steps.map((step, index) => {
@@ -71,7 +81,7 @@ const FloatingSidebar = ({ steps, currentIndex }: FloatingSidebarProps) => {
               <li key={step.id} className="flex items-center gap-2.5 text-sm">
                 <span
                   className={cn(
-                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold transition-colors duration-300",
                     isCompleted && "bg-secondary text-secondary-foreground",
                     isCurrent && "bg-gradient-cta text-white",
                     !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
@@ -86,9 +96,14 @@ const FloatingSidebar = ({ steps, currentIndex }: FloatingSidebarProps) => {
             );
           })}
         </ul>
-      </div>
+      </motion.div>
 
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+      <motion.div
+        className="rounded-2xl border border-border bg-card p-6 shadow-soft"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.08, ease: "easeOut" }}
+      >
         <h3 className="mb-3 text-sm font-semibold text-foreground">
           What <span className="text-secondary">you'll get</span>
         </h3>
@@ -100,12 +115,17 @@ const FloatingSidebar = ({ steps, currentIndex }: FloatingSidebarProps) => {
             </li>
           ))}
         </ul>
-      </div>
+      </motion.div>
 
-      <div className="flex items-center gap-2 rounded-2xl border border-border bg-mint/10 p-4 text-xs text-muted-foreground">
+      <motion.div
+        className="flex items-center gap-2 rounded-2xl border border-border bg-mint/10 p-4 text-xs text-muted-foreground"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.16, ease: "easeOut" }}
+      >
         <Lock className="h-4 w-4 shrink-0 text-secondary" />
         Your data stays private and secure — used only to personalize your assessment.
-      </div>
+      </motion.div>
     </div>
   );
 };

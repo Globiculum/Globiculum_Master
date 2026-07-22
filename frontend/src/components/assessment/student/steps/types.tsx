@@ -12,5 +12,9 @@ export interface StudentStepProps {
 export const StepFieldError = ({ errors, field }: { errors: Record<string, string>; field: string }) => {
   const msg = errors[field];
   if (!msg) return null;
-  return <p className="text-sm text-destructive mt-1">{msg}</p>;
+  return (
+    <p role="alert" className="mt-1 text-sm font-medium text-destructive">
+      {msg}
+    </p>
+  );
 };

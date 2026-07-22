@@ -7,6 +7,8 @@
 
 export interface AssessmentFormData {
   // ---- Student Profile ----
+  studentName: string; // student's first name
+  studentLastName: string; // student's last name
   schoolStage: string; // "elementary" | "middle" | "high"
   snapshotGrade: string;
   snapshotAge: string;
@@ -22,9 +24,13 @@ export interface AssessmentFormData {
   currentCurriculumOther: string;
   curriculumType: string;
   academicPath: string[]; // current subjects
+  otherSubject: string; // free-text value when "Other" is selected in academicPath
   selectedLanguages: string[];
   languageProficiencies: Record<string, string>;
   customLanguage: string;
+  foreignLanguageName: string; // new: foreign-language studied (mirrors Parent flow)
+  foreignLanguageNameOther: string;
+  foreignLanguageLevel: string;
 
   // ---- Learning Profile ----
   learningStyles: string[];
@@ -33,6 +39,7 @@ export interface AssessmentFormData {
   strongestSubjects: string[];
   challengingSubjects: string[];
   subjectConfidences: Record<string, string>;
+  nervousness: string[]; // new: "what makes you nervous" (student wrap-up step)
 
   // ---- Goals & Challenges ----
   targetGoal: string;
@@ -49,6 +56,8 @@ export interface AssessmentFormData {
 }
 
 export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
+  studentName: "",
+  studentLastName: "",
   schoolStage: "",
   snapshotGrade: "",
   snapshotAge: "",
@@ -63,9 +72,13 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   currentCurriculumOther: "",
   curriculumType: "",
   academicPath: [],
+  otherSubject: "",
   selectedLanguages: [],
   languageProficiencies: {},
   customLanguage: "",
+  foreignLanguageName: "",
+  foreignLanguageNameOther: "",
+  foreignLanguageLevel: "",
 
   learningStyles: [],
   studyTime: "",
@@ -73,6 +86,7 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   strongestSubjects: [],
   challengingSubjects: [],
   subjectConfidences: {},
+  nervousness: [],
 
   targetGoal: "",
   targetGoalOther: "",

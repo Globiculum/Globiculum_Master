@@ -7,8 +7,12 @@
 // to validate-student-data / analyze-curriculum is byte-identical to
 // before this refactor.
 
+import type { EducationHistoryEntry } from "../shared/EducationHistoryList";
+
 export interface ParentFormData {
   // Step 1: School Profile
+  childName: string;
+  childLastName: string;
   schoolStage: string;
   snapshotGrade: string;
   snapshotLocation: string;
@@ -25,9 +29,11 @@ export interface ParentFormData {
   targetGoal: string;
   targetGoalOther: string;
   timeline: string;
+  educationHistory: EducationHistoryEntry[];
 
   // Step 2: Academic Profile
   academicPath: string[];
+  otherSubject: string; // free-text value when "Other" is selected in academicPath
   selectedLanguages: string[];
   languageProficiencies: Record<string, string>;
   customLanguage: string;
@@ -45,6 +51,7 @@ export interface ParentFormData {
   learningStyles: string[];
   studyTime: string;
   previousGrades: string;
+  overallPerformance: string;
   strongestSubjects: string[];
   challengingSubjects: string[];
   strengthenGoals: string[];

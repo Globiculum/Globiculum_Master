@@ -20,6 +20,7 @@ import ReportsHistory from "./pages/ReportsHistory";
 import ContentExport from "./pages/ContentExport";
 import AdminPage from "./pages/AdminPage";
 import SharedReportPage from "./pages/SharedReportPage";
+import PricingPage from "./pages/PricingPage";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/begin-journey" element={<BeginJourney />} />
           <Route path="/student-assessment" element={<StudentAssessment />} />
           <Route path="/our-advantage" element={<OurAdvantage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/about" element={<About />} />
           <Route 
             path="/report-preview" 

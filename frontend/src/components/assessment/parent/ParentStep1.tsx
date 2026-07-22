@@ -1,19 +1,16 @@
-import { BarChart3, BookOpen, Globe, MapPin, Target, Upload, User } from "lucide-react";
+import { useState } from "react";
+import { BarChart3, BookOpen, GraduationCap, MapPin, Target, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import OptionCard from "../shared/OptionCard";
 import SectionContainer from "../shared/SectionContainer";
 import QuestionCard from "../shared/QuestionCard";
 import TimelineSelector from "../shared/TimelineSelector";
-import { type ParentStepProps } from "./types";
+import EducationHistoryList from "../shared/EducationHistoryList";
+import VoiceInputButton from "../shared/VoiceInputButton";
+import { ParentFieldError, type ParentStepProps } from "./types";
 
 // Step 1: School Profile.
-// Ported verbatim from AssessmentForm.tsx's renderEducationalStart() +
-// renderGoalsAndTimeline() (the original Step 0 and Step 1), merged here
-// because the sprint's Step 1 field list ("Target Indian Board",
-// "Transition Timeline", "Previous School Location") spans both of the
-// original render functions.
 
 const getGradeOptions = (schoolStage: string) => {
   switch (schoolStage) {
@@ -28,82 +25,81 @@ const getGradeOptions = (schoolStage: string) => {
   }
 };
 
-const TIMELINES = [
-  { value: "3months", label: "3 months" },
-  { value: "6months", label: "6 months" },
-  { value: "1year", label: "1 year" },
-  { value: "2years", label: "2+ years" },
+// Only "United States" is enrollable today — the rest stay visible (per
+// product decision to preview upcoming coverage) but are disabled.
+const COUNTRIES = [
+  { value: "us", label: "United States", enabled: true },
+  { value: "canada", label: "Canada", enabled: false },
+  { value: "uk", label: "United Kingdom", enabled: false },
+  { value: "australia", label: "Australia", enabled: false },
+  { value: "uae", label: "UAE / Gulf", enabled: false },
+  { value: "singapore", label: "Singapore", enabled: false },
+  { value: "malaysia", label: "Malaysia", enabled: false },
+  { value: "other", label: "Other", enabled: false },
 ];
 
-const curriculumByStage = {
-  elementary: [
-    { value: "us-common-core", label: "US Common Core", info: "Standard academic benchmarks used in most US states." },
-    { value: "state-specific", label: "State-Specific Standards", info: "Curriculum aligned to your specific state's requirements." },
-    { value: "ib-pyp", label: "IB PYP (International Baccalaureate – Primary Years Programme)", info: "Inquiry-based international curriculum for Grades 1–5." },
-    { value: "cambridge-primary", label: "Cambridge Primary", info: "International curriculum for ages 5-11." },
-    { value: "montessori", label: "Montessori Curriculum", info: "Child-centered educational approach based on self-directed learning." },
-    { value: "waldorf", label: "Waldorf Early Education", info: "Holistic approach emphasizing creative and practical activities." },
-    { value: "magnet-tag", label: "Magnet / TAG Programs", info: "Gifted and talented programs with advanced curriculum." },
-    { value: "charter", label: "Charter School Curriculum", info: "Independent public school with flexible curriculum." },
-    { value: "other", label: "Other", info: "Specify your curriculum system." },
-  ],
-  middle: [
-    { value: "us-common-core", label: "US Common Core", info: "Standard academic benchmarks used in most US states." },
-    { value: "state-specific", label: "State-Specific Standards", info: "Curriculum aligned to your specific state's requirements." },
-    { value: "ib-myp", label: "IB MYP (International Baccalaureate – Middle Years Programme)", info: "Global curriculum emphasizing interdisciplinary learning." },
-    { value: "cambridge-lower", label: "Cambridge Lower Secondary", info: "International curriculum for ages 11-14." },
-    { value: "honors-advanced", label: "Honors / Advanced Programs", info: "Accelerated coursework with higher academic standards." },
-    { value: "magnet-tag", label: "Magnet / TAG Programs", info: "Gifted and talented programs with advanced curriculum." },
-    { value: "stem-magnet", label: "STEM Magnet / STEAM-specific Curriculums", info: "Science, Technology, Engineering, Arts, and Math focused programs." },
-    { value: "charter", label: "Charter School Curriculum", info: "Independent public school with flexible curriculum." },
-    { value: "other", label: "Other", info: "Specify your curriculum system." },
-  ],
-  high: [
-    { value: "us-common-core", label: "US Common Core", info: "Standard academic benchmarks used in most US states." },
-    { value: "state-specific", label: "State-Specific Standards", info: "Curriculum aligned to your specific state's requirements." },
-    { value: "american-diploma", label: "American Diploma Program", info: "Standard US high school diploma program." },
-    { value: "ap", label: "AP Track (Advanced Placement)", info: "College-level courses for high school students." },
-    { value: "ib-dp", label: "IB DP (International Baccalaureate – Diploma Programme)", info: "Globally recognized pre-university program for Grades 11–12." },
-    { value: "cambridge-igcse", label: "Cambridge IGCSE (International General Certificate of Secondary Education)", info: "Cambridge international curriculum for Grades 9–10." },
-    { value: "a-levels", label: "A-Levels (Advanced Level Qualification)", info: "Two-year UK program recognized worldwide." },
-    { value: "honors", label: "Honors Program", info: "Advanced coursework with higher academic standards." },
-    { value: "dual-credit", label: "Dual Credit Program", info: "Earn high school and college credits simultaneously." },
-    { value: "magnet-tag", label: "Magnet / TAG Programs", info: "Gifted and talented programs with specialized focus." },
-    { value: "charter", label: "Charter School Curriculum", info: "Independent public school with flexible curriculum." },
-    { value: "other", label: "Other", info: "Specify your curriculum system." },
-  ],
-};
+const TARGET_BOARDS = [
+  { value: "cbse", label: "CBSE" },
+  { value: "icse", label: "ICSE" },
+  { value: "ib", label: "IB" },
+  { value: "cambridge-igcse", label: "Cambridge" },
+];
 
-const usStates = [
-  { value: "AL", label: "Alabama" }, { value: "AK", label: "Alaska" }, { value: "AZ", label: "Arizona" },
-  { value: "AR", label: "Arkansas" }, { value: "CA", label: "California" }, { value: "CO", label: "Colorado" },
-  { value: "CT", label: "Connecticut" }, { value: "DE", label: "Delaware" }, { value: "FL", label: "Florida" },
-  { value: "GA", label: "Georgia" }, { value: "HI", label: "Hawaii" }, { value: "ID", label: "Idaho" },
-  { value: "IL", label: "Illinois" }, { value: "IN", label: "Indiana" }, { value: "IA", label: "Iowa" },
-  { value: "KS", label: "Kansas" }, { value: "KY", label: "Kentucky" }, { value: "LA", label: "Louisiana" },
-  { value: "ME", label: "Maine" }, { value: "MD", label: "Maryland" }, { value: "MA", label: "Massachusetts" },
-  { value: "MI", label: "Michigan" }, { value: "MN", label: "Minnesota" }, { value: "MS", label: "Mississippi" },
-  { value: "MO", label: "Missouri" }, { value: "MT", label: "Montana" }, { value: "NE", label: "Nebraska" },
-  { value: "NV", label: "Nevada" }, { value: "NH", label: "New Hampshire" }, { value: "NJ", label: "New Jersey" },
-  { value: "NM", label: "New Mexico" }, { value: "NY", label: "New York" }, { value: "NC", label: "North Carolina" },
-  { value: "ND", label: "North Dakota" }, { value: "OH", label: "Ohio" }, { value: "OK", label: "Oklahoma" },
-  { value: "OR", label: "Oregon" }, { value: "PA", label: "Pennsylvania" }, { value: "RI", label: "Rhode Island" },
-  { value: "SC", label: "South Carolina" }, { value: "SD", label: "South Dakota" }, { value: "TN", label: "Tennessee" },
-  { value: "TX", label: "Texas" }, { value: "UT", label: "Utah" }, { value: "VT", label: "Vermont" },
-  { value: "VA", label: "Virginia" }, { value: "WA", label: "Washington" }, { value: "WV", label: "West Virginia" },
-  { value: "WI", label: "Wisconsin" }, { value: "WY", label: "Wyoming" }, { value: "DC", label: "District of Columbia" },
+const TIMELINES = [
+  { value: "within-3-months", label: "Within 3 months" },
+  { value: "3-6-months", label: "3–6 months" },
+  { value: "6-12-months", label: "6–12 months" },
+  { value: "1-2-years", label: "1–2 years" },
+  { value: "exploring", label: "Just exploring" },
+];
+
+const PREVIOUS_LOCATIONS = [
+  { value: "same", label: "Same as current" },
+  { value: "us", label: "United States" },
+  { value: "india-cbse", label: "India (CBSE)" },
+  { value: "india-icse", label: "India (ICSE)" },
+  { value: "india-state", label: "India (State Board)" },
+  { value: "uae", label: "UAE" },
+  { value: "singapore", label: "Singapore" },
+  { value: "uk", label: "United Kingdom" },
+  { value: "australia", label: "Australia" },
+  { value: "canada", label: "Canada" },
+  { value: "malaysia", label: "Malaysia" },
   { value: "other", label: "Other" },
 ];
 
+// MVP scope: only US Common Core is offered, for every school stage.
+const CURRICULUM_OPTIONS = [{ value: "us-common-core", label: "US Common Core" }];
+
+// Value stays the two-letter abbreviation (existing usState payload shape);
+// only the displayed label is expanded to "Full Name (Abbreviation)".
+const usStates: { value: string; label: string }[] = [
+  ["AL", "Alabama"], ["AK", "Alaska"], ["AZ", "Arizona"], ["AR", "Arkansas"], ["CA", "California"],
+  ["CO", "Colorado"], ["CT", "Connecticut"], ["DE", "Delaware"], ["FL", "Florida"], ["GA", "Georgia"],
+  ["HI", "Hawaii"], ["ID", "Idaho"], ["IL", "Illinois"], ["IN", "Indiana"], ["IA", "Iowa"],
+  ["KS", "Kansas"], ["KY", "Kentucky"], ["LA", "Louisiana"], ["ME", "Maine"], ["MD", "Maryland"],
+  ["MA", "Massachusetts"], ["MI", "Michigan"], ["MN", "Minnesota"], ["MS", "Mississippi"], ["MO", "Missouri"],
+  ["MT", "Montana"], ["NE", "Nebraska"], ["NV", "Nevada"], ["NH", "New Hampshire"], ["NJ", "New Jersey"],
+  ["NM", "New Mexico"], ["NY", "New York"], ["NC", "North Carolina"], ["ND", "North Dakota"], ["OH", "Ohio"],
+  ["OK", "Oklahoma"], ["OR", "Oregon"], ["PA", "Pennsylvania"], ["RI", "Rhode Island"], ["SC", "South Carolina"],
+  ["SD", "South Dakota"], ["TN", "Tennessee"], ["TX", "Texas"], ["UT", "Utah"], ["VT", "Vermont"],
+  ["VA", "Virginia"], ["WA", "Washington"], ["WV", "West Virginia"], ["WI", "Wisconsin"], ["WY", "Wyoming"],
+  ["DC", "District of Columbia"],
+].map(([value, name]) => ({ value, label: `${name} (${value})` }));
+usStates.push({ value: "other", label: "Other" });
+
 const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) => {
+  const [focusedNameField, setFocusedNameField] = useState<"first" | "last">("first");
+
   const getCurrentCurriculumOptions = () => {
     if (!formData.schoolStage) return [];
-    return curriculumByStage[formData.schoolStage as keyof typeof curriculumByStage] || [];
+    return CURRICULUM_OPTIONS;
   };
 
   const handleSchoolStageChange = (stage: string) => {
     onFieldChange("schoolStage", stage);
     onFieldChange("snapshotGrade", "");
+    onFieldChange("currentCurriculum", "");
     // Reset stage-specific fields, matching the original handleSelectChange behavior.
     onFieldChange("elementaryConfidences", {});
     onFieldChange("mathCourse", "");
@@ -112,7 +108,40 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
   };
 
   return (
-    <div className="space-y-10">
+    <SectionContainer variant="card" icon={MapPin} title="School Profile" description="Tell us about your child's school and transition plans.">
+      <SectionContainer icon={User} title="About Your Child" description="Let's start with the basics.">
+        <QuestionCard label="Child's Name" required>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Input
+                id="child-first-name"
+                placeholder="First name"
+                value={formData.childName}
+                onFocus={() => setFocusedNameField("first")}
+                onChange={(e) => onFieldChange("childName", e.target.value)}
+              />
+              <ParentFieldError errors={fieldErrors} field="childName" />
+            </div>
+            <div>
+              <Input
+                id="child-last-name"
+                placeholder="Last name"
+                value={formData.childLastName}
+                onFocus={() => setFocusedNameField("last")}
+                onChange={(e) => onFieldChange("childLastName", e.target.value)}
+              />
+              <ParentFieldError errors={fieldErrors} field="childLastName" />
+            </div>
+          </div>
+          <div className="mt-2 flex justify-end">
+            <VoiceInputButton
+              label="Say your child's name"
+              onResult={(text) => onFieldChange(focusedNameField === "last" ? "childLastName" : "childName", text)}
+            />
+          </div>
+        </QuestionCard>
+      </SectionContainer>
+
       <SectionContainer icon={MapPin} title="1. Select School Stage" description="Which stage best describes your child?">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <OptionCard variant="large" mode="radio" selected={formData.schoolStage === "elementary"} onClick={() => handleSchoolStageChange("elementary")}>
@@ -168,34 +197,39 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             </Select>
           </QuestionCard>
 
-          <QuestionCard label="Location" htmlFor="snapshot-location" required>
-            <Select value={formData.snapshotLocation} onValueChange={(value) => onFieldChange("snapshotLocation", value)}>
-              <SelectTrigger id="snapshot-location">
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="us">United States</SelectItem>
-                <SelectItem value="india" disabled>India (Coming Soon)</SelectItem>
-                <SelectItem value="uae" disabled>UAE / Dubai / Abu Dhabi (Coming Soon)</SelectItem>
-                <SelectItem value="qatar" disabled>Qatar (Coming Soon)</SelectItem>
-                <SelectItem value="saudi" disabled>Saudi Arabia (Coming Soon)</SelectItem>
-                <SelectItem value="kuwait" disabled>Kuwait (Coming Soon)</SelectItem>
-                <SelectItem value="singapore" disabled>Singapore (Coming Soon)</SelectItem>
-                <SelectItem value="malaysia" disabled>Malaysia (Coming Soon)</SelectItem>
-                <SelectItem value="uk" disabled>United Kingdom (Coming Soon)</SelectItem>
-                <SelectItem value="australia" disabled>Australia (Coming Soon)</SelectItem>
-                <SelectItem value="canada" disabled>Canada (Coming Soon)</SelectItem>
-                <SelectItem value="germany" disabled>Germany (Coming Soon)</SelectItem>
-                <SelectItem value="nz" disabled>New Zealand (Coming Soon)</SelectItem>
-                <SelectItem value="sa" disabled>South Africa (Coming Soon)</SelectItem>
-                <SelectItem value="other">Other Country</SelectItem>
-              </SelectContent>
-            </Select>
+          <QuestionCard label="Age" htmlFor="snapshot-age" hint="Optional" error={fieldErrors.snapshotAge}>
+            <Input
+              id="snapshot-age"
+              type="number"
+              min="5"
+              max="18"
+              placeholder="Student's age"
+              value={formData.snapshotAge}
+              onChange={(e) => onFieldChange("snapshotAge", e.target.value)}
+            />
           </QuestionCard>
         </div>
 
+        <QuestionCard label="Current School Country" required>
+          <div role="radiogroup" aria-label="Current School Country" className="flex flex-wrap gap-2">
+            {COUNTRIES.map((country) => (
+              <OptionCard
+                key={country.value}
+                variant="pill"
+                mode="radio"
+                selected={formData.snapshotLocation === country.value}
+                onClick={() => onFieldChange("snapshotLocation", country.value)}
+                disabled={!country.enabled}
+                disabledHint="Coming Soon"
+              >
+                {country.label}
+              </OptionCard>
+            ))}
+          </div>
+        </QuestionCard>
+
         {formData.snapshotLocation === "us" && (
-          <QuestionCard label="Which US State?" htmlFor="us-state" error={fieldErrors.usState}>
+          <QuestionCard label="Which US State?" htmlFor="us-state" required error={fieldErrors.usState}>
             <Select value={formData.usState} onValueChange={(value) => onFieldChange("usState", value)}>
               <SelectTrigger id="us-state">
                 <SelectValue placeholder="Select your state" />
@@ -234,25 +268,12 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             />
           </QuestionCard>
         )}
-
-        <QuestionCard label="Age" htmlFor="snapshot-age" hint="Optional" error={fieldErrors.snapshotAge}>
-          <Input
-            id="snapshot-age"
-            type="number"
-            min="5"
-            max="18"
-            placeholder="Student's age"
-            value={formData.snapshotAge}
-            onChange={(e) => onFieldChange("snapshotAge", e.target.value)}
-          />
-        </QuestionCard>
       </SectionContainer>
 
-      <SectionContainer icon={BookOpen} title="3. Current Curriculum">
+      <SectionContainer icon={BookOpen} title="3. Current Curriculum" description="Standard academic benchmarks used in most US states.">
         <QuestionCard
           label="Select your current curriculum system"
           htmlFor="current-curriculum"
-          hint="Choose the curriculum your child is currently studying."
           required
           error={fieldErrors.currentCurriculum}
         >
@@ -266,11 +287,8 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             </SelectTrigger>
             <SelectContent className="max-h-[400px]">
               {getCurrentCurriculumOptions().map((curriculum) => (
-                <SelectItem key={curriculum.value} value={curriculum.value} className="py-3">
-                  <div className="flex flex-col gap-1">
-                    <span className="font-medium">{curriculum.label}</span>
-                    <span className="text-xs text-muted-foreground">{curriculum.info}</span>
-                  </div>
+                <SelectItem key={curriculum.value} value={curriculum.value}>
+                  {curriculum.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -288,69 +306,40 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             />
           </QuestionCard>
         )}
+      </SectionContainer>
 
-        <QuestionCard
-          label="What type of curriculum does the student follow?"
-          htmlFor="curriculum-type"
-          hint="This helps us calibrate expectations against the right academic baseline."
-        >
-          <Select value={formData.curriculumType} onValueChange={(value) => onFieldChange("curriculumType", value)}>
-            <SelectTrigger id="curriculum-type">
-              <SelectValue placeholder="Select curriculum type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="standard-public">Standard Public School</SelectItem>
-              <SelectItem value="honors-advanced">Honors / Advanced</SelectItem>
-              <SelectItem value="ib">IB</SelectItem>
-              <SelectItem value="private-charter">Private / Charter</SelectItem>
-              <SelectItem value="not-sure">Not sure</SelectItem>
-            </SelectContent>
-          </Select>
+      <SectionContainer icon={GraduationCap} title="Target & Timeline" description="Where your child is headed, and by when.">
+        <QuestionCard label="Target Indian Board" required>
+          <div role="radiogroup" aria-label="Target Indian Board" className="flex flex-wrap gap-2">
+            {TARGET_BOARDS.map((board) => (
+              <OptionCard
+                key={board.value}
+                variant="pill"
+                mode="radio"
+                selected={formData.targetGoal === board.value}
+                onClick={() => onFieldChange("targetGoal", board.value)}
+              >
+                {board.label}
+              </OptionCard>
+            ))}
+          </div>
         </QuestionCard>
-      </SectionContainer>
 
-      <SectionContainer title="Optional Insights" description="Upload a recent report card (PDF or image) - Optional">
-        <div className="flex justify-center">
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-border bg-card px-6 py-3 transition-all duration-200 ease-smooth hover:border-secondary hover:shadow-soft">
-            <Upload className="h-5 w-5 text-muted-foreground" />
-            <span className="text-sm font-medium">Choose File</span>
-            <span className="text-xs text-muted-foreground">{formData.reportCard ? formData.reportCard.name : "No file chosen"}</span>
-            <input
-              type="file"
-              accept=".pdf,image/*"
-              onChange={(e) => onFieldChange("reportCard", e.target.files?.[0] || null)}
-              className="hidden"
-            />
-          </label>
-        </div>
-      </SectionContainer>
+        <QuestionCard label="Transition Timeline" required error={fieldErrors.timeline}>
+          <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => onFieldChange("timeline", value)} />
+        </QuestionCard>
 
-      <SectionContainer icon={Globe} title="4. Education & Goals" description="Where your child is coming from, and where they're headed">
-        <QuestionCard
-          label="Previous Education Country"
-          htmlFor="previous-location"
-          hint="This helps us align curriculum expectations accurately."
-        >
+        <QuestionCard label="Previous School Location" hint="Where was your child studying before?">
           <Select value={formData.previousLocation} onValueChange={(value) => onFieldChange("previousLocation", value)}>
             <SelectTrigger id="previous-location">
-              <SelectValue placeholder="Where did your child study before?" />
+              <SelectValue placeholder="Select previous location" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="us">USA</SelectItem>
-              <SelectItem value="india">India</SelectItem>
-              <SelectItem value="uae">UAE / Dubai / Abu Dhabi</SelectItem>
-              <SelectItem value="singapore">Singapore</SelectItem>
-              <SelectItem value="uk">United Kingdom</SelectItem>
-              <SelectItem value="australia">Australia</SelectItem>
-              <SelectItem value="canada">Canada</SelectItem>
-              <SelectItem value="qatar">Qatar</SelectItem>
-              <SelectItem value="saudi">Saudi Arabia</SelectItem>
-              <SelectItem value="kuwait">Kuwait</SelectItem>
-              <SelectItem value="malaysia">Malaysia</SelectItem>
-              <SelectItem value="germany">Germany</SelectItem>
-              <SelectItem value="nz">New Zealand</SelectItem>
-              <SelectItem value="sa">South Africa</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              {PREVIOUS_LOCATIONS.map((loc) => (
+                <SelectItem key={loc.value} value={loc.value}>
+                  {loc.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </QuestionCard>
@@ -366,40 +355,15 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             />
           </QuestionCard>
         )}
-
-        <QuestionCard
-          label="Transition Pathway"
-          htmlFor="target-goal"
-          hint="Select the Indian school system your child will be transitioning into."
-        >
-          <Select value={formData.targetGoal} onValueChange={(value) => onFieldChange("targetGoal", value)}>
-            <SelectTrigger id="target-goal">
-              <SelectValue placeholder="Which Indian school system are you preparing for?" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px]">
-              <SelectItem value="india-cbse">Prepare for Indian CBSE Schools</SelectItem>
-              <SelectItem value="india-igcse">Prepare for Indian IGCSE Schools</SelectItem>
-              <SelectItem value="india-ib">Prepare for Indian IB Schools</SelectItem>
-            </SelectContent>
-          </Select>
-        </QuestionCard>
-
-        <div className="flex items-start gap-3 rounded-xl border border-secondary/20 bg-secondary/5 p-4">
-          <Globe className="mt-0.5 h-5 w-5 shrink-0 text-secondary" />
-          <div>
-            <Label className="text-base font-semibold">Cultural Readiness for India</Label>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Your report will include guidance on classroom expectations, academic rigor differences, social
-              adaptation, and cultural adjustment to help your child thrive in their new school environment.
-            </p>
-          </div>
-        </div>
-
-        <QuestionCard label="Preparation Timeline" required error={fieldErrors.timeline}>
-          <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => onFieldChange("timeline", value)} />
-        </QuestionCard>
       </SectionContainer>
-    </div>
+
+      <SectionContainer title="Education History" description="Optional — add any prior schools or curricula your child has attended.">
+        <EducationHistoryList
+          entries={formData.educationHistory}
+          onChange={(entries) => onFieldChange("educationHistory", entries)}
+        />
+      </SectionContainer>
+    </SectionContainer>
   );
 };
 

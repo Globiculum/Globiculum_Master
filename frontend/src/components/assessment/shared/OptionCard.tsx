@@ -39,9 +39,22 @@ interface OptionCardProps {
   mode?: "checkbox" | "radio";
   className?: string;
   children: ReactNode;
+  /** Visible but unselectable — greyed out, no hover lift, click is a no-op. */
+  disabled?: boolean;
+  /** Native tooltip shown on hover while disabled, e.g. "Coming Soon". */
+  disabledHint?: string;
 }
 
-const OptionCard = ({ selected, onClick, variant = "block", mode = "checkbox", className, children }: OptionCardProps) => {
+const OptionCard = ({
+  selected,
+  onClick,
+  variant = "block",
+  mode = "checkbox",
+  className,
+  children,
+  disabled = false,
+  disabledHint,
+}: OptionCardProps) => {
   const classes = VARIANT_CLASSES[variant];
   const showCheckBadge = variant === "large" || variant === "block";
 
@@ -50,8 +63,16 @@ const OptionCard = ({ selected, onClick, variant = "block", mode = "checkbox", c
       type="button"
       role={mode}
       aria-checked={selected}
-      onClick={onClick}
-      className={cn(classes.base, selected ? classes.selected : classes.unselected, className)}
+      aria-disabled={disabled}
+      disabled={disabled}
+      title={disabled ? disabledHint : undefined}
+      onClick={disabled ? undefined : onClick}
+      className={cn(
+        classes.base,
+        selected ? classes.selected : classes.unselected,
+        disabled && "cursor-not-allowed opacity-40 hover:translate-y-0 hover:shadow-none",
+        className
+      )}
     >
       {showCheckBadge && (
         <span

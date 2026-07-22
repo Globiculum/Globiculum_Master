@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import AssessmentContainer from "./AssessmentContainer";
 import AssessmentHeader from "./AssessmentHeader";
 import ProgressStepper, { type StepperStep } from "./ProgressStepper";
@@ -34,11 +35,21 @@ const AssessmentLayout = ({
       onChangePersona={onChangePersona}
       title="Student Assessment"
       subtitle="Answer a few questions to generate your personalized readiness report."
+      currentIndex={currentIndex}
+      totalSteps={steps.length}
     />
     <ProgressStepper steps={steps} currentIndex={currentIndex} />
-    <div key={steps[currentIndex]?.id} className="animate-in fade-in-0 slide-in-from-right-2 duration-300">
-      {children}
-    </div>
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={steps[currentIndex]?.id}
+        initial={{ opacity: 0, x: 16 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -16 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
     <BottomNavigation onBack={onBack} onNext={onNext} backDisabled={isFirstStep} showNext={!isLastStep} />
   </AssessmentContainer>
 );
