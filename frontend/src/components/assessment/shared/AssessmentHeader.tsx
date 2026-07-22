@@ -18,7 +18,7 @@ const AssessmentHeader = ({ onChangePersona, title, subtitle, showChangePersona 
       <button
         type="button"
         onClick={onChangePersona}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-secondary"
+        className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-accent-foreground shadow-soft transition-colors hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         <ArrowLeft className="h-4 w-4" />
         Change persona
