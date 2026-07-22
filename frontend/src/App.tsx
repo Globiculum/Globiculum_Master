@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import BeginJourney from "./pages/BeginJourney";
+import StudentAssessment from "./pages/StudentAssessment";
 import Onboarding from "./pages/Onboarding";
 import OurAdvantage from "./pages/OurAdvantage";
 import About from "./pages/About";
@@ -19,6 +20,7 @@ import ReportsHistory from "./pages/ReportsHistory";
 import ContentExport from "./pages/ContentExport";
 import AdminPage from "./pages/AdminPage";
 import SharedReportPage from "./pages/SharedReportPage";
+import PricingPage from "./pages/PricingPage";
 
 const queryClient = new QueryClient();
 
@@ -31,7 +33,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/begin-journey" element={<BeginJourney />} />
+          <Route path="/student-assessment" element={<StudentAssessment />} />
           <Route path="/our-advantage" element={<OurAdvantage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/about" element={<About />} />
           <Route 
             path="/report-preview" 

@@ -45,6 +45,14 @@ export default {
           foreground: "hsl(var(--accent-foreground))",
           light: "hsl(var(--accent-light))",
         },
+        mint: {
+          DEFAULT: "hsl(var(--mint))",
+          foreground: "hsl(var(--mint-foreground))",
+        },
+        violet: {
+          DEFAULT: "hsl(var(--violet))",
+          foreground: "hsl(var(--violet-foreground))",
+        },
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
@@ -79,17 +87,31 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      // Fluid type scale (H1 56 / H2 40 / H3 30 / Body 18 / Caption 14 at desktop,
+      // scaling down smoothly on narrower viewports via clamp()).
+      fontSize: {
+        h1: ["clamp(2.25rem, 1.55rem + 2.9vw, 3.5rem)", { lineHeight: "1.08", letterSpacing: "-0.02em", fontWeight: "700" }],
+        h2: ["clamp(1.75rem, 1.35rem + 1.7vw, 2.5rem)", { lineHeight: "1.15", letterSpacing: "-0.01em", fontWeight: "700" }],
+        h3: ["clamp(1.375rem, 1.15rem + 0.9vw, 1.875rem)", { lineHeight: "1.25", letterSpacing: "-0.01em", fontWeight: "600" }],
+        body: ["1.125rem", { lineHeight: "1.65" }],
+        caption: ["0.875rem", { lineHeight: "1.5" }],
+      },
       backgroundImage: {
         'gradient-primary': 'var(--gradient-primary)',
         'gradient-success': 'var(--gradient-success)',
         'gradient-hero': 'var(--gradient-hero)',
         'gradient-card': 'var(--gradient-card)',
         'gradient-subtle': 'var(--gradient-subtle)',
+        'gradient-violet': 'var(--gradient-violet)',
+        'gradient-mint': 'var(--gradient-mint)',
+        'gradient-cta': 'var(--gradient-cta)',
       },
       boxShadow: {
         'soft': 'var(--shadow-soft)',
         'medium': 'var(--shadow-medium)',
         'strong': 'var(--shadow-strong)',
+        'glow-sm': '0 0 0 1px hsl(var(--secondary) / 0.16), 0 8px 24px -8px hsl(var(--violet) / 0.28)',
+        'glow-md': '0 0 0 1.5px hsl(var(--secondary) / 0.3), 0 16px 40px -12px hsl(var(--violet) / 0.35)',
       },
       transitionTimingFunction: {
         'smooth': 'var(--transition-smooth)',
@@ -112,10 +134,15 @@ export default {
             height: "0",
           },
         },
+        "hero-float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "hero-float": "hero-float 5s ease-in-out infinite",
       },
     },
   },

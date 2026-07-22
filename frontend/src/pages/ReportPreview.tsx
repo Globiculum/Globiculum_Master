@@ -14,6 +14,10 @@ import { generateReportPDF } from "@/lib/generateReportPDF";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { mergeWithBaseline } from "@/lib/gradeBaselineTopics";
 import { getGapReason, isIBTarget } from "@/lib/gapExplanations";
+import ReportGenerationLoader, { type LoaderPersona } from "@/components/assessment/shared/ReportGenerationLoader";
+
+const PERSONA_STORAGE_KEY = "globiculum-selected-persona";
+const getPersona = (): LoaderPersona => (sessionStorage.getItem(PERSONA_STORAGE_KEY) === "parent" ? "parent" : "student");
 
 // Check if the goal involves Indian academic readiness (CBSE / ICSE / state board / India transition)
 const isIndiaReadinessGoal = (targetGoal?: string): boolean => {
@@ -152,6 +156,7 @@ const ReportPreview = () => {
   const formData = getFormData();
   const initialSavedAnalysis = getSavedAnalysis();
   const hasValidFormData = formData && Object.keys(formData).length > 0;
+  const persona = getPersona();
   
   const [isLoading, setIsLoading] = useState(!initialSavedAnalysis && hasValidFormData);
   const [analysis, setAnalysis] = useState<AnalysisData | null>(initialSavedAnalysis);
@@ -577,26 +582,7 @@ const ReportPreview = () => {
               </CardContent>
             </Card>
           ) : isLoading ? (
-            <Card className="border border-border">
-              <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
-                  <div className="relative p-4 bg-primary/10 rounded-full">
-                    <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                  </div>
-                </div>
-                <div className="text-center space-y-1">
-                  <h3 className="text-lg font-semibold">Analyzing Transition Readiness</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm">
-                    AI is comparing curricula and generating personalized recommendations...
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span>This usually takes 10-20 seconds</span>
-                </div>
-              </CardContent>
-            </Card>
+            <ReportGenerationLoader persona={persona} />
           ) : error ? (
             <Card className="border border-destructive/20">
               <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">

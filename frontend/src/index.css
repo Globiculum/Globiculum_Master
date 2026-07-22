@@ -37,6 +37,14 @@
     --accent-foreground: 222 47% 11%;
     --accent-light: 38 92% 85%;
 
+    /* Mint Teal #5EEAD4 (brand support color) */
+    --mint: 171 77% 64%;
+    --mint-foreground: 222 47% 11%;
+
+    /* Blue Violet #5B6CFF (brand support color) */
+    --violet: 234 100% 68%;
+    --violet-foreground: 0 0% 100%;
+
     /* Success states */
     --success: 175 84% 32%;
     --success-foreground: 0 0% 100%;
@@ -61,6 +69,9 @@
     --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
     --gradient-card: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
     --gradient-subtle: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+    --gradient-violet: linear-gradient(135deg, hsl(var(--violet)), hsl(var(--secondary)));
+    --gradient-mint: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--mint)));
+    --gradient-cta: linear-gradient(135deg, hsl(var(--secondary)) 0%, hsl(var(--violet)) 100%);
 
     /* Shadows using primary color */
     --shadow-soft: 0 2px 8px -2px hsl(var(--primary) / 0.08);
@@ -121,6 +132,11 @@
     --sidebar-accent-foreground: 210 40% 96%;
     --sidebar-border: 222 47% 14%;
     --sidebar-ring: 175 84% 50%;
+  }
+  .theme {
+    --animate-gradient: gradient 8s linear infinite;
+    --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
+    --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
   }
 }
 
@@ -283,4 +299,31 @@
     height: auto !important;
   }
 
+}
+
+@theme inline {
+  @keyframes gradient {
+  to {
+    background-position: var(--bg-size, 300%) 0;
+    }
+  }
+  @keyframes shimmer-slide {
+  to {
+    transform: translate(calc(100cqw - 100%), 0);
+    }
+  }
+  @keyframes spin-around {
+  0% {
+    transform: translateZ(0) rotate(0);
+    }
+  15%, 35% {
+    transform: translateZ(0) rotate(90deg);
+    }
+  65%, 85% {
+    transform: translateZ(0) rotate(270deg);
+    }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+    }
+  }
 }
