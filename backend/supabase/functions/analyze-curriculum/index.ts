@@ -159,7 +159,7 @@ function buildRagContext(
   for (const [subject, subjectGaps] of Object.entries(bySubject)) {
     if (totalShown >= 25) break;
     lines.push(`\n[${subject}]`);
-    for (const gap of subjectGaps.slice(0, 5)) {
+    for (const gap of subjectGaps.slice(0, 8)) {
       if (totalShown >= 25) break;
       const matchNote = gap.best_source_match
         ? `nearest source match: "${gap.best_source_match.substring(0, 60)}"`
@@ -205,17 +205,28 @@ function countUrls(analysisData: Record<string, unknown>): number {
   return count;
 }
 
+interface UrlMatchLog {
+  topic: string;
+  section: string;   // e.g. "Math keyGaps" or "criticalGaps"
+  matched: boolean;
+  matchedNode?: string;
+  url?: string;
+  strategy?: string; // 'exact', 'word2+', 'word1-distinctive', 'already_had_url'
+}
+
 /**
  * Post-process the LLM analysis JSON to inject resource URLs from RAG gap data.
  * The LLM is unreliable at copying URLs — this deterministically matches each
  * gap topic from the LLM output against RAG gap nodes by name similarity,
  * then injects the URL from the DB metadata.
+ * Returns a match log so callers can trace every injection.
  */
 function injectRagUrls(
   analysisData: Record<string, unknown>,
   ragGaps: GapNodeWithSeverity[]
-): void {
-  if (!ragGaps.length) return;
+): UrlMatchLog[] {
+  const matchLog: UrlMatchLog[] = [];
+  if (!ragGaps.length) return matchLog;
 
   // Build lookup: lowercase node name → URL (from metadata.url or metadata.source_url)
   const urlLookup: { name: string; nameLower: string; url: string; subject: string }[] = [];
@@ -232,19 +243,15 @@ function injectRagUrls(
     });
   }
 
-  if (!urlLookup.length) return;
+  if (!urlLookup.length) return matchLog;
 
   // Match LLM topic text against RAG node names to find the best URL.
-  // Strategy (in order of confidence):
-  //   1. Exact substring match (node name inside topic or vice-versa)
-  //   2. Word overlap ≥2 for words length>3  (e.g. "algebraic expressions")
-  //   3. Single distinctive word match for words length>5 — picks best score
-  //      (handles NCERT chapter names like "Integers", "Geometry", "Algebraic")
-  const findUrl = (topic: string, subjectHint?: string): string | null => {
+  // Returns { url, matchedNode, strategy } or null for traceability.
+  const findUrl = (topic: string, subjectHint?: string): { url: string; matchedNode: string; strategy: string } | null => {
     if (!topic) return null;
     const topicLower = topic.toLowerCase();
 
-    // Optionally filter by subject for higher precision when subject hint is known
+    // Subject-priority pool: same-subject entries checked first
     const pool = subjectHint
       ? urlLookup.filter(e => e.subject.includes(subjectHint.toLowerCase().substring(0, 4)))
           .concat(urlLookup.filter(e => !e.subject.includes(subjectHint.toLowerCase().substring(0, 4))))
@@ -253,12 +260,12 @@ function injectRagUrls(
     // 1. Exact substring match in either direction
     for (const entry of pool) {
       if (entry.nameLower.includes(topicLower) || topicLower.includes(entry.nameLower)) {
-        return entry.url;
+        return { url: entry.url, matchedNode: entry.name, strategy: 'exact' };
       }
     }
 
     const topicWords = topicLower.split(/[\s\-:,()]+/).filter(w => w.length > 3);
-    let bestMatch: { url: string; overlap: number; score: number } | null = null;
+    let bestMatch: { url: string; matchedNode: string; overlap: number; score: number; strategy: string } | null = null;
 
     for (const entry of pool) {
       const nodeWords = entry.nameLower.split(/[\s\-:,()]+/).filter(w => w.length > 3);
@@ -267,22 +274,22 @@ function injectRagUrls(
       if (overlap >= 2) {
         const score = overlap * 2;
         if (!bestMatch || score > bestMatch.score) {
-          bestMatch = { url: entry.url, overlap, score };
+          bestMatch = { url: entry.url, matchedNode: entry.name, overlap, score, strategy: 'word2+' };
         }
       }
-      // 3. Single distinctive word (length > 5) — lower confidence, only if no better match
+      // 3. Single distinctive word (length > 5)
       else if (overlap === 1) {
         const distinctiveWord = topicWords.find(w => w.length > 5 && nodeWords.some(nw => nw.includes(w) || w.includes(nw)));
         if (distinctiveWord) {
-          const score = distinctiveWord.length; // longer word = higher confidence
+          const score = distinctiveWord.length;
           if (!bestMatch || score > bestMatch.score) {
-            bestMatch = { url: entry.url, overlap, score };
+            bestMatch = { url: entry.url, matchedNode: entry.name, overlap, score, strategy: 'word1-distinctive' };
           }
         }
       }
     }
 
-    return bestMatch?.url || null;
+    return bestMatch ? { url: bestMatch.url, matchedNode: bestMatch.matchedNode, strategy: bestMatch.strategy } : null;
   };
 
   // Inject into subjectAnalysis[].keyGaps[]
@@ -295,15 +302,29 @@ function injectRagUrls(
       if (!Array.isArray(keyGaps)) continue;
       for (let i = 0; i < keyGaps.length; i++) {
         const gap = keyGaps[i];
+        const section = `${subjectName || 'unknown'} keyGaps`;
         if (typeof gap === 'string') {
-          // Legacy plain string format — upgrade to object with URL
-          const url = findUrl(gap, subjectName);
-          if (url) keyGaps[i] = { topic: gap, resourceUrl: url };
+          const match = findUrl(gap, subjectName);
+          if (match) {
+            keyGaps[i] = { topic: gap, resourceUrl: match.url };
+            matchLog.push({ topic: gap, section, matched: true, matchedNode: match.matchedNode, url: match.url, strategy: match.strategy });
+          } else {
+            matchLog.push({ topic: gap, section, matched: false });
+          }
         } else if (gap && typeof gap === 'object') {
           const g = gap as Record<string, unknown>;
-          if (!g.resourceUrl) {
-            const url = findUrl(g.topic as string, subjectName);
-            if (url) g.resourceUrl = url;
+          const topic = g.topic as string;
+          // Always look up from RAG — LLM may have copied a corrupt/truncated URL.
+          // RAG URL overwrites whatever the LLM had; LLM URL kept only as last resort.
+          const match = findUrl(topic, subjectName);
+          if (match) {
+            g.resourceUrl = match.url;
+            const strategy = g.resourceUrl && g.resourceUrl !== match.url ? 'corrected_url' : match.strategy;
+            matchLog.push({ topic, section, matched: true, matchedNode: match.matchedNode, url: match.url, strategy });
+          } else if (g.resourceUrl) {
+            matchLog.push({ topic, section, matched: true, url: g.resourceUrl as string, strategy: 'llm_url_kept' });
+          } else {
+            matchLog.push({ topic, section, matched: false });
           }
         }
       }
@@ -316,17 +337,126 @@ function injectRagUrls(
     for (let i = 0; i < criticalGaps.length; i++) {
       const gap = criticalGaps[i];
       if (typeof gap === 'string') {
-        const url = findUrl(gap);
-        if (url) criticalGaps[i] = { topic: gap, resourceUrl: url };
+        const match = findUrl(gap);
+        if (match) {
+          criticalGaps[i] = { topic: gap, resourceUrl: match.url };
+          matchLog.push({ topic: gap, section: 'criticalGaps', matched: true, matchedNode: match.matchedNode, url: match.url, strategy: match.strategy });
+        } else {
+          matchLog.push({ topic: gap, section: 'criticalGaps', matched: false });
+        }
       } else if (gap && typeof gap === 'object') {
         const g = gap as Record<string, unknown>;
-        if (!g.resourceUrl) {
-          const url = findUrl(g.topic as string);
-          if (url) g.resourceUrl = url;
+        const topic = g.topic as string;
+        const match = findUrl(topic);
+        if (match) {
+          g.resourceUrl = match.url;
+          matchLog.push({ topic, section: 'criticalGaps', matched: true, matchedNode: match.matchedNode, url: match.url, strategy: match.strategy });
+        } else if (g.resourceUrl) {
+          matchLog.push({ topic, section: 'criticalGaps', matched: true, url: g.resourceUrl as string, strategy: 'llm_url_kept' });
+        } else {
+          matchLog.push({ topic, section: 'criticalGaps', matched: false });
         }
       }
     }
   }
+
+  return matchLog;
+}
+
+/**
+ * Ensure every RAG subject has a subjectAnalysis entry with its key gaps.
+ * The LLM often skips subjects from the RAG context despite explicit
+ * instructions, so we build missing entries deterministically from the
+ * RAG gap nodes and correct their topicsCovered / totalTopics counts.
+ */
+function expandSubjectAnalysisFromRag(
+  analysisData: Record<string, unknown>,
+  ragGaps: GapNodeWithSeverity[]
+): { subject: string; action: 'added' | 'existing' | 'updated' }[] {
+  const expansionLog: { subject: string; action: 'added' | 'existing' | 'updated' }[] = [];
+  if (!ragGaps.length) return expansionLog;
+
+  // Group RAG gaps by subject (from metadata.subject or metadata.domain)
+  const bySubject = new Map<string, GapNodeWithSeverity[]>();
+  for (const gap of ragGaps) {
+    const meta = (gap.target_metadata || {}) as Record<string, unknown>;
+    const subject = ((meta.subject as string) || (meta.domain as string) || 'Unknown').trim();
+    if (!subject) continue;
+    const existing = bySubject.get(subject) || [];
+    existing.push(gap);
+    bySubject.set(subject, existing);
+  }
+
+  const subjectAnalysis = Array.isArray(analysisData.subjectAnalysis)
+    ? (analysisData.subjectAnalysis as Record<string, unknown>[])
+    : [];
+
+  // Index existing entries by normalized subject name
+  const existingBySubject = new Map<string, Record<string, unknown>>();
+  for (const s of subjectAnalysis) {
+    const name = ((s.subject as string) || '').toLowerCase().trim();
+    if (name) existingBySubject.set(name, s);
+  }
+
+  for (const [subject, gaps] of bySubject.entries()) {
+    // Keep severity order already present in the array (CRITICAL first)
+    const sortedGaps = gaps;
+    const topGaps = sortedGaps.slice(0, 6); // max 6 keyGaps per subject
+    const total = Math.max(topGaps.length + 2, 8); // sensible minimum total
+    const covered = Math.max(0, total - topGaps.length);
+    const ratio = covered / total;
+    let alignmentLevel: string;
+    if (ratio >= 0.7) alignmentLevel = 'strong';
+    else if (ratio >= 0.4) alignmentLevel = 'moderate';
+    else alignmentLevel = 'high_gap';
+
+    const keyGaps = topGaps.map(g => {
+      const meta = (g.target_metadata || {}) as Record<string, unknown>;
+      const url = (meta.url as string) || (meta.source_url as string);
+      return url ? { topic: g.target_node_name, resourceUrl: url } : { topic: g.target_node_name };
+    });
+
+    const normalized = subject.toLowerCase();
+    if (existingBySubject.has(normalized)) {
+      const s = existingBySubject.get(normalized)!;
+      s.keyGaps = keyGaps;
+      s.topicsCovered = covered;
+      s.totalTopics = total;
+      s.alignmentLevel = alignmentLevel;
+      expansionLog.push({ subject, action: 'updated' });
+    } else {
+      subjectAnalysis.push({
+        subject,
+        topicsCovered: covered,
+        totalTopics: total,
+        alignmentLevel,
+        keyGaps,
+      });
+      expansionLog.push({ subject, action: 'added' });
+    }
+  }
+
+  // Ensure criticalGaps reflect the most severe gaps across subjects
+  const criticalGaps = Array.isArray(analysisData.criticalGaps)
+    ? (analysisData.criticalGaps as (string | Record<string, unknown>)[])
+    : [];
+  const criticalSet = new Set(
+    criticalGaps.map(g =>
+      (typeof g === 'string' ? g : ((g as Record<string, unknown>).topic as string) || '').toLowerCase()
+    )
+  );
+  for (const gap of ragGaps.filter(g => g._severity === 'CRITICAL')) {
+    const topic = gap.target_node_name;
+    if (criticalSet.has(topic.toLowerCase())) continue;
+    const meta = (gap.target_metadata || {}) as Record<string, unknown>;
+    const url = (meta.url as string) || (meta.source_url as string);
+    criticalGaps.push(url ? { topic, resourceUrl: url } : { topic });
+    criticalSet.add(topic.toLowerCase());
+  }
+  if (criticalGaps.length > 0) analysisData.criticalGaps = criticalGaps;
+
+  analysisData.subjectAnalysis = subjectAnalysis;
+  return expansionLog;
 }
 
 interface FormData {
@@ -557,6 +687,24 @@ serve(async (req) => {
     };
 
     // ==========================================================================
+    // LOG: User Input Summary — what the system received from the student form
+    // ==========================================================================
+    addDebug('user_input', 'Student form data received and parsed', {
+      grade: formData.snapshotGrade,
+      schoolStage: formData.schoolStage,
+      location: formData.snapshotLocation,
+      usState: formData.usState || null,
+      currentCurriculum: formData.currentCurriculum,
+      targetCurriculum: formData.targetCurriculum || null,
+      targetGoal: formData.targetGoal || null,
+      subjects: formData.academicPath,
+      strongSubjects: formData.strongestSubjects,
+      challengingAreas: formData.challengingAreas,
+      languages: formData.languagesSpoken,
+      timeline: formData.transitionTimeline,
+    });
+
+    // ==========================================================================
     // KNOWLEDGE VALIDATION LAYER
     // ==========================================================================
     
@@ -694,6 +842,21 @@ serve(async (req) => {
             targetNodeType: targetEntry.nodeType,
             filteredTargetNodeCount: allTargetNodes.length,
           });
+
+          // Per-subject breakdown: how many DB nodes exist per subject, and similarity ranges
+          const nodesBySubject: Record<string, { count: number; simMin: number; simMax: number; hasUrl: number }> = {};
+          for (const n of allTargetNodes) {
+            const m = (n.target_metadata || {}) as Record<string, unknown>;
+            const subj = ((m.subject as string) || (m.domain as string) || 'Unknown').substring(0, 40);
+            if (!nodesBySubject[subj]) nodesBySubject[subj] = { count: 0, simMin: 1, simMax: 0, hasUrl: 0 };
+            const s = nodesBySubject[subj];
+            s.count++;
+            const sim = n.best_similarity ?? 0;
+            if (sim < s.simMin) s.simMin = sim;
+            if (sim > s.simMax) s.simMax = sim;
+            if ((m.url as string) || (m.source_url as string)) s.hasUrl++;
+          }
+          addDebug('rag_nodes_per_subject', 'Retrieved nodes breakdown by subject (similarity = cosine score 0-1, lower = bigger gap)', nodesBySubject);
 
           // Sort ascending: index 0 = biggest gap (lowest similarity to any source node)
           const sortedAsc = [...allTargetNodes].sort(
@@ -852,6 +1015,7 @@ RESOURCE URL RULES
 SUBJECT OUTPUT RULES
 - Show detailed analysis ONLY for subjects selected by user or marked as challenging.
 - For Social Studies (Grades 2–10): DO NOT list detailed topics. Instead say: "A 2–3 month refresher on Indian social science fundamentals is advised."
+- CRITICAL: Each subject's keyGaps list must ONLY contain topics that belong to THAT subject from the RAG data. Do NOT place a Science topic under Mathematics, or a Language topic under Science. Match the subject label in the RAG [SubjectName] section exactly to the subjectAnalysis "subject" field.
 
 GAP EXPLANATION (include for each subject)
 "This gap exists because the topic is introduced earlier or emphasized more in the [target] curriculum compared to the student's [source] curriculum."
@@ -882,8 +1046,24 @@ Return ONLY valid JSON. No markdown fences, no explanation before or after the J
     console.log(`[GEMINI] Key prefix check: ${GEMINI_API_KEY?.substring(0, 8)}... (length: ${GEMINI_API_KEY?.length})`);
     console.log(`[GEMINI] Model: gemini-3.1-flash-lite | Grade: ${formData.snapshotGrade} | Source: ${formData.currentCurriculum} | Target: ${formData.targetGoal || formData.targetCurriculum}`);
 
+    // Log RAG status before calling LLM — confirms whether RAG data is injected
+    const ragSubjectsInContext = ragContext
+      ? [...ragContext.matchAll(/^\[(.*?)\]$/gm)].map(m => m[1]).filter(Boolean)
+      : [];
+    addDebug('llm_pre_call', 'About to call Gemini LLM', {
+      ragActive: !!ragContext,
+      ragGapNodesAvailable: ragGapNodes.length,
+      ragGapNodesWithUrls: ragGapNodes.filter(g => {
+        const m = (g.target_metadata || {}) as Record<string, unknown>;
+        return !!(m.url || m.source_url);
+      }).length,
+      subjectsInRagContext: ragSubjectsInContext,
+      ragContextChars: ragContext.length,
+      ragContextFull: ragContext || '(none — LLM will use its own knowledge)',
+    });
+
     const ragSection = ragContext
-      ? `\n**VERIFIED GAPS FROM CURRICULUM DATABASE (${ragGapCount} priority gaps):**\n${ragContext}\n\nIMPORTANT: Use the VERIFIED GAPS above (from semantic similarity analysis of ${sourceEntry?.label || formData.currentCurriculum || 'source'} vs ${targetEntry?.label || formData.targetGoal || 'target'} standards) to populate keyGaps and criticalGaps. These are grounded in real DB data, not estimates. CRITICAL = bottom 10% by similarity (urgent); MAJOR = 10-20% (bridge before grade-level); MODERATE = 20-35% (address concurrently).\n`
+      ? `\n**VERIFIED GAPS FROM CURRICULUM DATABASE (${ragGapCount} priority gaps):**\n${ragContext}\n\nIMPORTANT — READ CAREFULLY:\n1. Use the VERIFIED GAPS above (semantic analysis of ${sourceEntry?.label || formData.currentCurriculum || 'source'} vs ${targetEntry?.label || formData.targetGoal || 'target'}) to populate keyGaps and criticalGaps. These are grounded in real DB data, not estimates.\n2. MANDATORY: Create a subjectAnalysis entry for EVERY [SubjectName] section listed in the VERIFIED GAP DATA above (e.g. [Hindi], [Geography], [History], [Science], [Political Science], [Sanskrit], [Economics]). Do NOT skip any RAG subject — even if the student did not list it in their profile.\n3. For subjects the student listed that have NO RAG gaps (e.g. Mathematics when it is well-aligned), include a brief entry with alignmentLevel: "strong" and keyGaps: [].\n4. NOTE: ${sourceEntry?.label || 'US Common Core'} only contains Math and English Language Arts standards. Science, History, Social Studies are not in the source DB — so NCERT Science/History/Social Studies topics will always appear as gaps. This is expected and correct — list them.\n5. CRITICAL = bottom 10% by similarity (urgent); MAJOR = 10-20% (bridge soon); MODERATE = 20-35% (address concurrently).\n`
       : '';
 
     const userPrompt = `Analyze curriculum alignment for this student${ragContext ? ' using the VERIFIED GAP DATA from our curriculum database' : ''}:
@@ -1130,13 +1310,14 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
       }
     };
 
+    const llmRawContent = geminiResponse.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
     addDebug('llm_raw_response', 'Raw Gemini API response received', {
-      rawKeys: Object.keys(geminiResponse),
       candidateCount: geminiResponse.candidates?.length || 0,
       finishReason: geminiResponse.candidates?.[0]?.finishReason,
       promptTokenCount: geminiResponse.usageMetadata?.promptTokenCount,
       candidatesTokenCount: geminiResponse.usageMetadata?.candidatesTokenCount,
       totalTokenCount: geminiResponse.usageMetadata?.totalTokenCount,
+      contentPreview: llmRawContent.substring(0, 800),
     });
     
     // Log AI response metadata (tokens, timing) without PII
@@ -1257,16 +1438,28 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
     // ==========================================================================
     if (ragGapNodes.length > 0) {
       const urlCountBefore = countUrls(analysisData);
-      injectRagUrls(analysisData, ragGapNodes);
+      const urlMatchLog = injectRagUrls(analysisData, ragGapNodes);
       const urlCountAfter = countUrls(analysisData);
+      const nodesWithUrls = ragGapNodes.filter(g => {
+        const m = (g.target_metadata || {}) as Record<string, unknown>;
+        return !!(m.url || m.source_url);
+      }).length;
       addDebug('url_injection', 'Post-processed LLM output to inject RAG URLs', {
-        ragGapNodesWithUrls: ragGapNodes.filter(g => {
-          const m = (g.target_metadata || {}) as Record<string, unknown>;
-          return !!(m.url || m.source_url);
-        }).length,
+        ragGapNodeTotal: ragGapNodes.length,
+        ragGapNodesWithUrls: nodesWithUrls,
+        ragGapNodesWithoutUrls: ragGapNodes.length - nodesWithUrls,
         urlsBefore: urlCountBefore,
         urlsAfter: urlCountAfter,
         urlsInjected: urlCountAfter - urlCountBefore,
+        perGapResults: urlMatchLog,
+      });
+
+      // Make sure every RAG subject appears in subjectAnalysis, even if LLM skipped it
+      const expansionLog = expandSubjectAnalysisFromRag(analysisData, ragGapNodes);
+      addDebug('subject_analysis_expansion', 'Expanded subjectAnalysis from RAG data', {
+        ragSubjects: [...new Set(ragGapNodes.map(g => ((g.target_metadata || {}) as Record<string, unknown>).subject as string).filter(Boolean))],
+        expansionLog,
+        subjectCountAfter: (analysisData.subjectAnalysis as unknown[])?.length || 0,
       });
     }
 
