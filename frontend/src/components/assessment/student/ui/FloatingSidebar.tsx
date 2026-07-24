@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Check, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StepperStep } from "./ProgressStepper";
+import StudentAvatar from "./StudentAvatar";
 
 interface FloatingSidebarProps {
   steps: StepperStep[];
@@ -34,7 +35,10 @@ const FloatingSidebar = ({ steps, currentIndex }: FloatingSidebarProps) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
-        <h3 className="mb-4 text-sm font-semibold text-foreground">Your Progress</h3>
+        <div className="mb-4 flex items-center gap-3">
+          <StudentAvatar celebrateKey={currentIndex} percent={percent} />
+          <h3 className="text-sm font-semibold text-foreground">Your Progress</h3>
+        </div>
 
         <div className="relative mx-auto flex h-28 w-28 items-center justify-center">
           <svg viewBox="0 0 100 100" className="h-28 w-28 -rotate-90">
@@ -87,7 +91,13 @@ const FloatingSidebar = ({ steps, currentIndex }: FloatingSidebarProps) => {
                     !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
                   )}
                 >
-                  {isCompleted ? <Check className="h-3 w-3" /> : index + 1}
+                  {isCompleted ? (
+                    <motion.span initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }}>
+                      <Check className="h-3 w-3" />
+                    </motion.span>
+                  ) : (
+                    index + 1
+                  )}
                 </span>
                 <span className={cn(isCurrent ? "font-semibold text-foreground" : "text-muted-foreground")}>
                   {step.title}

@@ -44,6 +44,7 @@ export interface AssessmentFormData {
   // ---- Goals & Challenges ----
   targetGoal: string;
   targetGoalOther: string;
+  targetGrade: string; // "same" | "next" — grade to enroll in relative to snapshotGrade
   timeline: string;
   transitionConcerns: string[];
   supportNeeds: string[];
@@ -90,6 +91,7 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
 
   targetGoal: "",
   targetGoalOther: "",
+  targetGrade: "",
   timeline: "",
   transitionConcerns: [],
   supportNeeds: [],

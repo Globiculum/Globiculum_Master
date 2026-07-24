@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import TypewriterCycle from "@/components/TypewriterCycle";
 import heroChild from "@/assets/hero-child.webp";
 
 const HeroSection = () => {
@@ -10,30 +9,37 @@ const HeroSection = () => {
 
       <div className="container mx-auto px-4 sm:px-6 relative">
         <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.35fr_1fr] lg:gap-8">
-          <div className="max-w-4xl mx-auto text-center space-y-6 sm:space-y-8">
-            <div className="space-y-4 sm:space-y-6">
-              <p className="text-sm sm:text-lg md:text-xl text-accent font-semibold tracking-wide uppercase">
-                Don't Let the Move Set Your Child Behind
-              </p>
-              <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-tight sm:leading-snug md:leading-snug text-primary-foreground text-center">
-                Bridge Your Child's Education
+          <div className="max-w-4xl space-y-6 sm:space-y-8">
+            <div className="space-y-3 sm:space-y-4">
+              <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-[1.05] text-primary-foreground text-left">
+                <span className="text-primary-foreground">Moving back</span>
                 <br />
-                Between{" "}
-                <TypewriterCycle />
+                <span className="bg-gradient-mint bg-clip-text text-transparent font-extrabold">to India?</span>
+                <br />
+                <span className="text-primary-foreground">Know</span> <span className="bg-gradient-mint bg-clip-text text-transparent font-extrabold">exactly</span>
+                <br />
+                where your child
+                <br />
+                <span className="bg-gradient-mint bg-clip-text text-transparent">stands.</span>
               </h1>
-              <p className="text-base sm:text-lg md:text-xl text-primary-foreground/85 leading-relaxed max-w-3xl mx-auto text-center">
-                Seamless academic transitions to India — Globiculum ensures a seamless shift with tailored gap analysis and customized learning pathways designed for long-term success.
-              </p>
+              <div className="space-y-2">
+                <p className="text-base sm:text-lg md:text-xl text-primary-foreground/85 leading-relaxed max-w-3xl text-left">
+                  A 10-minute assessment that maps your child's learning subject-by-subject against the Indian curriculum.
+                </p>
+                <p className="text-base sm:text-lg md:text-xl text-primary-foreground/85 leading-relaxed max-w-3xl text-left">
+                  Receive a personalized curriculum gap report before your child enters an Indian school.
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center px-4 sm:px-0">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-start">
               <Button
                 size="lg"
                 className="bg-accent text-accent-foreground hover:bg-accent/90 transition-all duration-300 rounded-full font-semibold text-sm sm:text-base px-6 sm:px-8 w-full sm:w-auto"
                 asChild
               >
                 <a href="/begin-journey">
-                  Get Curriculum Gap Analysis Report
+                  Get Free Report
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </a>
               </Button>
@@ -43,14 +49,14 @@ const HeroSection = () => {
                 className="border-accent text-accent hover:bg-accent/10 transition-colors rounded-full font-semibold w-full sm:w-auto"
                 asChild
               >
-                <a href="#how-it-works">How It Works</a>
+                <a href="#how-it-works">See how it works</a>
               </Button>
             </div>
           </div>
 
           {/* Hero image — decorative, presentational only */}
           <div className="flex justify-center lg:justify-end">
-            <div className="relative w-[80%] sm:w-[70%] lg:w-full lg:max-w-sm">
+            <div className="relative w-[85%] sm:w-[75%] lg:w-full lg:max-w-md">
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0 -z-10 scale-125"

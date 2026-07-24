@@ -21,11 +21,11 @@ const ORBS = [
 ];
 
 const FLOATING_ICONS = [
-  { Icon: BookOpen, className: "left-[6%] top-[18%]", size: 22, duration: 16, delay: 0 },
-  { Icon: Globe, className: "right-[8%] top-[12%]", size: 26, duration: 19, delay: 0.6 },
-  { Icon: PenLine, className: "left-[10%] bottom-[22%]", size: 20, duration: 17, delay: 0.3 },
-  { Icon: GraduationCap, className: "right-[6%] bottom-[16%]", size: 24, duration: 20, delay: 0.9 },
-  { Icon: Star, className: "left-[46%] top-[8%]", size: 16, duration: 15, delay: 0.2 },
+  { Icon: BookOpen, className: "left-[6%] top-[18%]", color: "text-secondary/[0.14]", size: 24, duration: 9, delay: 0 },
+  { Icon: Globe, className: "right-[8%] top-[12%]", color: "text-violet/[0.14]", size: 28, duration: 11, delay: 0.6 },
+  { Icon: PenLine, className: "left-[10%] bottom-[22%]", color: "text-mint/[0.18]", size: 22, duration: 10, delay: 0.3 },
+  { Icon: GraduationCap, className: "right-[6%] bottom-[16%]", color: "text-secondary/[0.14]", size: 26, duration: 12, delay: 0.9 },
+  { Icon: Star, className: "left-[46%] top-[8%]", color: "text-accent/[0.18]", size: 18, duration: 8, delay: 0.2 },
 ];
 
 const AssessmentBackground = () => {
@@ -48,11 +48,11 @@ const AssessmentBackground = () => {
       ))}
 
       {!shouldReduceMotion &&
-        FLOATING_ICONS.map(({ Icon, className, size, duration, delay }, index) => (
+        FLOATING_ICONS.map(({ Icon, className, color, size, duration, delay }, index) => (
           <motion.div
             key={index}
-            className={`absolute hidden text-secondary/[0.07] lg:block ${className}`}
-            animate={{ y: [0, -10, 0], x: [0, 4, 0] }}
+            className={`absolute hidden md:block ${color} ${className}`}
+            animate={{ y: [0, -12, 0], x: [0, 5, 0], rotate: [0, 8, -8, 0] }}
             transition={{ duration, repeat: Infinity, ease: "easeInOut", delay }}
           >
             <Icon style={{ width: size, height: size }} />

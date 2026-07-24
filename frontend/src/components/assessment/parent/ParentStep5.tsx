@@ -33,6 +33,13 @@ interface ParentStep5Props {
 const prettify = (value: string) =>
   value ? value.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
 
+const targetGradeLabel = (targetGrade: string, snapshotGrade: string) => {
+  const current = parseInt(snapshotGrade, 10);
+  if (targetGrade === "same") return Number.isFinite(current) ? `Same Grade (Grade ${current})` : "Same Grade";
+  if (targetGrade === "next") return Number.isFinite(current) ? `Next Grade (Grade ${current + 1})` : "Next Grade";
+  return "—";
+};
+
 const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEditStep }: ParentStep5Props) => {
   const navigate = useNavigate();
   const [isValidating, setIsValidating] = useState(false);
@@ -252,6 +259,7 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
         },
         { label: "Current Curriculum", value: prettify(formData.currentCurriculumOther || formData.currentCurriculum) },
         { label: "Target Indian Board", value: prettify(formData.targetGoal) },
+        { label: "Target Grade", value: targetGradeLabel(formData.targetGrade, formData.snapshotGrade) },
         { label: "Transition Timeline", value: prettify(formData.timeline) },
       ],
     },

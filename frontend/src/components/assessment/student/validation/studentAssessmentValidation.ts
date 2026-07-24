@@ -32,6 +32,7 @@ const studentProfileStepSchema = z
     usState: z.string().optional(),
     currentCurriculum: z.string().min(1, "Please select your current curriculum"),
     targetGoal: z.string().min(1, "Please select a target Indian board"),
+    targetGrade: z.string().min(1, "Please select a target grade"),
     timeline: z.string().min(1, "Please select a transition timeline"),
   })
   // US State is only mandatory once the country is "us" — mirrors Parent's

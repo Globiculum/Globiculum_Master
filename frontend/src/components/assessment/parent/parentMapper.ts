@@ -26,8 +26,10 @@ export interface ParentFormData {
   reportCard: File | null;
   previousLocation: string;
   previousLocationOther: string;
+  previouslyStudiedInIndia: string; // "yes" | "no" — gates whether Education History is shown
   targetGoal: string;
   targetGoalOther: string;
+  targetGrade: string; // "same" | "next" — grade to enroll in relative to snapshotGrade
   timeline: string;
   educationHistory: EducationHistoryEntry[];
 
