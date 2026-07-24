@@ -36,6 +36,17 @@ supabase/.temp/
 .supabase/
 # Supabase temporary files
 **/.temp/
+
+# Test scripts that may contain secrets
+backend/test_gemini_key.ps1
+backend/test_payload.json
+
+# RAG pipeline runtime artifacts
+backend/rag-pipeline/venv/
+backend/rag-pipeline/__pycache__/
+backend/rag-pipeline/**/__pycache__/
+backend/rag-pipeline/*.log
+backend/rag-pipeline/*.pyc
 # IDE
 .vscode/*
 !.vscode/extensions.json
