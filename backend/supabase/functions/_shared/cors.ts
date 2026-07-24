@@ -5,6 +5,8 @@
 const ALLOWED_ORIGINS = [
   'https://academi-align.app',
   'https://www.academi-align.app',
+  'https://arnaintellignece.com',
+  'https://www.arnaintellignece.com',
 ];
 
 // Development origins (automatically allowed in non-production)
