@@ -883,19 +883,19 @@ export const Schemas = {
           },
           academicPath: {
             type: 'array' as const,
-            items: { type: 'string' as const, maxLength: 50 }
+            items: { type: 'string' as const, maxLength: 200 }
           },
           strongestSubjects: {
             type: 'array' as const,
-            items: { type: 'string' as const, maxLength: 50 }
+            items: { type: 'string' as const, maxLength: 100 }
           },
           challengingAreas: {
             type: 'array' as const,
-            items: { type: 'string' as const, maxLength: 50 }
+            items: { type: 'string' as const, maxLength: 100 }
           },
           languagesSpoken: {
             type: 'array' as const,
-            items: { type: 'string' as const, maxLength: 50 }
+            items: { type: 'string' as const, maxLength: 100 }
           },
           transitionTimeline: {
             type: 'string' as const,
