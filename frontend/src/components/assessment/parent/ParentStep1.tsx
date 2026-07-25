@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { BarChart3, BookOpen, GraduationCap, MapPin, Target, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,6 +44,11 @@ const TARGET_BOARDS = [
   { value: "icse", label: "ICSE" },
   { value: "ib", label: "IB" },
   { value: "cambridge-igcse", label: "Cambridge" },
+];
+
+const TARGET_GRADE_OPTIONS = [
+  { value: "same", label: "Same Grade" },
+  { value: "next", label: "Next Grade" },
 ];
 
 const TIMELINES = [
@@ -352,6 +358,26 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
           </div>
         </QuestionCard>
 
+        <QuestionCard
+          label="Target Grade"
+          required
+          hint="Should your child enroll in the same grade, or move up one grade, when transitioning?"
+        >
+          <div role="radiogroup" aria-label="Target Grade" className="flex flex-wrap gap-2">
+            {TARGET_GRADE_OPTIONS.map((option) => (
+              <OptionCard
+                key={option.value}
+                variant="pill"
+                mode="radio"
+                selected={formData.targetGrade === option.value}
+                onClick={() => onFieldChange("targetGrade", option.value)}
+              >
+                {option.label}
+              </OptionCard>
+            ))}
+          </div>
+        </QuestionCard>
+
         <QuestionCard label="Transition Timeline" required error={fieldErrors.timeline}>
           <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => onFieldChange("timeline", value)} />
         </QuestionCard>
@@ -382,14 +408,49 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             />
           </QuestionCard>
         )}
+
+        <QuestionCard label="Have you (or your child) previously studied in India before moving to the United States?">
+          <div role="radiogroup" aria-label="Previously studied in India" className="flex flex-wrap gap-2">
+            <OptionCard
+              variant="pill"
+              mode="radio"
+              selected={formData.previouslyStudiedInIndia === "yes"}
+              onClick={() => onFieldChange("previouslyStudiedInIndia", "yes")}
+            >
+              Yes
+            </OptionCard>
+            <OptionCard
+              variant="pill"
+              mode="radio"
+              selected={formData.previouslyStudiedInIndia === "no"}
+              onClick={() => onFieldChange("previouslyStudiedInIndia", "no")}
+            >
+              No
+            </OptionCard>
+          </div>
+        </QuestionCard>
       </SectionContainer>
 
-      <SectionContainer title="Education History" description="Optional — add any prior schools or curricula your child has attended.">
-        <EducationHistoryList
-          entries={formData.educationHistory}
-          onChange={(entries) => onFieldChange("educationHistory", entries)}
-        />
-      </SectionContainer>
+      <AnimatePresence initial={false}>
+        {formData.previouslyStudiedInIndia === "yes" && (
+          <motion.div
+            key="education-history"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            style={{ overflow: "hidden" }}
+          >
+            <SectionContainer title="Education History" description="Optional — add any prior schools or curricula your child has attended.">
+              <EducationHistoryList
+                entries={formData.educationHistory}
+                onChange={(entries) => onFieldChange("educationHistory", entries)}
+                currentGrade={formData.snapshotGrade}
+              />
+            </SectionContainer>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </SectionContainer>
   );
 };

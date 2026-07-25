@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import InfoTooltip from "../../shared/InfoTooltip";
 
 interface SectionCardProps {
@@ -10,6 +10,37 @@ interface SectionCardProps {
   children: ReactNode;
 }
 
+// Small animated scene above the title — a gently bobbing icon badge with
+// two tiny accent dots slowly orbiting it. Reuses the step's own icon (no
+// new content decisions needed) and the existing brand gradient/mint/amber
+// tones, just given more visual presence than a plain inline badge.
+const StepIllustration = ({ icon: Icon }: { icon: LucideIcon }) => {
+  const shouldReduceMotion = useReducedMotion() ?? false;
+
+  return (
+    <div className="relative mb-3 h-16 w-16" aria-hidden="true">
+      <motion.div
+        className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-cta text-white shadow-glow-sm"
+        animate={shouldReduceMotion ? undefined : { y: [0, -4, 0] }}
+        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <Icon className="h-7 w-7" />
+      </motion.div>
+
+      {!shouldReduceMotion && (
+        <motion.div
+          className="absolute inset-0"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+        >
+          <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-mint" />
+          <span className="absolute bottom-0 -right-1 h-1.5 w-1.5 rounded-full bg-accent" />
+        </motion.div>
+      )}
+    </div>
+  );
+};
+
 const SectionCard = ({ icon: Icon, title, description, children }: SectionCardProps) => (
   <motion.div
     className="rounded-2xl border border-border bg-card p-6 shadow-soft md:p-8"
@@ -17,19 +48,11 @@ const SectionCard = ({ icon: Icon, title, description, children }: SectionCardPr
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
   >
-    <div className="mb-6 flex items-start gap-3">
-      <motion.span
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-cta text-white shadow-medium"
-        initial={{ scale: 0.6, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.3, delay: 0.08, ease: [0.34, 1.56, 0.64, 1] }}
-      >
-        <Icon className="h-5 w-5" />
-      </motion.span>
-      <div className="flex items-center gap-1.5">
-        <h2 className="text-h3 text-foreground">{title}</h2>
-        {description && <InfoTooltip description={description} />}
-      </div>
+    <StepIllustration icon={Icon} />
+
+    <div className="mb-6 flex items-center gap-1.5">
+      <h2 className="text-h3 text-foreground">{title}</h2>
+      {description && <InfoTooltip description={description} />}
     </div>
     <div className="space-y-6">{children}</div>
   </motion.div>

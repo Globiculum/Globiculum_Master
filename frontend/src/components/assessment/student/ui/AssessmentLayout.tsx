@@ -5,6 +5,7 @@ import AssessmentHeader from "./AssessmentHeader";
 import ProgressStepper, { type StepperStep } from "./ProgressStepper";
 import FloatingSidebar from "./FloatingSidebar";
 import BottomNavigation from "./BottomNavigation";
+import StepCelebrationToast from "./StepCelebrationToast";
 
 interface AssessmentLayoutProps {
   onChangePersona: () => void;
@@ -31,6 +32,7 @@ const AssessmentLayout = ({
   children,
 }: AssessmentLayoutProps) => (
   <AssessmentContainer sidebar={<FloatingSidebar steps={steps} currentIndex={currentIndex} />}>
+    <StepCelebrationToast stepIndex={currentIndex} />
     <AssessmentHeader
       onChangePersona={onChangePersona}
       title="Student Assessment"

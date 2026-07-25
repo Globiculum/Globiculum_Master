@@ -15,8 +15,13 @@ dist-ssr
 
 # Environment variables
 .env
+.env.local
+.env.*.local
 .env.*
 !.env.example
+frontend/.env
+backend/.env
+*.env
 
 # Vite cache
 .vite/
@@ -34,7 +39,6 @@ env/
 # Supabase
 supabase/.temp/
 .supabase/
-# Supabase temporary files
 **/.temp/
 
 # Test scripts that may contain secrets
@@ -47,6 +51,7 @@ backend/rag-pipeline/__pycache__/
 backend/rag-pipeline/**/__pycache__/
 backend/rag-pipeline/*.log
 backend/rag-pipeline/*.pyc
+
 # IDE
 .vscode/*
 !.vscode/extensions.json
@@ -59,4 +64,6 @@ backend/rag-pipeline/*.pyc
 *.sw?
 
 # OS
-Thumbs.db   
+Thumbs.db
+
+.claude/

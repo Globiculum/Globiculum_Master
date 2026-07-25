@@ -1,6 +1,5 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -14,16 +13,26 @@ export interface EducationHistoryEntry {
 interface EducationHistoryListProps {
   entries: EducationHistoryEntry[];
   onChange: (entries: EducationHistoryEntry[]) => void;
+  /** Student's current grade — From/To Grade options are capped at this value. */
+  currentGrade?: string;
 }
 
-const GRADES = Array.from({ length: 12 }, (_, i) => String(i + 1));
+const COUNTRIES = ["India", "United States", "Canada", "United Kingdom", "Australia", "Singapore", "UAE", "Malaysia", "Other"];
+const CURRICULA = ["CBSE", "ICSE", "IB", "Cambridge", "State Board", "US Common Core", "Other"];
+
+const getGradeOptions = (currentGrade?: string) => {
+  const max = Math.min(parseInt(currentGrade || "", 10) || 12, 12);
+  return Array.from({ length: Math.max(max, 1) }, (_, i) => String(i + 1));
+};
 
 const EMPTY_ENTRY: EducationHistoryEntry = { fromGrade: "", toGrade: "", country: "", curriculum: "" };
 
 // Parent-only repeatable section — each row captures a prior schooling
 // stretch (From Grade / To Grade / Country / Curriculum). Composed entirely
 // from existing shared UI primitives, no new visual language introduced.
-const EducationHistoryList = ({ entries, onChange }: EducationHistoryListProps) => {
+const EducationHistoryList = ({ entries, onChange, currentGrade }: EducationHistoryListProps) => {
+  const gradeOptions = getGradeOptions(currentGrade);
+
   const updateEntry = (index: number, field: keyof EducationHistoryEntry, value: string) => {
     const next = entries.map((entry, i) => (i === index ? { ...entry, [field]: value } : entry));
     onChange(next);
@@ -43,7 +52,7 @@ const EducationHistoryList = ({ entries, onChange }: EducationHistoryListProps) 
                 <SelectValue placeholder="Grade" />
               </SelectTrigger>
               <SelectContent>
-                {GRADES.map((g) => (
+                {gradeOptions.map((g) => (
                   <SelectItem key={g} value={g}>Grade {g}</SelectItem>
                 ))}
               </SelectContent>
@@ -56,7 +65,7 @@ const EducationHistoryList = ({ entries, onChange }: EducationHistoryListProps) 
                 <SelectValue placeholder="Grade" />
               </SelectTrigger>
               <SelectContent>
-                {GRADES.map((g) => (
+                {gradeOptions.map((g) => (
                   <SelectItem key={g} value={g}>Grade {g}</SelectItem>
                 ))}
               </SelectContent>
@@ -64,21 +73,29 @@ const EducationHistoryList = ({ entries, onChange }: EducationHistoryListProps) 
           </div>
           <div>
             <Label htmlFor={`edu-history-country-${index}`} className="text-xs">Country</Label>
-            <Input
-              id={`edu-history-country-${index}`}
-              placeholder="e.g. India"
-              value={entry.country}
-              onChange={(e) => updateEntry(index, "country", e.target.value)}
-            />
+            <Select value={entry.country} onValueChange={(value) => updateEntry(index, "country", value)}>
+              <SelectTrigger id={`edu-history-country-${index}`}>
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRIES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label htmlFor={`edu-history-curriculum-${index}`} className="text-xs">Curriculum</Label>
-            <Input
-              id={`edu-history-curriculum-${index}`}
-              placeholder="e.g. CBSE"
-              value={entry.curriculum}
-              onChange={(e) => updateEntry(index, "curriculum", e.target.value)}
-            />
+            <Select value={entry.curriculum} onValueChange={(value) => updateEntry(index, "curriculum", value)}>
+              <SelectTrigger id={`edu-history-curriculum-${index}`}>
+                <SelectValue placeholder="Select curriculum" />
+              </SelectTrigger>
+              <SelectContent>
+                {CURRICULA.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button
             type="button"

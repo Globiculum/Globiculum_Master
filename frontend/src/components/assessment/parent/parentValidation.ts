@@ -32,7 +32,7 @@ export function canProceedFromStep(stepIndex: number, formData: ParentFormData):
         (formData.snapshotLocation !== "us" || (!!formData.usState && (formData.usState !== "other" || !!formData.usStateOther)));
       const curriculumValid =
         !!formData.currentCurriculum && (formData.currentCurriculum !== "other" || !!formData.currentCurriculumOther);
-      const targetValid = !!formData.targetGoal;
+      const targetValid = !!formData.targetGoal && !!formData.targetGrade;
 
       return (
         !!formData.childName &&

@@ -98,6 +98,11 @@ const TARGET_BOARDS = [
   { value: "cambridge-igcse", label: "Cambridge" },
 ];
 
+const TARGET_GRADE_OPTIONS = [
+  { value: "same", label: "Same Grade" },
+  { value: "next", label: "Next Grade" },
+];
+
 const TIMELINES = [
   { value: "within-3-months", label: "Within 3 months" },
   { value: "3-6-months", label: "3–6 months" },
@@ -262,6 +267,25 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
               label={board.label}
               selected={formData.targetGoal === board.value}
               onClick={() => setField("targetGoal", board.value)}
+            />
+          ))}
+        </div>
+      </QuestionCard>
+
+      <QuestionCard
+        label="Target Grade"
+        required
+        error={errors.targetGrade}
+        hint="Should you enroll in the same grade, or move up one grade, when transitioning?"
+      >
+        <div role="radiogroup" aria-label="Target Grade" className="flex flex-wrap gap-2">
+          {TARGET_GRADE_OPTIONS.map((option) => (
+            <InputCard
+              key={option.value}
+              mode="radio"
+              label={option.label}
+              selected={formData.targetGrade === option.value}
+              onClick={() => setField("targetGrade", option.value)}
             />
           ))}
         </div>
