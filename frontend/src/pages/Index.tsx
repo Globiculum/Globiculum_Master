@@ -4,11 +4,11 @@ import ChallengeSection from "@/components/ChallengeSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import WhoItsForSection from "@/components/WhoItsForSection";
 import ProblemSection from "@/components/ProblemSection";
-import ResultsSection from "@/components/ResultsSection";
+import ComparisonTableSection from "@/components/ComparisonTableSection";
 import TestimonialsSection from "@/components/TestimonialsSection";
-import CTASection from "@/components/CTASection";
 import ReadinessReportSection from "@/components/ReadinessReportSection";
 import FAQSection from "@/components/FAQSection";
+import FreeStartSection from "@/components/FreeStartSection";
 import StickyMobileCTA from "@/components/StickyMobileCTA";
 import Footer from "@/components/Footer";
 
@@ -21,10 +21,10 @@ const Index = () => {
       <HowItWorksSection />
       <WhoItsForSection />
       <ProblemSection />
-      <ResultsSection />
+      <ComparisonTableSection />
       <TestimonialsSection />
-      <CTASection />
       <ReadinessReportSection />
+      <FreeStartSection />
       <FAQSection />
       <Footer />
       <StickyMobileCTA />
