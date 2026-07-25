@@ -1,39 +1,39 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Globe, X, Check } from "lucide-react";
+import { BookOpen, Globe } from "lucide-react";
 import bridgeIcon from "@/assets/bridge-icon.png";
 
 const ProblemSection = () => {
   return (
-    <section className="py-12 sm:py-16 md:py-20 bg-background">
-      <div className="container mx-auto px-4 sm:px-6">
+    <section className="relative overflow-hidden bg-gradient-hero py-12 sm:py-16 md:py-20">
+      <div className="container mx-auto px-4 sm:px-6 relative">
         <div className="text-center mb-8 sm:mb-12">
-          <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3">
+          <span className="mb-6 inline-block rounded-full bg-accent px-6 py-2.5 text-base font-bold uppercase tracking-wide text-accent-foreground shadow-[0_8px_24px_-8px_rgba(245,158,11,0.55)] sm:text-lg">
             The Globiculum Difference
-          </p>
-          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 text-foreground leading-tight">
+          </span>
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 text-white leading-tight">
             Your child doesn't have to choose between two worlds.
           </h2>
-          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+          <p className="text-lg text-white/85 max-w-3xl mx-auto">
             Our unique AI-driven approach ensures your child excels in Indian education standards and stays aligned with global academic competitiveness.
           </p>
         </div>
 
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col lg:flex-row items-stretch gap-6">
+          <div className="relative flex flex-col lg:flex-row items-stretch gap-6 lg:gap-10">
             {/* Indian Curriculum */}
-            <Card className="flex-1 bg-card border-2 border-primary/20 shadow-strong hover:shadow-medium transition-all duration-300">
+            <Card className="flex-1 bg-primary/20 backdrop-blur-md border-2 border-white/20 shadow-strong hover:shadow-medium transition-all duration-300">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-primary p-3 rounded-xl">
                     <BookOpen className="h-8 w-8 text-primary-foreground" />
                   </div>
-                  <CardTitle className="text-2xl text-foreground">
+                  <CardTitle className="text-2xl text-white">
                     Build a Strong Academic Core
                   </CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-muted-foreground font-medium">
+                <p className="text-white/85 font-medium">
                   Master the depth and rigor of Indian education systems. A foundation built for academic excellence and cultural rootedness.
                 </p>
                 <div className="space-y-3">
@@ -43,10 +43,10 @@ const ProblemSection = () => {
                     { title: "Cultural & Language Foundation", desc: "Language proficiency and cultural context" },
                   ].map((item) => (
                     <div key={item.title} className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-primary rounded-full mt-2" />
+                      <div className="w-2 h-2 bg-white rounded-full mt-2" />
                       <div>
-                        <h4 className="font-semibold text-foreground">{item.title}</h4>
-                        <p className="text-sm text-muted-foreground">{item.desc}</p>
+                        <h4 className="font-semibold text-white">{item.title}</h4>
+                        <p className="text-sm text-white/80">{item.desc}</p>
                       </div>
                     </div>
                   ))}
@@ -54,9 +54,20 @@ const ProblemSection = () => {
               </CardContent>
             </Card>
 
-            {/* Bridge icon */}
-            <div className="flex items-center justify-center shrink-0 py-2 lg:py-0">
-              <div className="bg-card rounded-full p-3 shadow-medium border-2 border-border">
+            {/* Bridge icon — small, in-flow on mobile/tablet */}
+            <div className="flex items-center justify-center shrink-0 py-2 lg:hidden">
+              <div className="bg-primary/20 backdrop-blur-md rounded-full p-3 shadow-medium border-2 border-white/20">
+                <img
+                  src={bridgeIcon}
+                  alt="Educational bridge connecting pathways"
+                  className="w-10 h-10 object-contain"
+                />
+              </div>
+            </div>
+
+            {/* Bridge icon — overlaps only the padding gutter of both cards, never their text */}
+            <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 hidden -translate-x-1/2 -translate-y-1/2 lg:block">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-strong border-4 border-white/50">
                 <img
                   src={bridgeIcon}
                   alt="Educational bridge connecting pathways"
@@ -66,19 +77,19 @@ const ProblemSection = () => {
             </div>
 
             {/* Global Curriculum */}
-            <Card className="flex-1 bg-card border-2 border-secondary/20 shadow-strong hover:shadow-medium transition-all duration-300">
+            <Card className="flex-1 bg-primary/20 backdrop-blur-md border-2 border-white/20 shadow-strong hover:shadow-medium transition-all duration-300">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-secondary p-3 rounded-xl">
                     <Globe className="h-8 w-8 text-secondary-foreground" />
                   </div>
-                  <CardTitle className="text-2xl text-foreground">
+                  <CardTitle className="text-2xl text-white">
                     Stay Ahead for Global Pathways
                   </CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-muted-foreground font-medium">
+                <p className="text-white/85 font-medium">
                   Maintain global curriculum flexibility and competitive edge. Equip your child for international admissions and global careers.
                 </p>
                 <div className="space-y-3">
@@ -88,81 +99,14 @@ const ProblemSection = () => {
                     { title: "Global Competitiveness", desc: "Skills that travel, whichever country they live in next" },
                   ].map((item) => (
                     <div key={item.title} className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-secondary rounded-full mt-2" />
+                      <div className="w-2 h-2 bg-white rounded-full mt-2" />
                       <div>
-                        <h4 className="font-semibold text-foreground">{item.title}</h4>
-                        <p className="text-sm text-muted-foreground">{item.desc}</p>
+                        <h4 className="font-semibold text-white">{item.title}</h4>
+                        <p className="text-sm text-white/80">{item.desc}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Traditional vs Globiculum Comparison */}
-        <div className="mt-12 sm:mt-16 md:mt-20">
-          <div className="text-center mb-8 sm:mb-10">
-            <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3">
-              Why Choose Globiculum
-            </p>
-            <h3 className="text-xl sm:text-2xl md:text-4xl font-bold mb-3 text-foreground leading-tight">Traditional vs. Globiculum</h3>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Traditional approaches treat every child the same. Globiculum starts from where they actually are, not where the textbook assumes.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
-            <Card className="bg-card border-2 border-destructive/20">
-              <CardHeader>
-                <div className="flex items-center gap-2 mb-2">
-                  <X className="h-6 w-6 text-destructive" />
-                  <CardTitle className="text-xl text-foreground">Traditional Approach</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  ["Generic curriculum overview", "Curriculum Analysis"],
-                  ["One-size-fits-all approach", "Learning Pathway"],
-                  ["Manual assessment process", "Assessment"],
-                  ["Limited follow-up support", "Follow-up"],
-                  ["Static learning materials", "Materials"],
-                  ["Rote learning", "Method"],
-                ].map(([desc, label]) => (
-                  <div key={label} className="flex items-start gap-3">
-                    <div className="bg-destructive/10 text-destructive rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <X className="h-3.5 w-3.5" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">{desc}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-2 border-secondary/20">
-              <CardHeader>
-                <div className="flex items-center gap-2 mb-2">
-                  <Check className="h-6 w-6 text-secondary" />
-                  <CardTitle className="text-xl text-foreground">Globiculum Advantage</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  "Personalized AI-powered gap analysis",
-                  "AI-powered customized pathways",
-                  "Instant digital assessment",
-                  "Continuous progress tracking",
-                  "Dynamic, adaptive resources",
-                  "Pocket friendly",
-                ].map((desc) => (
-                  <div key={desc} className="flex items-start gap-3">
-                    <div className="bg-secondary/10 text-secondary rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Check className="h-3.5 w-3.5" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">{desc}</p>
-                  </div>
-                ))}
               </CardContent>
             </Card>
           </div>
