@@ -1,9 +1,21 @@
 import { useState, useCallback } from "react";
 import { ZoomIn, ZoomOut, X, Maximize2 } from "lucide-react";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import readinessReport from "@/assets/Readiness_Report.jpeg";
 
+const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
+};
+
+const staggerContainer: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
+};
+
 const ReadinessReportSection = () => {
+  const shouldReduceMotion = useReducedMotion() ?? false;
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scale, setScale] = useState(1);
 
@@ -11,42 +23,67 @@ const ReadinessReportSection = () => {
   const zoomOut = useCallback(() => setScale((s) => Math.max(s - 0.25, 0.5)), []);
   const resetZoom = useCallback(() => setScale(1), []);
 
+  const openFullscreen = useCallback(() => {
+    setIsFullscreen(true);
+    setScale(1);
+  }, []);
+
   return (
     <>
-      <section className="py-12 sm:py-16 md:py-24 bg-muted/30">
+      <section className="relative overflow-hidden bg-muted/30 py-12 sm:py-16 md:py-24">
         <div className="container mx-auto px-4 sm:px-6">
-          <div className="max-w-4xl mx-auto text-center space-y-3 sm:space-y-4 mb-8 sm:mb-10">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground leading-tight sm:leading-snug">
-              Sample Transition Readiness Report
-            </h2>
-            <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-              See exactly what you'll receive — a comprehensive, actionable report tailored to your child's academic transition.
-            </p>
-          </div>
+          <motion.div
+            className="max-w-4xl mx-auto text-center mb-8 sm:mb-10"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.4 }}
+            variants={staggerContainer}
+          >
+            <motion.div variants={fadeUp} className="mb-6 flex justify-center">
+              <Button
+                size="lg"
+                onClick={openFullscreen}
+                className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/25 hover:shadow-xl hover:shadow-accent/30 transition-all duration-300 rounded-full font-semibold uppercase tracking-wide text-base px-8 sm:px-10 py-6 sm:text-lg"
+              >
+                Sample Report
+              </Button>
+            </motion.div>
 
-          <div className="max-w-3xl mx-auto">
-            <div className="relative group rounded-2xl overflow-hidden shadow-lg border border-border bg-card">
+            <motion.h2
+              variants={fadeUp}
+              className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground leading-tight sm:leading-snug mb-3 sm:mb-4"
+            >
+              Sample Transition Readiness Report
+            </motion.h2>
+            <motion.p variants={fadeUp} className="text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+              See exactly what you&apos;ll receive — a comprehensive, actionable report tailored to your child&apos;s academic transition.
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            className="max-w-3xl mx-auto"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="relative group rounded-[28px] overflow-hidden border border-[rgba(15,23,42,0.06)] bg-card shadow-sm transition-shadow duration-300 hover:shadow-xl">
               <img
                 src={readinessReport}
                 alt="Sample Globiculum Transition Readiness Report showing subject coverage, critical gaps, and bridge timeline"
                 className="w-full h-auto block"
                 loading="lazy"
               />
-              <button
-                onClick={() => {
-                  setIsFullscreen(true);
-                  setScale(1);
-                }}
+              <motion.button
+                onClick={openFullscreen}
+                whileHover={shouldReduceMotion ? undefined : { scale: 1.05 }}
                 className="absolute top-4 right-4 bg-primary/80 hover:bg-primary text-primary-foreground p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                 aria-label="View fullscreen"
               >
                 <Maximize2 className="h-5 w-5" />
-              </button>
+              </motion.button>
             </div>
-            <p className="text-sm text-muted-foreground text-center mt-4">
-              Click the expand icon to zoom in and explore the full report
-            </p>
-          </div>
+          </motion.div>
         </div>
       </section>
 
