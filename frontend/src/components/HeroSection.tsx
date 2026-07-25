@@ -1,6 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
-import heroChild from "@/assets/hero-child.webp";
+import { ArrowRight, GraduationCap, Globe, ShieldCheck, Zap } from "lucide-react";
+import heroChild from "@/assets/family_hero image.jpeg";
+
+const STATS = [
+  { icon: GraduationCap, value: "25+", label: "Families interviewed", color: "hsl(var(--mint))" },
+  { icon: Globe, value: "3", label: "Boards: CBSE · ICSE · IB", color: "hsl(var(--secondary))" },
+  { icon: ShieldCheck, value: "4.5/5", label: "Educator-reviewed score", color: "hsl(var(--violet))" },
+  { icon: Zap, value: "10 min", label: "Assessment to report", color: "hsl(var(--accent))" },
+];
 
 const HeroSection = () => {
   return (
@@ -10,32 +17,28 @@ const HeroSection = () => {
       <div className="container mx-auto px-4 sm:px-6 relative">
         <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.35fr_1fr] lg:gap-8">
           <div className="max-w-4xl space-y-6 sm:space-y-8">
-            <div className="space-y-3 sm:space-y-4">
-              <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-[1.05] text-primary-foreground text-left">
+            <div className="space-y-4 sm:space-y-6">
+              <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-[1.08] text-primary-foreground text-left">
                 <span className="text-primary-foreground">Moving back</span>
                 <br />
                 <span className="bg-gradient-mint bg-clip-text text-transparent font-extrabold">to India?</span>
                 <br />
-                <span className="text-primary-foreground">Know</span> <span className="bg-gradient-mint bg-clip-text text-transparent font-extrabold">exactly</span>
+                <span className="text-primary-foreground">Know</span>{" "}
+                <span className="bg-gradient-mint bg-clip-text text-transparent font-extrabold">exactly</span>
                 <br />
-                where your child
+                <span className="text-primary-foreground">where your child</span>
                 <br />
-                <span className="bg-gradient-mint bg-clip-text text-transparent">stands.</span>
+                <span className="bg-gradient-mint bg-clip-text text-transparent font-extrabold">stands.</span>
               </h1>
-              <div className="space-y-2">
-                <p className="text-base sm:text-lg md:text-xl text-primary-foreground/85 leading-relaxed max-w-3xl text-left">
-                  A 10-minute assessment that maps your child's learning subject-by-subject against the Indian curriculum.
-                </p>
-                <p className="text-base sm:text-lg md:text-xl text-primary-foreground/85 leading-relaxed max-w-3xl text-left">
-                  Receive a personalized curriculum gap report before your child enters an Indian school.
-                </p>
-              </div>
+              <p className="text-base sm:text-lg md:text-xl text-primary-foreground/85 leading-relaxed max-w-3xl text-left">
+                A 10-minute assessment. Subject-by-subject gap analysis mapped to NCERT chapters. A personalised bridge plan — before your child sets foot in an Indian school.
+              </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-start">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-start px-4 sm:px-0">
               <Button
                 size="lg"
-                className="bg-accent text-accent-foreground hover:bg-accent/90 transition-all duration-300 rounded-full font-semibold text-sm sm:text-base px-6 sm:px-8 w-full sm:w-auto"
+                className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/25 hover:shadow-xl hover:shadow-accent/30 transition-all duration-300 rounded-full font-semibold text-sm sm:text-base px-6 sm:px-8 w-full sm:w-auto"
                 asChild
               >
                 <a href="/begin-journey">
@@ -56,7 +59,7 @@ const HeroSection = () => {
 
           {/* Hero image — decorative, presentational only */}
           <div className="flex justify-center lg:justify-end">
-            <div className="relative w-[85%] sm:w-[75%] lg:w-full lg:max-w-md">
+            <div className="relative w-[95%] sm:w-[85%] lg:w-full lg:max-w-2xl">
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0 -z-10 scale-125"
@@ -82,6 +85,29 @@ const HeroSection = () => {
                 }}
               />
             </div>
+          </div>
+        </div>
+
+        {/* Trust stats — full-width strip beneath the two-column hero content */}
+        <div className="mt-12 border-t border-white/10 pt-8 sm:mt-16 sm:pt-10">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 sm:gap-y-0">
+            {STATS.map((stat) => (
+              <div
+                key={stat.label}
+                className="flex items-center gap-3 sm:border-l sm:border-white/10 sm:pl-6 sm:first:border-l-0 sm:first:pl-0"
+              >
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                  style={{ backgroundColor: `${stat.color}26`, color: stat.color }}
+                >
+                  <stat.icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                </div>
+                <div>
+                  <div className="text-xl font-bold leading-tight text-primary-foreground">{stat.value}</div>
+                  <div className="text-xs text-primary-foreground/70 sm:text-sm">{stat.label}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

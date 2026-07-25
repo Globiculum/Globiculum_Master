@@ -16,8 +16,7 @@ const PROBLEM_CARDS: ProblemCard[] = [
     number: "01",
     icon: MessageCircle,
     title: "WhatsApp Groups",
-    description:
-      "Anecdotal and inconsistent. Every family gets the same generic advice regardless of grade, board, or subject gaps. Zero personalisation.",
+    description: "Generic advice that ignores your child's actual grade, board, or subject gaps.",
     quote: "He stopped talking about when they were in India… he's in high stress because he doesn't know what to do.",
     color: "hsl(var(--accent))",
   },
@@ -25,8 +24,7 @@ const PROBLEM_CARDS: ProblemCard[] = [
     number: "02",
     icon: Bot,
     title: "ChatGPT & Google",
-    description:
-      "Generic output. No NCERT chapter mapping, no knowledge of your child's grade, no specific gaps — just a list of learning platforms.",
+    description: "No NCERT mapping, no grade context — just a list of learning platforms.",
     quote: "The analysis focused more on suggesting existing learning websites — not revealing gaps.",
     color: "hsl(var(--violet))",
   },
@@ -34,8 +32,7 @@ const PROBLEM_CARDS: ProblemCard[] = [
     number: "03",
     icon: BookOpen,
     title: "Tutors Without Assessment",
-    description:
-      "Everyone jumps straight into teaching without knowing where the child actually stands. Expensive, often on the wrong subjects.",
+    description: "Teaching starts before anyone knows where your child actually stands.",
     quote: "At least what to work on is important, right? Structure is missing.",
     color: "hsl(var(--secondary))",
   },
@@ -43,8 +40,7 @@ const PROBLEM_CARDS: ProblemCard[] = [
     number: "04",
     icon: Puzzle,
     title: "The Methodology Shock",
-    description:
-      "US classrooms are discussion-based. Indian classrooms are exam-heavy and teacher-led. Nobody prepares children for this cognitive shift.",
+    description: "Discussion-based classrooms don't prepare kids for exam-heavy, teacher-led ones.",
     quote: "More than academic transition, it is the social setup they have to adjust to.",
     color: "hsl(var(--mint))",
   },
@@ -95,7 +91,7 @@ const ProblemCardItem = ({ card }: { card: ProblemCard }) => {
       <motion.div
         whileHover={shouldReduceMotion ? undefined : { y: -8, scale: 1.02 }}
         transition={{ type: "spring", stiffness: 300, damping: 22, mass: 0.6 }}
-        className="relative overflow-hidden rounded-[28px] border border-[rgba(15,23,42,0.06)] bg-white p-6 shadow-sm transition-[box-shadow,border-color] duration-[450ms] hover:border-secondary hover:shadow-xl sm:p-7"
+        className="relative flex h-full flex-col overflow-hidden rounded-[28px] border border-[rgba(15,23,42,0.06)] bg-white p-6 shadow-sm transition-[box-shadow,border-color] duration-[450ms] hover:border-secondary hover:shadow-xl sm:p-7"
       >
         <span
           aria-hidden="true"
@@ -119,11 +115,11 @@ const ProblemCardItem = ({ card }: { card: ProblemCard }) => {
         </motion.div>
 
         <h3 className="relative mb-2 text-lg font-bold text-foreground">{card.title}</h3>
-        <p className="relative mb-4 text-[15px] leading-relaxed text-muted-foreground">{card.description}</p>
+        <p className="relative mb-4 text-sm leading-relaxed text-muted-foreground">{card.description}</p>
 
         <motion.div
           variants={quoteFade}
-          className="relative flex gap-2 rounded-xl border-l-2 bg-[#F8FAFC] px-4 py-3"
+          className="relative mt-auto flex gap-2 rounded-xl border-l-2 bg-[#F8FAFC] px-4 py-3"
           style={{ borderLeftColor: card.color }}
         >
           <Quote className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: card.color }} aria-hidden="true" />
@@ -158,22 +154,12 @@ const ChallengeSection = () => {
           viewport={{ once: true, amount: 0.4 }}
           variants={staggerContainer}
         >
-          <motion.p
+          <motion.span
             variants={fadeUp}
-            className="mb-4 flex items-center gap-2 text-base font-semibold uppercase text-accent sm:text-lg"
-            style={{ letterSpacing: "2px" }}
+            className="mb-6 inline-block rounded-full bg-accent px-6 py-2.5 text-base font-bold uppercase tracking-wide text-accent-foreground shadow-[0_8px_24px_-8px_rgba(245,158,11,0.55)] sm:text-lg"
           >
-            <motion.span
-              aria-hidden="true"
-              className="h-px w-5 bg-accent"
-              style={{ transformOrigin: "left" }}
-              initial={{ scaleX: 0 }}
-              whileInView={{ scaleX: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-            />
             The Problem
-          </motion.p>
+          </motion.span>
 
           <motion.h2
             variants={fadeUp}
