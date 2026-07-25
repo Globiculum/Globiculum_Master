@@ -1,0 +1,4 @@
+# NEVER commit .env files — they contain Supabase and API keys
+.env
+.env.*
+!.env.example

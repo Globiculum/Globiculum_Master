@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node reportpreview-loader-check.js)",
+      "Bash(node curriculum-usstate-check.js)",
+      "Bash(curl -s http://localhost:8082 -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(node target-grade-check.js)",
+      "Bash(curl -s http://localhost:8081 -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(node hero-final.js)",
+      "Bash(node -e \"const i=require\\('lucide-react'\\); ['GraduationCap','Globe','ShieldCheck','Zap'].forEach\\(n=>console.log\\(n, typeof i[n]\\)\\)\")",
+      "Bash(node hero-mobile.js)",
+      "Bash(node about-below.js)"
+    ]
+  }
+}

@@ -13,10 +13,8 @@ import {
   API_VERSION,
 } from "../_shared/apiContracts.ts";
 import {
-  validateStudentData as runKnowledgeValidation,
-  validateCurriculumAlignment,
+  validateStudentData,
   createValidationSummary,
-  detectMissingData,
   type ValidationResult as KnowledgeValidationResult,
 } from "../_shared/knowledgeValidation.ts";
 
@@ -191,12 +189,14 @@ serve(async (req) => {
     // ==========================================================================
     
     // Run comprehensive knowledge validation
-    const knowledgeValidation = validateCurriculumAlignment(
+    const knowledgeValidation = validateStudentData(
       studentData as unknown as Record<string, unknown>,
-      studentData.currentCurriculum || 'unknown',
-      'common_core', // Default target
-      studentData.snapshotGrade || 9,
-      ['math', 'science', 'english', 'social_studies']
+      {
+        gradeLevel: studentData.snapshotGrade || 9,
+        sourceCurriculum: studentData.currentCurriculum || 'unknown',
+        targetCurriculum: 'common_core', // Default target
+        subjects: ['math', 'science', 'english', 'social_studies']
+      }
     );
     
     const result: ValidationResult = {
@@ -213,9 +213,9 @@ serve(async (req) => {
         suggestion: w.suggestion
       })),
       // Enterprise-grade additions
-      alignment_score: knowledgeValidation.alignment_score,
+      alignment_score: undefined,
       confidence: knowledgeValidation.confidence,
-      missing_topics: knowledgeValidation.missing_topics,
+      missing_topics: [],
       missing_data: knowledgeValidation.missingData.map(m => ({
         field: m.field,
         importance: m.importance,
