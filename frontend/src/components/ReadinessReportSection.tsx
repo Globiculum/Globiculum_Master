@@ -43,7 +43,7 @@ const ReadinessReportSection = () => {
               <Button
                 size="lg"
                 onClick={openFullscreen}
-                className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/25 hover:shadow-xl hover:shadow-accent/30 transition-all duration-300 rounded-full font-semibold text-base px-8 sm:px-10 py-6 sm:text-lg"
+                className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/25 hover:shadow-xl hover:shadow-accent/30 transition-all duration-300 rounded-full font-semibold uppercase tracking-wide text-base px-8 sm:px-10 py-6 sm:text-lg"
               >
                 Sample Report
               </Button>
