@@ -19,7 +19,7 @@ interface TimelineSelectorProps {
 // call sites and to match the component naming requested for this redesign.
 const TimelineSelector = ({ options, value, onChange }: TimelineSelectorProps) => {
   return (
-    <div role="radiogroup" aria-label="Timeline" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div role="radiogroup" aria-label="Timeline" className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
       {options.map((option) => {
         const selected = value === option.value;
         return (

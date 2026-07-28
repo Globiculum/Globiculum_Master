@@ -1,19 +1,22 @@
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User } from "lucide-react";
+import { BookOpen, User } from "lucide-react";
 import { StepFieldError, type StudentStepProps } from "./types";
 import SectionCard from "../ui/SectionCard";
 import QuestionCard from "../ui/QuestionCard";
 import InputCard from "../ui/InputCard";
 import VoiceInputButton from "../../shared/VoiceInputButton";
+import TimelineSelector from "../../shared/TimelineSelector";
+import SectionContainer from "../../shared/SectionContainer";
+import EducationHistoryList from "../../shared/EducationHistoryList";
 
 // Step 1: Student Profile.
 // Reuses the existing backend field vocabulary (schoolStage, snapshotGrade,
 // snapshotLocation, usState, currentCurriculum, targetGoal, timeline) so
 // this step's output is already compatible with validate-student-data /
-// analyze-curriculum without any transformation layer. Student journey
-// intentionally skips Previous School / Education History (Parent-only).
+// analyze-curriculum without any transformation layer.
 
 const SCHOOL_STAGES = [
   { value: "elementary", label: "Elementary", description: "Grades 1-5" },
@@ -67,7 +70,7 @@ const CURRICULUM_BY_STAGE: Record<string, { value: string; label: string }[]> = 
   elementary: [
     { value: "us-common-core", label: "US Common Core" },
     { value: "state-specific", label: "State-Specific Standards" },
-    { value: "ib-pyp", label: "IB PYP" },
+    { value: "ib-pyp", label: "IB Middle Year Programme" },
     { value: "cambridge-primary", label: "Cambridge Primary" },
     { value: "montessori", label: "Montessori Curriculum" },
     { value: "other", label: "Other" },
@@ -75,7 +78,7 @@ const CURRICULUM_BY_STAGE: Record<string, { value: string; label: string }[]> = 
   middle: [
     { value: "us-common-core", label: "US Common Core" },
     { value: "state-specific", label: "State-Specific Standards" },
-    { value: "ib-myp", label: "IB MYP" },
+    { value: "ib-myp", label: "IB Middle Year Programme" },
     { value: "cambridge-lower", label: "Cambridge Lower Secondary" },
     { value: "honors-advanced", label: "Honors / Advanced Programs" },
     { value: "other", label: "Other" },
@@ -109,6 +112,23 @@ const TIMELINES = [
   { value: "6-12-months", label: "6–12 months" },
   { value: "1-2-years", label: "1–2 years" },
   { value: "exploring", label: "Just exploring" },
+];
+
+// Mirrors the Parent flow's PREVIOUS_LOCATIONS (ParentStep1.tsx) so both
+// journeys offer the same choices.
+const PREVIOUS_LOCATIONS = [
+  { value: "same", label: "Same as current" },
+  { value: "us", label: "United States" },
+  { value: "india-cbse", label: "India (CBSE)" },
+  { value: "india-icse", label: "India (ICSE)" },
+  { value: "india-state", label: "India (State Board)" },
+  { value: "uae", label: "UAE" },
+  { value: "singapore", label: "Singapore" },
+  { value: "uk", label: "United Kingdom" },
+  { value: "australia", label: "Australia" },
+  { value: "canada", label: "Canada" },
+  { value: "malaysia", label: "Malaysia" },
+  { value: "other", label: "Other" },
 ];
 
 const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) => {
@@ -292,18 +312,75 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
       </QuestionCard>
 
       <QuestionCard label="Transition Timeline" required error={errors.timeline}>
-        <div role="radiogroup" aria-label="Transition Timeline" className="flex flex-wrap gap-2">
-          {TIMELINES.map((t) => (
-            <InputCard
-              key={t.value}
-              mode="radio"
-              label={t.label}
-              selected={formData.timeline === t.value}
-              onClick={() => setField("timeline", t.value)}
-            />
-          ))}
-        </div>
+        <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => setField("timeline", value)} />
       </QuestionCard>
+
+      <SectionContainer icon={BookOpen} title="Education History" description="Where you studied before, and any prior schools or curricula attended.">
+        <QuestionCard label="Previous School Location" hint="Where were you studying before?">
+          <Select value={formData.previousLocation} onValueChange={(value) => setField("previousLocation", value)}>
+            <SelectTrigger id="previous-location">
+              <SelectValue placeholder="Select previous location" />
+            </SelectTrigger>
+            <SelectContent>
+              {PREVIOUS_LOCATIONS.map((loc) => (
+                <SelectItem key={loc.value} value={loc.value}>
+                  {loc.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </QuestionCard>
+
+        {formData.previousLocation === "other" && (
+          <QuestionCard label="Please specify" htmlFor="previous-location-other">
+            <Input
+              id="previous-location-other"
+              type="text"
+              placeholder="Enter country name"
+              value={formData.previousLocationOther}
+              onChange={(e) => setField("previousLocationOther", e.target.value)}
+            />
+          </QuestionCard>
+        )}
+
+        <QuestionCard label="Have you previously studied in India before moving to the United States?">
+          <div role="radiogroup" aria-label="Previously studied in India" className="flex flex-wrap gap-2">
+            <InputCard
+              mode="radio"
+              label="Yes"
+              selected={formData.previouslyStudiedInIndia === "yes"}
+              onClick={() => setField("previouslyStudiedInIndia", "yes")}
+            />
+            <InputCard
+              mode="radio"
+              label="No"
+              selected={formData.previouslyStudiedInIndia === "no"}
+              onClick={() => setField("previouslyStudiedInIndia", "no")}
+            />
+          </div>
+        </QuestionCard>
+
+        <AnimatePresence initial={false}>
+          {formData.previouslyStudiedInIndia === "yes" && (
+            <motion.div
+              key="education-history-list"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              style={{ overflow: "hidden" }}
+            >
+              <QuestionCard label="Prior Schools" hint="Optional — add any prior schools or curricula you've attended.">
+                <EducationHistoryList
+                  entries={formData.educationHistory}
+                  onChange={(entries) => setField("educationHistory", entries)}
+                  currentGrade={formData.snapshotGrade}
+                />
+              </QuestionCard>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </SectionContainer>
     </SectionCard>
   );
 };

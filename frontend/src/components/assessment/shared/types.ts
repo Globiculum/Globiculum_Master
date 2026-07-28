@@ -5,6 +5,8 @@
 // edge functions). Reusing the same vocabulary here means the Student flow can
 // submit through the existing backend pipeline without any backend changes.
 
+import type { EducationHistoryEntry } from "./EducationHistoryList";
+
 export interface AssessmentFormData {
   // ---- Student Profile ----
   studentName: string; // student's first name
@@ -18,6 +20,8 @@ export interface AssessmentFormData {
   usStateOther: string;
   previousLocation: string;
   previousLocationOther: string;
+  previouslyStudiedInIndia: string; // "yes" | "no" — gates whether Education History is shown
+  educationHistory: EducationHistoryEntry[];
 
   // ---- Academic Profile ----
   currentCurriculum: string;
@@ -68,6 +72,8 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   usStateOther: "",
   previousLocation: "",
   previousLocationOther: "",
+  previouslyStudiedInIndia: "no",
+  educationHistory: [],
 
   currentCurriculum: "",
   currentCurriculumOther: "",

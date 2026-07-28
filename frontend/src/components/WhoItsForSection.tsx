@@ -131,7 +131,7 @@ const WhoItsForSection = () => {
           </motion.p>
 
           <motion.h2 variants={fadeUp} className="text-[28px] font-extrabold leading-tight text-foreground sm:text-[36px] md:text-[42px]">
-            Built for every NRI family&apos;s timeline
+            Built for every NRI Indian family&apos;s timeline
           </motion.h2>
 
           <motion.p variants={fadeUp} className="mx-auto mt-4 max-w-xl text-muted-foreground">
