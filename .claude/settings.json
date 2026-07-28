@@ -12,7 +12,19 @@
       "Bash(node about-below.js)",
       "Bash(node -e \"const i=require\\('lucide-react'\\); console.log\\('Check', typeof i.Check\\)\")",
       "Bash(node -e ' *)",
-      "Bash(node -e \"const i=require\\('lucide-react'\\); console.log\\('ArrowRight', typeof i.ArrowRight\\)\")"
+      "Bash(node -e \"const i=require\\('lucide-react'\\); console.log\\('ArrowRight', typeof i.ArrowRight\\)\")",
+      "Bash(npm ls *)",
+      "Bash(node -e \"console.log\\(require.resolve\\('playwright'\\)\\)\")",
+      "Bash(npx --yes playwright --version)",
+      "Bash(npx --yes playwright screenshot --viewport-size=1280,1400 --full-page \"http://localhost:8081/student-assessment\" student-assessment-01.png)",
+      "Bash(ls \"/c/Users/singh/AppData/Local/ms-playwright/\" 2>&1)",
+      "Read(//c/Users/singh/AppData/Local/ms-playwright//**)",
+      "Bash(find \"/c/Users/singh/AppData/Local/ms-playwright/chromium-1228\" -iname \"*.exe\" 2>&1 | head -5)",
+      "Read(//c/Users/singh/AppData/Local/ms-playwright/chromium-1228/**)",
+      "Bash(node timeline-check.js)",
+      "Bash(node timeline-check2.js)",
+      "Bash(sed -i \"s/8081/8080/\" timeline-check3.js)",
+      "Bash(node timeline-check3.js)"
     ]
   }
 }

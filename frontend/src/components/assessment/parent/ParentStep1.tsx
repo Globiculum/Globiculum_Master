@@ -80,7 +80,7 @@ const CURRICULUM_BY_STAGE: Record<string, { value: string; label: string }[]> = 
   elementary: [
     { value: "us-common-core", label: "US Common Core" },
     { value: "state-specific", label: "State-Specific Standards" },
-    { value: "ib-pyp", label: "IB PYP" },
+    { value: "ib-pyp", label: "IB Middle Year Programme" },
     { value: "cambridge-primary", label: "Cambridge Primary" },
     { value: "montessori", label: "Montessori Curriculum" },
     { value: "other", label: "Other" },
@@ -88,7 +88,7 @@ const CURRICULUM_BY_STAGE: Record<string, { value: string; label: string }[]> = 
   middle: [
     { value: "us-common-core", label: "US Common Core" },
     { value: "state-specific", label: "State-Specific Standards" },
-    { value: "ib-myp", label: "IB MYP" },
+    { value: "ib-myp", label: "IB Middle Year Programme" },
     { value: "cambridge-lower", label: "Cambridge Lower Secondary" },
     { value: "honors-advanced", label: "Honors / Advanced Programs" },
     { value: "other", label: "Other" },
@@ -230,7 +230,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             </Select>
           </QuestionCard>
 
-          <QuestionCard label="Age" htmlFor="snapshot-age" hint="Optional" error={fieldErrors.snapshotAge}>
+          <QuestionCard label="Age" htmlFor="snapshot-age" optional error={fieldErrors.snapshotAge}>
             <Input
               id="snapshot-age"
               type="number"
@@ -381,7 +381,9 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         <QuestionCard label="Transition Timeline" required error={fieldErrors.timeline}>
           <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => onFieldChange("timeline", value)} />
         </QuestionCard>
+      </SectionContainer>
 
+      <SectionContainer icon={BookOpen} title="Education History" description="Where your child studied before, and any prior schools or curricula attended.">
         <QuestionCard label="Previous School Location" hint="Where was your child studying before?">
           <Select value={formData.previousLocation} onValueChange={(value) => onFieldChange("previousLocation", value)}>
             <SelectTrigger id="previous-location">
@@ -429,28 +431,28 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             </OptionCard>
           </div>
         </QuestionCard>
-      </SectionContainer>
 
-      <AnimatePresence initial={false}>
-        {formData.previouslyStudiedInIndia === "yes" && (
-          <motion.div
-            key="education-history"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            style={{ overflow: "hidden" }}
-          >
-            <SectionContainer title="Education History" description="Optional — add any prior schools or curricula your child has attended.">
-              <EducationHistoryList
-                entries={formData.educationHistory}
-                onChange={(entries) => onFieldChange("educationHistory", entries)}
-                currentGrade={formData.snapshotGrade}
-              />
-            </SectionContainer>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <AnimatePresence initial={false}>
+          {formData.previouslyStudiedInIndia === "yes" && (
+            <motion.div
+              key="education-history-list"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              style={{ overflow: "hidden" }}
+            >
+              <QuestionCard label="Prior Schools" hint="Optional — add any prior schools or curricula your child has attended.">
+                <EducationHistoryList
+                  entries={formData.educationHistory}
+                  onChange={(entries) => onFieldChange("educationHistory", entries)}
+                  currentGrade={formData.snapshotGrade}
+                />
+              </QuestionCard>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </SectionContainer>
     </SectionContainer>
   );
 };
