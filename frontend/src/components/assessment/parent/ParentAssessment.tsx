@@ -61,7 +61,6 @@ const createDefaultParentFormData = (): ParentFormData => ({
   educationHistory: [],
 
   academicPath: [],
-  otherSubject: "",
   selectedLanguages: [],
   languageProficiencies: {},
   customLanguage: "",

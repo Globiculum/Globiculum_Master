@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BookOpen, Languages } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,6 +7,7 @@ import MultiSelect from "../shared/MultiSelect";
 import SectionCard from "../shared/SectionCard";
 import SectionContainer from "../shared/SectionContainer";
 import QuestionCard from "../shared/QuestionCard";
+import CustomSubjectList from "../shared/CustomSubjectList";
 import { HighSchoolMathDeepDive } from "../HighSchoolMathDeepDive";
 import type { ParentStepProps } from "./types";
 
@@ -74,6 +76,24 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
 
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(gradeNumber);
   const subjects = getSubjectsByGradeBand(formData.schoolStage, formData.currentCurriculum, gradeNumber);
+  const activeSubjectList = isHigherSecondary ? HIGHER_SECONDARY_SUBJECTS : subjects;
+  // Any academicPath entry not in the current predefined list is a custom
+  // "Other" subject the user typed in — no separate literal "Other" marker
+  // is ever stored, so every entry here is a real subject name.
+  const customSubjects = formData.academicPath.filter((subject) => !activeSubjectList.includes(subject));
+
+  const [showOtherInput, setShowOtherInput] = useState(customSubjects.length > 0);
+
+  const addCustomSubject = (subject: string) => {
+    onFieldChange("academicPath", [...formData.academicPath, subject]);
+  };
+
+  const removeCustomSubject = (subject: string) => {
+    onFieldChange(
+      "academicPath",
+      formData.academicPath.filter((s) => s !== subject)
+    );
+  };
 
   return (
     <SectionCard icon={BookOpen} title="Academic Path" description="Tell us what the student studies today.">
@@ -92,23 +112,33 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
               {HIGHER_SECONDARY_SUBJECTS.map((subject) => (
                 <InputCard key={subject} variant="block" label={subject} selected={formData.academicPath.includes(subject)} onClick={() => onArrayToggle("academicPath", subject)} />
               ))}
-              <InputCard variant="block" label={OTHER_SUBJECT} selected={formData.academicPath.includes(OTHER_SUBJECT)} onClick={() => onArrayToggle("academicPath", OTHER_SUBJECT)} />
+              <InputCard
+                variant="block"
+                label={OTHER_SUBJECT}
+                selected={showOtherInput || customSubjects.length > 0}
+                onClick={() => setShowOtherInput((prev) => !prev)}
+              />
             </div>
           ) : (
             <div role="group" aria-label={subjectQuestion} className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {subjects.map((subject) => (
                 <InputCard key={subject} variant="block" label={subject} selected={formData.academicPath.includes(subject)} onClick={() => onArrayToggle("academicPath", subject)} />
               ))}
-              <InputCard variant="block" label={OTHER_SUBJECT} selected={formData.academicPath.includes(OTHER_SUBJECT)} onClick={() => onArrayToggle("academicPath", OTHER_SUBJECT)} />
+              <InputCard
+                variant="block"
+                label={OTHER_SUBJECT}
+                selected={showOtherInput || customSubjects.length > 0}
+                onClick={() => setShowOtherInput((prev) => !prev)}
+              />
             </div>
           )}
 
-          {formData.academicPath.includes(OTHER_SUBJECT) && (
-            <Input
-              className="mt-3"
-              placeholder="Enter Subject"
-              value={formData.otherSubject}
-              onChange={(e) => onFieldChange("otherSubject", e.target.value)}
+          {(showOtherInput || customSubjects.length > 0) && (
+            <CustomSubjectList
+              subjects={customSubjects}
+              onAdd={addCustomSubject}
+              onRemove={removeCustomSubject}
+              placeholder="e.g. Robotics, Design Thinking"
             />
           )}
         </QuestionCard>

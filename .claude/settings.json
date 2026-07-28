@@ -34,7 +34,10 @@
       "Bash(node check-student.js)",
       "Bash(node check-student-flow.js)",
       "Bash(node check-parent-flow.js)",
-      "Bash(node check-tooltips.js)"
+      "Bash(node check-tooltips.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/)",
+      "Bash(node check-custom-subjects.js)",
+      "Bash(node check-custom-subjects-parent.js)"
     ]
   }
 }

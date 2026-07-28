@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookOpen } from "lucide-react";
@@ -5,6 +6,7 @@ import type { StudentStepProps } from "./types";
 import SectionCard from "../../shared/SectionCard";
 import QuestionCard from "../../shared/QuestionCard";
 import InputCard from "../../shared/InputCard";
+import CustomSubjectList from "../../shared/CustomSubjectList";
 
 // Step 2: Academic Path — current subjects, per-subject confidence, language
 // exposure for Indian schooling, and foreign language details. Current
@@ -42,6 +44,24 @@ const INDIAN_LANGUAGES = ["Hindi", "Sanskrit", "Tamil", "Telugu", "Kannada", "Ma
 
 const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordField, errors }: StudentStepProps) => {
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(formData.snapshotGrade);
+  const activeSubjectList = isHigherSecondary ? HIGHER_SECONDARY_SUBJECTS : SUBJECTS;
+  // Any academicPath entry not in the current predefined list is a custom
+  // "Other" subject the user typed in — no separate literal "Other" marker
+  // is ever stored, so every entry here is a real subject name.
+  const customSubjects = formData.academicPath.filter((subject) => !activeSubjectList.includes(subject));
+
+  const [showOtherInput, setShowOtherInput] = useState(customSubjects.length > 0);
+
+  const addCustomSubject = (subject: string) => {
+    setField("academicPath", [...formData.academicPath, subject]);
+  };
+
+  const removeCustomSubject = (subject: string) => {
+    setField(
+      "academicPath",
+      formData.academicPath.filter((s) => s !== subject)
+    );
+  };
 
   return (
     <SectionCard icon={BookOpen} title="Academic Path" description="Tell us what you're studying right now.">
@@ -69,8 +89,8 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
             <InputCard
               mode="checkbox"
               label={OTHER_SUBJECT}
-              selected={formData.academicPath.includes(OTHER_SUBJECT)}
-              onClick={() => toggleArrayField("academicPath", OTHER_SUBJECT)}
+              selected={showOtherInput || customSubjects.length > 0}
+              onClick={() => setShowOtherInput((prev) => !prev)}
             />
           </div>
         ) : (
@@ -87,18 +107,18 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
             <InputCard
               mode="checkbox"
               label={OTHER_SUBJECT}
-              selected={formData.academicPath.includes(OTHER_SUBJECT)}
-              onClick={() => toggleArrayField("academicPath", OTHER_SUBJECT)}
+              selected={showOtherInput || customSubjects.length > 0}
+              onClick={() => setShowOtherInput((prev) => !prev)}
             />
           </div>
         )}
 
-        {formData.academicPath.includes(OTHER_SUBJECT) && (
-          <Input
-            className="mt-3"
-            placeholder="Enter subject"
-            value={formData.otherSubject}
-            onChange={(e) => setField("otherSubject", e.target.value)}
+        {(showOtherInput || customSubjects.length > 0) && (
+          <CustomSubjectList
+            subjects={customSubjects}
+            onAdd={addCustomSubject}
+            onRemove={removeCustomSubject}
+            placeholder="e.g. Robotics, Design Thinking"
           />
         )}
       </QuestionCard>

@@ -27,8 +27,9 @@ export interface AssessmentFormData {
   currentCurriculum: string;
   currentCurriculumOther: string;
   curriculumType: string;
+  // Custom "Other" subjects live directly in academicPath as their own
+  // entries — no separate literal "Other" marker or single free-text field.
   academicPath: string[]; // current subjects
-  otherSubject: string; // free-text value when "Other" is selected in academicPath
   selectedLanguages: string[];
   languageProficiencies: Record<string, string>;
   customLanguage: string;
@@ -79,7 +80,6 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   currentCurriculumOther: "",
   curriculumType: "",
   academicPath: [],
-  otherSubject: "",
   selectedLanguages: [],
   languageProficiencies: {},
   customLanguage: "",
