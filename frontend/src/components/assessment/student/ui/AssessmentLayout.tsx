@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import AssessmentContainer from "./AssessmentContainer";
-import AssessmentHeader from "./AssessmentHeader";
-import ProgressStepper, { type StepperStep } from "./ProgressStepper";
-import FloatingSidebar from "./FloatingSidebar";
-import BottomNavigation from "./BottomNavigation";
+import AssessmentContainer from "../../shared/AssessmentContainer";
+import AssessmentHeader from "../../shared/AssessmentHeader";
+import AssessmentStepper, { type AssessmentStepperStep as StepperStep } from "../../shared/AssessmentStepper";
+import ProgressSidebar from "../../shared/ProgressSidebar";
+import AssessmentFooter from "../../shared/AssessmentFooter";
 import StepCelebrationToast from "./StepCelebrationToast";
 
 interface AssessmentLayoutProps {
@@ -31,7 +31,7 @@ const AssessmentLayout = ({
   isLastStep,
   children,
 }: AssessmentLayoutProps) => (
-  <AssessmentContainer sidebar={<FloatingSidebar steps={steps} currentIndex={currentIndex} />}>
+  <AssessmentContainer sidebar={<ProgressSidebar steps={steps} currentIndex={currentIndex} />}>
     <StepCelebrationToast stepIndex={currentIndex} />
     <AssessmentHeader
       onChangePersona={onChangePersona}
@@ -40,7 +40,7 @@ const AssessmentLayout = ({
       currentIndex={currentIndex}
       totalSteps={steps.length}
     />
-    <ProgressStepper steps={steps} currentIndex={currentIndex} />
+    <AssessmentStepper steps={steps} currentIndex={currentIndex} />
     <AnimatePresence mode="wait">
       <motion.div
         key={steps[currentIndex]?.id}
@@ -52,7 +52,9 @@ const AssessmentLayout = ({
         {children}
       </motion.div>
     </AnimatePresence>
-    <BottomNavigation onBack={onBack} onNext={onNext} backDisabled={isFirstStep} showNext={!isLastStep} />
+    {/* Hidden on the Review step (isLastStep) — StudentReviewStep supplies its
+        own sticky ReviewActionBar instead, mirroring Parent's equivalent gate. */}
+    {!isLastStep && <AssessmentFooter onPrev={onBack} onNext={onNext} isFirstStep={isFirstStep} canProceed />}
   </AssessmentContainer>
 );
 

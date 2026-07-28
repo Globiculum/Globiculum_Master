@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardCheck, Pencil, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ClipboardCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { submitAssessment, ValidationFailedError } from "../../shared/submitAssessment";
 import ReportGenerationLoader from "../../shared/ReportGenerationLoader";
 import type { AssessmentFormData } from "../../shared/types";
-import SectionCard from "../ui/SectionCard";
-import PremiumButton from "../ui/PremiumButton";
+import SectionCard from "../../shared/SectionCard";
+import ReviewActionBar from "../../shared/ReviewActionBar";
+import ReviewSection from "../../shared/ReviewSection";
+import { prettify, targetGradeLabel, joinList, joinPrettyList, joinRecord } from "../../shared/reviewFormatting";
 
 // Step 4: Review.
 // Mirrors ParentStep5's Review pattern (editable summary + per-section Edit
@@ -21,21 +22,12 @@ import PremiumButton from "../ui/PremiumButton";
 interface StudentReviewStepProps {
   formData: AssessmentFormData;
   prevReportId?: string;
+  onPrev: () => void;
   onValidationErrors: (errors: Record<string, string>) => void;
   onEditStep: (index: number) => void;
 }
 
-const prettify = (value: string) =>
-  value ? value.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
-
-const targetGradeLabel = (targetGrade: string, snapshotGrade: string) => {
-  const current = parseInt(snapshotGrade, 10);
-  if (targetGrade === "same") return Number.isFinite(current) ? `Same Grade (Grade ${current})` : "Same Grade";
-  if (targetGrade === "next") return Number.isFinite(current) ? `Next Grade (Grade ${current + 1})` : "Next Grade";
-  return "—";
-};
-
-const StudentReviewStep = ({ formData, prevReportId, onValidationErrors, onEditStep }: StudentReviewStepProps) => {
+const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors, onEditStep }: StudentReviewStepProps) => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -100,16 +92,27 @@ const StudentReviewStep = ({ formData, prevReportId, onValidationErrors, onEditS
       stepIndex: 1,
       title: "Academic Path",
       rows: [
-        { label: "Current Subjects", value: String(formData.academicPath.length) },
-        { label: "Language Exposure", value: String(formData.selectedLanguages.length) },
+        { label: "Current Subjects", value: joinList(formData.academicPath) },
+        { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
+        { label: "Language Proficiencies", value: joinRecord(formData.languageProficiencies) },
+        {
+          label: "Foreign Language",
+          value: formData.foreignLanguageName
+            ? `${prettify(formData.foreignLanguageNameOther || formData.foreignLanguageName)}${
+                formData.foreignLanguageLevel ? ` (${prettify(formData.foreignLanguageLevel)})` : ""
+              }`
+            : "—",
+        },
+        { label: "Other Language", value: formData.customLanguage || "—" },
       ],
     },
     {
       stepIndex: 2,
       title: "Almost Done",
       rows: [
-        { label: "Learning Styles", value: String(formData.learningStyles.length) },
-        { label: "What Makes You Nervous", value: String(formData.nervousness.length) },
+        { label: "Learning Styles", value: joinPrettyList(formData.learningStyles) },
+        { label: "What Makes You Nervous", value: joinList(formData.nervousness) },
+        { label: "Additional Notes", value: formData.additionalNotes || "—" },
       ],
     },
   ];
@@ -119,37 +122,17 @@ const StudentReviewStep = ({ formData, prevReportId, onValidationErrors, onEditS
       <SectionCard icon={ClipboardCheck} title="Review" description="Check your answers, then generate your AI-powered readiness report.">
         <div className="space-y-4">
           {sections.map((section) => (
-            <div key={section.title} className="rounded-xl border border-border bg-muted/40 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground">{section.title}</h4>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onEditStep(section.stepIndex)}
-                  className="h-auto gap-1 px-2 py-1 text-xs text-secondary hover:text-secondary"
-                >
-                  <Pencil className="h-3 w-3" />
-                  Edit
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {section.rows.map((row) => (
-                  <div key={row.label}>
-                    <p className="text-xs text-muted-foreground">{row.label}</p>
-                    <p className="text-sm font-medium text-foreground">{row.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ReviewSection key={section.title} section={section} onEditStep={onEditStep} />
           ))}
         </div>
-
-        <PremiumButton onClick={handleGenerate} loading={isSubmitting} size="lg" className="w-full sm:w-auto">
-          {isSubmitting ? "Generating Report..." : "Generate My Report"}
-          <Sparkles className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
-        </PremiumButton>
       </SectionCard>
+
+      <ReviewActionBar
+        onPrev={onPrev}
+        onSubmit={handleGenerate}
+        isSubmitting={isSubmitting}
+        submitLabel={isSubmitting ? "Generating Report..." : "Generate My Report"}
+      />
 
       {isSubmitting && <ReportGenerationLoader persona="student" />}
     </>

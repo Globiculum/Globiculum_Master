@@ -1,9 +1,9 @@
 import { Textarea } from "@/components/ui/textarea";
 import { Wand2 } from "lucide-react";
 import type { StudentStepProps } from "./types";
-import SectionCard from "../ui/SectionCard";
-import QuestionCard from "../ui/QuestionCard";
-import InputCard from "../ui/InputCard";
+import SectionCard from "../../shared/SectionCard";
+import QuestionCard from "../../shared/QuestionCard";
+import InputCard from "../../shared/InputCard";
 import VoiceInputButton from "../../shared/VoiceInputButton";
 
 // Step 3: Almost Done — the friendlier, shorter close to the Student journey.
@@ -28,7 +28,12 @@ const NERVOUSNESS_OPTIONS = [
 const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentStepProps) => {
   return (
     <SectionCard icon={Wand2} title="Almost Done" description="Just a couple more friendly questions.">
-      <QuestionCard label="Pick what sounds like you" required error={errors.learningStyles}>
+      <QuestionCard
+        label="Pick what sounds like you"
+        required
+        tooltip="This tells us how you learn best so we can tailor recommendations for you."
+        error={errors.learningStyles}
+      >
         <div role="group" aria-label="Pick what sounds like you" className="grid grid-cols-1 gap-2">
           {LEARNING_STYLES.map((style) => (
             <InputCard
@@ -43,7 +48,10 @@ const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentSte
         </div>
       </QuestionCard>
 
-      <QuestionCard label="What makes you nervous?" hint="Pick as many as apply.">
+      <QuestionCard
+        label="What makes you nervous?"
+        tooltip="Let us know what feels most stressful about the move — pick as many as apply."
+      >
         <div role="group" aria-label="What makes you nervous?" className="flex flex-wrap gap-2">
           {NERVOUSNESS_OPTIONS.map((option) => (
             <InputCard
@@ -57,7 +65,12 @@ const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentSte
         </div>
       </QuestionCard>
 
-      <QuestionCard label="Anything else?" htmlFor="additional-notes" hint="Optional">
+      <QuestionCard
+        label="Anything else?"
+        htmlFor="additional-notes"
+        optional
+        tooltip="Share anything else that would help us understand your situation better."
+      >
         <div className="relative">
           <Textarea
             id="additional-notes"

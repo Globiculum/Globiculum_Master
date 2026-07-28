@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BookOpen, ClipboardCheck, HeartHandshake, MapPin, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import ParentAssessmentLayout from "../shared/ParentAssessmentLayout";
+import AssessmentContainer from "../shared/AssessmentContainer";
 import AssessmentHeader from "../shared/AssessmentHeader";
 import AssessmentStepper, { type AssessmentStepperStep } from "../shared/AssessmentStepper";
 import ProgressSidebar from "../shared/ProgressSidebar";
@@ -29,11 +29,11 @@ interface ParentAssessmentProps {
 }
 
 const STEPPER_STEPS: AssessmentStepperStep[] = [
-  { title: "School Profile", icon: MapPin },
-  { title: "Academic Path", icon: BookOpen },
-  { title: "Learning Profile", icon: User },
-  { title: "Support", icon: HeartHandshake },
-  { title: "Review", icon: ClipboardCheck },
+  { id: "school-profile", title: "School Profile", icon: MapPin },
+  { id: "academic-path", title: "Academic Path", icon: BookOpen },
+  { id: "learning-profile", title: "Learning Profile", icon: User },
+  { id: "support", title: "Support", icon: HeartHandshake },
+  { id: "review", title: "Review", icon: ClipboardCheck },
 ];
 
 const createDefaultParentFormData = (): ParentFormData => ({
@@ -224,14 +224,16 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
   };
 
   return (
-    <ParentAssessmentLayout sidebar={<ProgressSidebar steps={STEPPER_STEPS} currentStep={currentStep} />}>
+    <AssessmentContainer sidebar={<ProgressSidebar steps={STEPPER_STEPS} currentIndex={currentStep} />}>
       <AssessmentHeader
         onChangePersona={onChangePersona}
         title="Parent Assessment"
         subtitle="Answer a few questions to generate your child's personalized curriculum transition report."
         showChangePersona={showChangePersona}
+        currentIndex={currentStep}
+        totalSteps={PARENT_TOTAL_STEPS}
       />
-      <AssessmentStepper steps={STEPPER_STEPS} currentStep={currentStep} />
+      <AssessmentStepper steps={STEPPER_STEPS} currentIndex={currentStep} />
 
       <div key={currentStep} className="animate-in fade-in-0 slide-in-from-right-2 duration-300">
         {renderStep()}
@@ -246,7 +248,7 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
           canProceed={canProceedFromStep(currentStep, formData)}
         />
       )}
-    </ParentAssessmentLayout>
+    </AssessmentContainer>
   );
 };
 

@@ -2,9 +2,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookOpen } from "lucide-react";
 import type { StudentStepProps } from "./types";
-import SectionCard from "../ui/SectionCard";
-import QuestionCard from "../ui/QuestionCard";
-import InputCard from "../ui/InputCard";
+import SectionCard from "../../shared/SectionCard";
+import QuestionCard from "../../shared/QuestionCard";
+import InputCard from "../../shared/InputCard";
 
 // Step 2: Academic Path — current subjects, per-subject confidence, language
 // exposure for Indian schooling, and foreign language details. Current
@@ -48,10 +48,10 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
       <QuestionCard
         label="Current Subjects"
         required
-        hint={
+        tooltip={
           isHigherSecondary
-            ? "Suggested for Grade 11-12 — select all subjects you're currently studying."
-            : "Select all subjects you're currently studying."
+            ? "Select every subject you're currently studying — Grade 11-12 shows the higher-secondary subject list."
+            : "Select every subject you're currently studying."
         }
         error={errors.academicPath}
       >
@@ -104,7 +104,10 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
       </QuestionCard>
 
       {formData.academicPath.length > 0 && (
-        <QuestionCard label="How confident do you feel in each subject?">
+        <QuestionCard
+          label="How confident do you feel in each subject?"
+          tooltip="This helps us prioritize gap identification in your report — it doesn't affect your alignment score."
+        >
           <div className="space-y-2">
             {formData.academicPath.map((subject) => (
               <div key={subject} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-3">
@@ -126,7 +129,10 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
         </QuestionCard>
       )}
 
-      <QuestionCard label="Language Exposure for Indian Schooling" hint="Select any languages you already have some exposure to.">
+      <QuestionCard
+        label="Language Exposure for Indian Schooling"
+        tooltip="Indian schools often require Hindi or a regional language — select any you already have some exposure to."
+      >
         <div role="group" aria-label="Language Exposure for Indian Schooling" className="flex flex-wrap gap-2">
           {INDIAN_LANGUAGES.map((lang) => (
             <InputCard
@@ -141,7 +147,7 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
       </QuestionCard>
 
       {formData.selectedLanguages.length > 0 && (
-        <QuestionCard label="Proficiency per language">
+        <QuestionCard label="Proficiency per language" tooltip="How comfortable you are with each language you selected above.">
           <div className="space-y-3">
             {formData.selectedLanguages.map((lang) => (
               <div key={lang} className="flex items-center gap-3">
@@ -168,7 +174,10 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
       )}
 
       {formData.academicPath.includes("Foreign Language") && (
-        <QuestionCard label="Foreign Language Studied">
+        <QuestionCard
+          label="Foreign Language Studied"
+          tooltip="The foreign language you study at school, if any, and your current level."
+        >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Select value={formData.foreignLanguageName} onValueChange={(value) => setField("foreignLanguageName", value)}>
               <SelectTrigger>
@@ -207,7 +216,12 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
         </QuestionCard>
       )}
 
-      <QuestionCard label="Other language" htmlFor="custom-language" hint="Optional">
+      <QuestionCard
+        label="Other language"
+        htmlFor="custom-language"
+        optional
+        tooltip="Any additional language you speak that wasn't listed above."
+      >
         <Input
           id="custom-language"
           value={formData.customLanguage}

@@ -1,10 +1,9 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { BookOpen, GraduationCap, Globe, PenLine, Star } from "lucide-react";
 
-// Purely decorative page backdrop for the Student assessment: soft radial
+// Purely decorative page backdrop shared by both assessments: soft radial
 // glow, three slow-drifting blurred orbs, a faint grain overlay, and a
-// handful of very low-opacity floating education icons. Mirrors the
-// technique already proven on the Persona Selection page — no image assets.
+// handful of very low-opacity floating education icons. No image assets.
 const GRAIN_SVG =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(

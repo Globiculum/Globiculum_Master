@@ -16,6 +16,7 @@ import {
   Video,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import SectionCard from "../shared/SectionCard";
 import SectionContainer from "../shared/SectionContainer";
 import QuestionCard from "../shared/QuestionCard";
 import ConcernCards from "../shared/ConcernCards";
@@ -51,7 +52,7 @@ const SUPPORT_NEEDS = [
 
 const ParentStep4 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps) => {
   return (
-    <SectionContainer variant="card" icon={HeartHandshake} title="Support" description="What concerns you, and how can we help?">
+    <SectionCard icon={HeartHandshake} title="Support" description="What concerns you, and how can we help?">
       <SectionContainer title="Biggest Concerns" description="What worries you most about the move?">
         <ConcernCards options={TRANSITION_CONCERNS} selected={formData.transitionConcerns} onToggle={(value) => onArrayToggle("transitionConcerns", value)} />
       </SectionContainer>
@@ -60,7 +61,12 @@ const ParentStep4 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
         <SupportCards options={SUPPORT_NEEDS} selected={formData.supportNeeds} onToggle={(value) => onArrayToggle("supportNeeds", value)} />
       </SectionContainer>
 
-      <QuestionCard label="Additional Notes" htmlFor="additional-notes" hint="Optional — frontend-only for now, not yet sent to the report generator.">
+      <QuestionCard
+        label="Additional Notes"
+        htmlFor="additional-notes"
+        optional
+        tooltip="Share anything else about your child's transition that would help us tailor the report."
+      >
         <div className="relative">
           <Textarea
             id="additional-notes"
@@ -77,7 +83,7 @@ const ParentStep4 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
           />
         </div>
       </QuestionCard>
-    </SectionContainer>
+    </SectionCard>
   );
 };
 

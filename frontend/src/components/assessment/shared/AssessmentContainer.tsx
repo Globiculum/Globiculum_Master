@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import AssessmentBackground from "./AssessmentBackground";
 
-// Presentational shell for the Student assessment: soft decorative background
-// + a responsive two-column grid (main content / sidebar). No form state or
-// business logic lives here.
+// Presentational shell shared by both assessments: soft decorative
+// background + a responsive two-column grid (main content / sticky
+// sidebar). No form state or business logic lives here.
 
 interface AssessmentContainerProps {
   children: ReactNode;

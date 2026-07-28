@@ -1,6 +1,6 @@
 import { BookOpen, ClipboardCheck, User, Wand2 } from "lucide-react";
 import AssessmentLayout from "./ui/AssessmentLayout";
-import type { StepperStep } from "./ui/ProgressStepper";
+import type { AssessmentStepperStep as StepperStep } from "../shared/AssessmentStepper";
 import { useStudentAssessmentState } from "./state/useStudentAssessmentState";
 import { useStudentAssessmentNavigation } from "./navigation/useStudentAssessmentNavigation";
 import StudentProfileStep from "./steps/StudentProfileStep";
@@ -52,6 +52,7 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
           <StudentReviewStep
             formData={formData}
             prevReportId={prevReportId}
+            onPrev={navigation.goPrev}
             onValidationErrors={() => navigation.goToStep(0)}
             onEditStep={navigation.goToStep}
           />

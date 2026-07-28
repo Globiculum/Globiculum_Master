@@ -24,7 +24,17 @@
       "Bash(node timeline-check.js)",
       "Bash(node timeline-check2.js)",
       "Bash(sed -i \"s/8081/8080/\" timeline-check3.js)",
-      "Bash(node timeline-check3.js)"
+      "Bash(node timeline-check3.js)",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(mkdir -p /c/Users/singh/AppData/Local/Temp/claude/d--ALIS-DOCUMENT-Globiculum-Updated-Globiculum-Master/85a02e85-6f37-4ff6-a16e-01b8ec738185/scratchpad)",
+      "Read(//c/Users/singh/AppData/Local/Temp/claude/d--ALIS-DOCUMENT-Globiculum-Updated-Globiculum-Master/85a02e85-6f37-4ff6-a16e-01b8ec738185/scratchpad/**)",
+      "Bash(ls \"C:/Users/singh/AppData/Local/ms-playwright/\" 2>&1)",
+      "Read(//c/Users/singh/AppData/Local/ms-playwright/**)",
+      "Bash(node check-flows.js)",
+      "Bash(node check-student.js)",
+      "Bash(node check-student-flow.js)",
+      "Bash(node check-parent-flow.js)",
+      "Bash(node check-tooltips.js)"
     ]
   }
 }
