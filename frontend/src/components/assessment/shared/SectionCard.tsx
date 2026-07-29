@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import InfoTooltip from "../../shared/InfoTooltip";
+import InfoTooltip from "./InfoTooltip";
 
 interface SectionCardProps {
   icon: LucideIcon;
@@ -11,9 +11,9 @@ interface SectionCardProps {
 }
 
 // Small animated scene above the title — a gently bobbing icon badge with
-// two tiny accent dots slowly orbiting it. Reuses the step's own icon (no
-// new content decisions needed) and the existing brand gradient/mint/amber
-// tones, just given more visual presence than a plain inline badge.
+// two tiny accent dots slowly orbiting it. Reuses the step's own icon and
+// the existing brand gradient/mint/amber tones. Shared by both the Parent
+// and Student assessments as the single outer wrapper for a step's content.
 const StepIllustration = ({ icon: Icon }: { icon: LucideIcon }) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
 

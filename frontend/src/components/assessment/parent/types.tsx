@@ -14,9 +14,3 @@ export interface ParentStepProps {
   ) => void;
   fieldErrors: Record<string, string>;
 }
-
-export const ParentFieldError = ({ errors, field }: { errors: Record<string, string>; field: string }) => {
-  const msg = errors[field];
-  if (!msg) return null;
-  return <p className="text-sm text-destructive mt-1">{msg}</p>;
-};

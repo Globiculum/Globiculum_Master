@@ -1,17 +1,38 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logAuditEvent } from "@/lib/logAuditEvent";
-import type { AssessmentFormData } from "./types";
 
 /**
- * This mirrors the submission pipeline in AssessmentForm.tsx (the existing/
- * Parent flow) field-for-field and call-for-call: validate-student-data ->
- * save `assessments` row -> fire-and-forget analyze-curriculum -> run
- * diagnostics-engine -> save `diagnostic_results` -> hand back where to
- * navigate. It exists so the new Student flow submits through the exact
- * same backend contract without touching AssessmentForm.tsx or any backend
- * code. Intentionally UI-agnostic (no toast/navigate calls) so it can be
- * driven by either flow's own step components.
+ * Shared submission pipeline used by both the Parent and Student flows:
+ * validate-student-data -> save `assessments` row -> fire-and-forget
+ * analyze-curriculum -> run diagnostics-engine -> save `diagnostic_results`
+ * -> hand back where to navigate. Intentionally UI-agnostic (no toast/
+ * navigate calls) so it can be driven by either flow's own step components.
+ *
+ * Generic over `T` rather than importing AssessmentFormData directly: the
+ * Parent and Student flows keep their own formData shapes (e.g. `childName`
+ * vs `studentName`) since that full object is stored verbatim as
+ * `assessment_data`. This type only pins down the subset of fields this
+ * pipeline actually reads to build the validate-student-data /
+ * analyze-curriculum payloads — both flows' formData types satisfy it
+ * structurally, so each flow's exact current wire payload (and its stored
+ * assessment_data shape) is preserved byte-for-byte.
  */
+export interface SubmittableFormData {
+  schoolStage: string;
+  snapshotGrade: string;
+  snapshotAge: string;
+  currentCurriculum: string;
+  timeline: string;
+  snapshotLocation: string;
+  usState: string;
+  previousLocation: string;
+  targetGoal: string;
+  curriculumType: string;
+  academicPath: string[];
+  strongestSubjects: string[];
+  challengingSubjects: string[];
+  selectedLanguages: string[];
+}
 
 export interface SubmitAssessmentFieldError {
   field: string;
@@ -38,21 +59,21 @@ export interface SubmitAssessmentResult {
   warnings: SubmitAssessmentWarning[];
 }
 
-export interface SubmitAssessmentOptions {
-  formData: AssessmentFormData;
+export interface SubmitAssessmentOptions<T extends SubmittableFormData> {
+  formData: T;
   prevReportId?: string;
 }
 
-const fallbackResult = (formData: AssessmentFormData, prevReportId?: string): SubmitAssessmentResult => ({
+const fallbackResult = <T extends SubmittableFormData>(formData: T, prevReportId?: string): SubmitAssessmentResult => ({
   path: "/report-preview",
   state: { formData, prevReportId },
   warnings: [],
 });
 
-export async function submitAssessment({
+export async function submitAssessment<T extends SubmittableFormData>({
   formData,
   prevReportId,
-}: SubmitAssessmentOptions): Promise<SubmitAssessmentResult> {
+}: SubmitAssessmentOptions<T>): Promise<SubmitAssessmentResult> {
   const formDataJson = JSON.stringify(formData);
   sessionStorage.setItem("assessment-form-data", formDataJson);
   localStorage.setItem("assessment-form-data", formDataJson);

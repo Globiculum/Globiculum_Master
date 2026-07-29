@@ -1,6 +1,7 @@
 import { BarChart3, TrendingUp, User } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import OptionCard from "../shared/OptionCard";
+import InputCard from "../shared/InputCard";
+import SectionCard from "../shared/SectionCard";
 import SectionContainer from "../shared/SectionContainer";
 import QuestionCard from "../shared/QuestionCard";
 import { LearningStyleObservations } from "../LearningStyleObservations";
@@ -15,7 +16,7 @@ const OVERALL_PERFORMANCE_OPTIONS = [
   { value: "needs-support", label: "Needs Support" },
 ];
 
-const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps) => {
+const ParentStep3 = ({ formData, onFieldChange, onArrayToggle, fieldErrors }: ParentStepProps) => {
   const selectedSubjectOptions = formData.academicPath.length > 0 ? formData.academicPath : [];
 
   const boardSubjects = (() => {
@@ -38,13 +39,22 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
   })();
 
   return (
-    <SectionContainer variant="card" icon={User} title="Learning Profile" description="Help us understand your child's learning profile.">
+    <SectionCard icon={User} title="Learning Profile" description="Help us understand your child's learning profile.">
       <div className="space-y-6">
-        <QuestionCard label="How does your child learn best?" required>
+        <QuestionCard
+          label="How does your child learn best?"
+          required
+          tooltip="Understanding your child's learning style helps us tailor recommendations in the report."
+          error={fieldErrors.learningStyles}
+        >
           <LearningStyleObservations selectedStyles={formData.learningStyles} onToggle={(styleId) => onArrayToggle("learningStyles", styleId)} />
         </QuestionCard>
 
-        <QuestionCard label="Typical Grade Range" htmlFor="previous-grades">
+        <QuestionCard
+          label="Typical Grade Range"
+          htmlFor="previous-grades"
+          tooltip="Your child's typical academic performance range at their current school."
+        >
           <Select value={formData.previousGrades} onValueChange={(value) => onFieldChange("previousGrades", value)}>
             <SelectTrigger id="previous-grades">
               <SelectValue placeholder="Typical grade range" />
@@ -59,18 +69,22 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
           </Select>
         </QuestionCard>
 
-        <QuestionCard label="Overall Performance" required>
+        <QuestionCard
+          label="Overall Performance"
+          required
+          tooltip="A general sense of how your child is performing academically overall."
+          error={fieldErrors.overallPerformance}
+        >
           <div role="radiogroup" aria-label="Overall Performance" className="flex flex-wrap gap-2">
             {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
-              <OptionCard
+              <InputCard
                 key={opt.value}
-                variant="pill"
+                variant="chip"
                 mode="radio"
+                label={opt.label}
                 selected={formData.overallPerformance === opt.value}
                 onClick={() => onFieldChange("overallPerformance", opt.value)}
-              >
-                {opt.label}
-              </OptionCard>
+              />
             ))}
           </div>
         </QuestionCard>
@@ -82,18 +96,20 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
             ? "Which of the subjects you selected is the student's strongest?"
             : "Strongest Subjects (select subjects in Academic Path first)"
         }
+        required={selectedSubjectOptions.length > 0}
+        tooltip="Pick the subjects where your child performs best — this highlights strengths in the report."
+        error={fieldErrors.strongestSubjects}
       >
         {selectedSubjectOptions.length > 0 ? (
           <div role="group" aria-label="Strongest Subjects" className="flex flex-wrap gap-2">
             {selectedSubjectOptions.map((subject) => (
-              <OptionCard
+              <InputCard
                 key={`strong-${subject}`}
-                variant="pill"
+                variant="chip"
+                label={subject}
                 selected={formData.strongestSubjects.includes(subject)}
                 onClick={() => onArrayToggle("strongestSubjects", subject)}
-              >
-                {subject}
-              </OptionCard>
+              />
             ))}
           </div>
         ) : (
@@ -107,18 +123,20 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
             ? "Which subject is currently most challenging for the student?"
             : "Most Challenging Subjects (select subjects in Academic Path first)"
         }
+        required={selectedSubjectOptions.length > 0}
+        tooltip="Pick the subjects your child finds hardest — this helps us identify priority focus areas."
+        error={fieldErrors.challengingSubjects}
       >
         {selectedSubjectOptions.length > 0 ? (
           <div role="group" aria-label="Most Challenging Subjects" className="flex flex-wrap gap-2">
             {selectedSubjectOptions.map((subject) => (
-              <OptionCard
+              <InputCard
                 key={`challenge-${subject}`}
-                variant="pill"
+                variant="chip"
+                label={subject}
                 selected={formData.challengingSubjects.includes(subject)}
                 onClick={() => onArrayToggle("challengingSubjects", subject)}
-              >
-                {subject}
-              </OptionCard>
+              />
             ))}
           </div>
         ) : (
@@ -130,23 +148,31 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
         icon={BarChart3}
         title="Strengthen for Indian Schooling"
         description="Which subjects would you most like the student to strengthen? Select all that apply — helps identify priority transition goals."
+        required
+        error={fieldErrors.strengthenGoals}
       >
         <div role="group" aria-label="Subjects to strengthen" className="flex flex-wrap gap-2">
           {boardSubjects.map((goal) => (
-            <OptionCard key={goal} variant="pill" selected={formData.strengthenGoals.includes(goal)} onClick={() => onArrayToggle("strengthenGoals", goal)}>
-              {goal === "Exam Writing" || goal === "Revision Methods" || goal === "NCERT Practice" ? (
-                <span className="inline-flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  {goal}
-                </span>
-              ) : (
-                goal
-              )}
-            </OptionCard>
+            <InputCard
+              key={goal}
+              variant="chip"
+              selected={formData.strengthenGoals.includes(goal)}
+              onClick={() => onArrayToggle("strengthenGoals", goal)}
+              label={
+                goal === "Exam Writing" || goal === "Revision Methods" || goal === "NCERT Practice" ? (
+                  <span className="inline-flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    {goal}
+                  </span>
+                ) : (
+                  goal
+                )
+              }
+            />
           ))}
         </div>
       </SectionContainer>
-    </SectionContainer>
+    </SectionCard>
   );
 };
 

@@ -27,11 +27,12 @@ export interface AssessmentFormData {
   currentCurriculum: string;
   currentCurriculumOther: string;
   curriculumType: string;
+  // Custom "Other" subjects/languages live directly in academicPath /
+  // selectedLanguages as their own entries — no separate literal "Other"
+  // marker or single free-text field for either.
   academicPath: string[]; // current subjects
-  otherSubject: string; // free-text value when "Other" is selected in academicPath
   selectedLanguages: string[];
   languageProficiencies: Record<string, string>;
-  customLanguage: string;
   foreignLanguageName: string; // new: foreign-language studied (mirrors Parent flow)
   foreignLanguageNameOther: string;
   foreignLanguageLevel: string;
@@ -79,10 +80,8 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   currentCurriculumOther: "",
   curriculumType: "",
   academicPath: [],
-  otherSubject: "",
   selectedLanguages: [],
   languageProficiencies: {},
-  customLanguage: "",
   foreignLanguageName: "",
   foreignLanguageNameOther: "",
   foreignLanguageLevel: "",

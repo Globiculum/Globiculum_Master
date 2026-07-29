@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { BookOpen, Languages } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import OptionCard from "../shared/OptionCard";
+import InputCard from "../shared/InputCard";
 import MultiSelect from "../shared/MultiSelect";
+import SectionCard from "../shared/SectionCard";
 import SectionContainer from "../shared/SectionContainer";
 import QuestionCard from "../shared/QuestionCard";
+import CustomEntryList from "../shared/CustomEntryList";
 import { HighSchoolMathDeepDive } from "../HighSchoolMathDeepDive";
 import type { ParentStepProps } from "./types";
 
@@ -73,49 +76,87 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
 
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(gradeNumber);
   const subjects = getSubjectsByGradeBand(formData.schoolStage, formData.currentCurriculum, gradeNumber);
+  const activeSubjectList = isHigherSecondary ? HIGHER_SECONDARY_SUBJECTS : subjects;
+  // Any academicPath entry not in the current predefined list is a custom
+  // "Other" subject the user typed in — no separate literal "Other" marker
+  // is ever stored, so every entry here is a real subject name.
+  const customSubjects = formData.academicPath.filter((subject) => !activeSubjectList.includes(subject));
+
+  const [showOtherInput, setShowOtherInput] = useState(customSubjects.length > 0);
+
+  const addCustomSubject = (subject: string) => {
+    onFieldChange("academicPath", [...formData.academicPath, subject]);
+  };
+
+  const removeCustomSubject = (subject: string) => {
+    onFieldChange(
+      "academicPath",
+      formData.academicPath.filter((s) => s !== subject)
+    );
+  };
+
+  // Any selectedLanguages entry not in the predefined list is a custom
+  // "Other" language the user typed in — same pattern as custom subjects
+  // above, folded straight into the existing array field.
+  const customLanguages = formData.selectedLanguages.filter((lang) => !INDIAN_LANGUAGES.includes(lang));
+
+  const [showOtherLanguageInput, setShowOtherLanguageInput] = useState(customLanguages.length > 0);
+
+  const addCustomLanguage = (lang: string) => {
+    onFieldChange("selectedLanguages", [...formData.selectedLanguages, lang]);
+  };
+
+  const removeCustomLanguage = (lang: string) => {
+    onFieldChange(
+      "selectedLanguages",
+      formData.selectedLanguages.filter((l) => l !== lang)
+    );
+  };
 
   return (
-    <SectionContainer variant="card" icon={BookOpen} title="Academic Path" description="Tell us what the student studies today.">
+    <SectionCard icon={BookOpen} title="Academic Path" description="Tell us what the student studies today.">
       <SectionContainer
         title="Current Academic Path"
         description={isEarlyElementary ? "Help us understand your child's foundational learning" : undefined}
       >
         <QuestionCard
           label={subjectQuestion}
-          hint={isHigherSecondary ? "Suggested for Grade 11-12" : subjectHelp}
+          tooltip={isEarlyElementary ? subjectHelp : `${subjectHelp}${isHigherSecondary ? " Grade 11-12 shows the higher-secondary subject list." : ""}`}
           required
           error={fieldErrors.academicPath}
         >
           {isHigherSecondary ? (
             <div role="group" aria-label={subjectQuestion} className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {HIGHER_SECONDARY_SUBJECTS.map((subject) => (
-                <OptionCard key={subject} variant="block" selected={formData.academicPath.includes(subject)} onClick={() => onArrayToggle("academicPath", subject)}>
-                  {subject}
-                </OptionCard>
+                <InputCard key={subject} variant="block" label={subject} selected={formData.academicPath.includes(subject)} onClick={() => onArrayToggle("academicPath", subject)} />
               ))}
-              <OptionCard variant="block" selected={formData.academicPath.includes(OTHER_SUBJECT)} onClick={() => onArrayToggle("academicPath", OTHER_SUBJECT)}>
-                {OTHER_SUBJECT}
-              </OptionCard>
+              <InputCard
+                variant="block"
+                label={OTHER_SUBJECT}
+                selected={showOtherInput || customSubjects.length > 0}
+                onClick={() => setShowOtherInput((prev) => !prev)}
+              />
             </div>
           ) : (
             <div role="group" aria-label={subjectQuestion} className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {subjects.map((subject) => (
-                <OptionCard key={subject} variant="block" selected={formData.academicPath.includes(subject)} onClick={() => onArrayToggle("academicPath", subject)}>
-                  {subject}
-                </OptionCard>
+                <InputCard key={subject} variant="block" label={subject} selected={formData.academicPath.includes(subject)} onClick={() => onArrayToggle("academicPath", subject)} />
               ))}
-              <OptionCard variant="block" selected={formData.academicPath.includes(OTHER_SUBJECT)} onClick={() => onArrayToggle("academicPath", OTHER_SUBJECT)}>
-                {OTHER_SUBJECT}
-              </OptionCard>
+              <InputCard
+                variant="block"
+                label={OTHER_SUBJECT}
+                selected={showOtherInput || customSubjects.length > 0}
+                onClick={() => setShowOtherInput((prev) => !prev)}
+              />
             </div>
           )}
 
-          {formData.academicPath.includes(OTHER_SUBJECT) && (
-            <Input
-              className="mt-3"
-              placeholder="Enter Subject"
-              value={formData.otherSubject}
-              onChange={(e) => onFieldChange("otherSubject", e.target.value)}
+          {(showOtherInput || customSubjects.length > 0) && (
+            <CustomEntryList
+              entries={customSubjects}
+              onAdd={addCustomSubject}
+              onRemove={removeCustomSubject}
+              placeholder="e.g. Robotics, Design Thinking"
             />
           )}
         </QuestionCard>
@@ -123,7 +164,7 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
         {formData.academicPath.length > 0 && (
           <QuestionCard
             label="How comfortable is the student with each subject?"
-            hint="This helps us prioritize gap identification — it does not change the alignment scoring."
+            tooltip="This helps us prioritize gap identification in the report — it does not change the alignment score."
           >
             <div className="space-y-2">
               {formData.academicPath.map((subject) => (
@@ -135,15 +176,14 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
                       { value: "moderate", label: "Moderate" },
                       { value: "needs-help", label: "Needs Help" },
                     ].map((opt) => (
-                      <OptionCard
+                      <InputCard
                         key={opt.value}
                         variant="compact-pill"
                         mode="radio"
+                        label={opt.label}
                         selected={formData.subjectConfidences[subject] === opt.value}
                         onClick={() => onRecordFieldChange("subjectConfidences", subject, opt.value)}
-                      >
-                        {opt.label}
-                      </OptionCard>
+                      />
                     ))}
                   </div>
                 </div>
@@ -155,16 +195,21 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
 
       {formData.schoolStage === "high" && (
         <SectionContainer title="AP Courses & University Prep" description="High School only.">
-          <OptionCard variant="block" className="w-full" selected={formData.academicPath.includes("University Entrance Test Prep")} onClick={() => onArrayToggle("academicPath", "University Entrance Test Prep")}>
-            University Entrance Test Prep
-          </OptionCard>
+          <InputCard
+            variant="block"
+            className="w-full"
+            label="University Entrance Test Prep"
+            selected={formData.academicPath.includes("University Entrance Test Prep")}
+            onClick={() => onArrayToggle("academicPath", "University Entrance Test Prep")}
+          />
 
-          <QuestionCard label="AP (Advanced Placement) Subjects">
+          <QuestionCard
+            label="AP (Advanced Placement) Subjects"
+            tooltip="Any Advanced Placement courses your child is currently taking or has completed."
+          >
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {AP_SUBJECTS.map((ap) => (
-                <OptionCard key={ap} variant="pill" selected={formData.academicPath.includes(ap)} onClick={() => onArrayToggle("academicPath", ap)}>
-                  {ap}
-                </OptionCard>
+                <InputCard key={ap} variant="chip" label={ap} selected={formData.academicPath.includes(ap)} onClick={() => onArrayToggle("academicPath", ap)} />
               ))}
             </div>
           </QuestionCard>
@@ -190,33 +235,37 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
         title="Language Exposure for Indian Schooling"
         description="Indian schools typically require Hindi and sometimes a regional or third language."
       >
-        <QuestionCard label="Select languages your child has exposure to">
+        <QuestionCard
+          label="Select languages your child has exposure to"
+          tooltip="Indian schools often require Hindi or a regional language — let us know what your child already knows."
+        >
           <div className="flex flex-wrap gap-2">
             {INDIAN_LANGUAGES.map((lang) => (
-              <OptionCard key={lang} variant="pill" selected={formData.selectedLanguages.includes(lang)} onClick={() => onArrayToggle("selectedLanguages", lang)}>
-                {lang}
-              </OptionCard>
+              <InputCard key={lang} variant="chip" label={lang} selected={formData.selectedLanguages.includes(lang)} onClick={() => onArrayToggle("selectedLanguages", lang)} />
             ))}
-            <OptionCard variant="pill" selected={formData.selectedLanguages.includes("Other")} onClick={() => onArrayToggle("selectedLanguages", "Other")}>
-              Other
-            </OptionCard>
+            <InputCard
+              variant="chip"
+              label="Other"
+              selected={showOtherLanguageInput || customLanguages.length > 0}
+              onClick={() => setShowOtherLanguageInput((prev) => !prev)}
+            />
           </div>
+
+          {(showOtherLanguageInput || customLanguages.length > 0) && (
+            <CustomEntryList
+              entries={customLanguages}
+              onAdd={addCustomLanguage}
+              onRemove={removeCustomLanguage}
+              placeholder="e.g. French, Mandarin"
+            />
+          )}
         </QuestionCard>
 
-        {formData.selectedLanguages.includes("Other") && (
-          <QuestionCard label="Type the language" htmlFor="custom-language">
-            <Input
-              id="custom-language"
-              type="text"
-              placeholder="Enter language name"
-              value={formData.customLanguage}
-              onChange={(e) => onFieldChange("customLanguage", e.target.value)}
-            />
-          </QuestionCard>
-        )}
-
         {formData.selectedLanguages.length > 0 && (
-          <QuestionCard label="Proficiency Level for Each Language">
+          <QuestionCard
+            label="Proficiency Level for Each Language"
+            tooltip="How comfortable your child is with each language you selected above."
+          >
             <div className="space-y-3">
               {formData.selectedLanguages.map((lang) => (
                 <div key={lang} className="flex items-center gap-3">
@@ -243,7 +292,11 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
       {formData.academicPath.includes("Foreign Language") && (
         <SectionContainer title="Foreign Language Studied">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <QuestionCard label="Which foreign language is the student studying?" htmlFor="foreign-lang-name">
+            <QuestionCard
+              label="Which foreign language is the student studying?"
+              htmlFor="foreign-lang-name"
+              tooltip="The foreign language (e.g. Spanish, French) your child studies at their current school, if any."
+            >
               <Select value={formData.foreignLanguageName} onValueChange={(value) => onFieldChange("foreignLanguageName", value)}>
                 <SelectTrigger id="foreign-lang-name">
                   <SelectValue placeholder="Select language" />
@@ -269,7 +322,11 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
                 />
               )}
             </QuestionCard>
-            <QuestionCard label="What is the student's current level?" htmlFor="foreign-lang-level">
+            <QuestionCard
+              label="What is the student's current level?"
+              htmlFor="foreign-lang-level"
+              tooltip="Your child's proficiency level in that foreign language."
+            >
               <Select value={formData.foreignLanguageLevel} onValueChange={(value) => onFieldChange("foreignLanguageLevel", value)}>
                 <SelectTrigger id="foreign-lang-level">
                   <SelectValue placeholder="Select level" />
@@ -286,7 +343,11 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
       )}
 
       {formData.schoolStage !== "elementary" && (
-        <QuestionCard label="Current Extracurricular Activities" hint="Optional">
+        <QuestionCard
+          label="Current Extracurricular Activities"
+          optional
+          tooltip="Activities outside academics that may highlight strengths or interests relevant to the transition."
+        >
           <MultiSelect
             idPrefix="extra"
             options={EXTRACURRICULARS}
@@ -295,7 +356,7 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
           />
         </QuestionCard>
       )}
-    </SectionContainer>
+    </SectionCard>
   );
 };
 

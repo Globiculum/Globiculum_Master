@@ -3,13 +3,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BarChart3, BookOpen, GraduationCap, MapPin, Target, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import OptionCard from "../shared/OptionCard";
+import InputCard from "../shared/InputCard";
+import SectionCard from "../shared/SectionCard";
 import SectionContainer from "../shared/SectionContainer";
 import QuestionCard from "../shared/QuestionCard";
 import TimelineSelector from "../shared/TimelineSelector";
 import EducationHistoryList from "../shared/EducationHistoryList";
 import VoiceInputButton from "../shared/VoiceInputButton";
-import { ParentFieldError, type ParentStepProps } from "./types";
+import FieldError from "../shared/FieldError";
+import type { ParentStepProps } from "./types";
 
 // Step 1: School Profile.
 
@@ -141,9 +143,14 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
   };
 
   return (
-    <SectionContainer variant="card" icon={MapPin} title="School Profile" description="Tell us about your child's school and transition plans.">
+    <SectionCard icon={MapPin} title="School Profile" description="Tell us about your child's school and transition plans.">
       <SectionContainer icon={User} title="About Your Child" description="Let's start with the basics.">
-        <QuestionCard label="Child's Name" required>
+        <QuestionCard
+          label="Child's Name"
+          required
+          tooltip="We'll use this to personalize the report and any communication about your child's transition."
+          invalid={!!(fieldErrors.childName || fieldErrors.childLastName)}
+        >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Input
@@ -153,7 +160,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
                 onFocus={() => setFocusedNameField("first")}
                 onChange={(e) => onFieldChange("childName", e.target.value)}
               />
-              <ParentFieldError errors={fieldErrors} field="childName" />
+              <FieldError message={fieldErrors.childName} />
             </div>
             <div>
               <Input
@@ -163,7 +170,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
                 onFocus={() => setFocusedNameField("last")}
                 onChange={(e) => onFieldChange("childLastName", e.target.value)}
               />
-              <ParentFieldError errors={fieldErrors} field="childLastName" />
+              <FieldError message={fieldErrors.childLastName} />
             </div>
           </div>
           <div className="mt-2 flex justify-end">
@@ -175,43 +182,55 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         </QuestionCard>
       </SectionContainer>
 
-      <SectionContainer icon={MapPin} title="1. Select School Stage" description="Which stage best describes your child?">
+      <SectionContainer
+        icon={MapPin}
+        title="Select School Stage"
+        description="Which stage best describes your child?"
+        required
+        error={fieldErrors.schoolStage}
+      >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <OptionCard variant="large" mode="radio" selected={formData.schoolStage === "elementary"} onClick={() => handleSchoolStageChange("elementary")}>
-            <div className="flex flex-col items-center gap-3">
-              <BookOpen className="h-12 w-12 text-secondary" />
-              <div className="text-center">
-                <div className="font-semibold text-lg">Elementary</div>
-                <div className="text-sm text-muted-foreground">(Grades 1–5)</div>
-              </div>
-            </div>
-          </OptionCard>
+          <InputCard
+            variant="large"
+            mode="radio"
+            icon={BookOpen}
+            label="Elementary"
+            description="Grades 1–5"
+            selected={formData.schoolStage === "elementary"}
+            onClick={() => handleSchoolStageChange("elementary")}
+          />
 
-          <OptionCard variant="large" mode="radio" selected={formData.schoolStage === "middle"} onClick={() => handleSchoolStageChange("middle")}>
-            <div className="flex flex-col items-center gap-3">
-              <Target className="h-12 w-12 text-secondary" />
-              <div className="text-center">
-                <div className="font-semibold text-lg">Middle School</div>
-                <div className="text-sm text-muted-foreground">(Grades 6–8)</div>
-              </div>
-            </div>
-          </OptionCard>
+          <InputCard
+            variant="large"
+            mode="radio"
+            icon={Target}
+            label="Middle School"
+            description="Grades 6–8"
+            selected={formData.schoolStage === "middle"}
+            onClick={() => handleSchoolStageChange("middle")}
+          />
 
-          <OptionCard variant="large" mode="radio" selected={formData.schoolStage === "high"} onClick={() => handleSchoolStageChange("high")}>
-            <div className="flex flex-col items-center gap-3">
-              <BarChart3 className="h-12 w-12 text-secondary" />
-              <div className="text-center">
-                <div className="font-semibold text-lg">High School</div>
-                <div className="text-sm text-muted-foreground">(Grades 9–12)</div>
-              </div>
-            </div>
-          </OptionCard>
+          <InputCard
+            variant="large"
+            mode="radio"
+            icon={BarChart3}
+            label="High School"
+            description="Grades 9–12"
+            selected={formData.schoolStage === "high"}
+            onClick={() => handleSchoolStageChange("high")}
+          />
         </div>
       </SectionContainer>
 
-      <SectionContainer icon={User} title="2. Student Snapshot" description="Tell us about your child's current education">
+      <SectionContainer icon={User} title="Student Snapshot" description="Tell us about your child's current education">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <QuestionCard label="Current Grade" htmlFor="snapshot-grade" required error={fieldErrors.snapshotGrade}>
+          <QuestionCard
+            label="Current Grade"
+            htmlFor="snapshot-grade"
+            required
+            tooltip="The grade your child is currently enrolled in at their current school."
+            error={fieldErrors.snapshotGrade}
+          >
             <Select
               value={formData.snapshotGrade}
               onValueChange={(value) => onFieldChange("snapshotGrade", value)}
@@ -230,7 +249,13 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
             </Select>
           </QuestionCard>
 
-          <QuestionCard label="Age" htmlFor="snapshot-age" optional error={fieldErrors.snapshotAge}>
+          <QuestionCard
+            label="Age"
+            htmlFor="snapshot-age"
+            optional
+            tooltip="Helps refine age-appropriate curriculum comparisons if the grade level alone is ambiguous."
+            error={fieldErrors.snapshotAge}
+          >
             <Input
               id="snapshot-age"
               type="number"
@@ -243,26 +268,36 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
           </QuestionCard>
         </div>
 
-        <QuestionCard label="Current School Country" required>
+        <QuestionCard
+          label="Current School Country"
+          required
+          tooltip="The country where your child currently attends school."
+          error={fieldErrors.snapshotLocation}
+        >
           <div role="radiogroup" aria-label="Current School Country" className="flex flex-wrap gap-2">
             {COUNTRIES.map((country) => (
-              <OptionCard
+              <InputCard
                 key={country.value}
-                variant="pill"
+                variant="chip"
                 mode="radio"
+                label={country.label}
                 selected={formData.snapshotLocation === country.value}
                 onClick={() => onFieldChange("snapshotLocation", country.value)}
                 disabled={!country.enabled}
                 disabledHint="Coming Soon"
-              >
-                {country.label}
-              </OptionCard>
+              />
             ))}
           </div>
         </QuestionCard>
 
         {formData.snapshotLocation === "us" && (
-          <QuestionCard label="Which US State?" htmlFor="us-state" required error={fieldErrors.usState}>
+          <QuestionCard
+            label="Which US State?"
+            htmlFor="us-state"
+            required
+            tooltip="Your child's current state helps us compare against the right local curriculum standards."
+            error={fieldErrors.usState}
+          >
             <Select value={formData.usState} onValueChange={(value) => onFieldChange("usState", value)}>
               <SelectTrigger id="us-state">
                 <SelectValue placeholder="Select your state" />
@@ -279,7 +314,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         )}
 
         {formData.usState === "other" && (
-          <QuestionCard label="Please enter your state" htmlFor="us-state-other">
+          <QuestionCard label="Please enter your state" htmlFor="us-state-other" error={fieldErrors.usStateOther}>
             <Input
               id="us-state-other"
               type="text"
@@ -291,7 +326,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         )}
 
         {formData.snapshotLocation === "other" && (
-          <QuestionCard label="Please specify your country" htmlFor="snapshot-location-other">
+          <QuestionCard label="Please specify your country" htmlFor="snapshot-location-other" error={fieldErrors.snapshotLocationOther}>
             <Input
               id="snapshot-location-other"
               type="text"
@@ -303,11 +338,12 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         )}
       </SectionContainer>
 
-      <SectionContainer icon={BookOpen} title="3. Current Curriculum" description="Curriculum options change based on school stage.">
+      <SectionContainer icon={BookOpen} title="Current Curriculum" description="Curriculum options change based on school stage.">
         <QuestionCard
           label="Select your current curriculum system"
           htmlFor="current-curriculum"
           required
+          tooltip="The academic curriculum or standards your child currently follows at school."
           error={fieldErrors.currentCurriculum}
         >
           <Select
@@ -329,7 +365,11 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         </QuestionCard>
 
         {formData.currentCurriculum === "other" && (
-          <QuestionCard label="Please specify the curriculum system" htmlFor="current-curriculum-other">
+          <QuestionCard
+            label="Please specify the curriculum system"
+            htmlFor="current-curriculum-other"
+            error={fieldErrors.currentCurriculumOther}
+          >
             <Input
               id="current-curriculum-other"
               type="text"
@@ -342,18 +382,22 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
       </SectionContainer>
 
       <SectionContainer icon={GraduationCap} title="Target & Timeline" description="Where your child is headed, and by when.">
-        <QuestionCard label="Target Indian Board" required>
+        <QuestionCard
+          label="Target Indian Board"
+          required
+          tooltip="The Indian education board you're considering enrolling your child into."
+          error={fieldErrors.targetGoal}
+        >
           <div role="radiogroup" aria-label="Target Indian Board" className="flex flex-wrap gap-2">
             {TARGET_BOARDS.map((board) => (
-              <OptionCard
+              <InputCard
                 key={board.value}
-                variant="pill"
+                variant="chip"
                 mode="radio"
+                label={board.label}
                 selected={formData.targetGoal === board.value}
                 onClick={() => onFieldChange("targetGoal", board.value)}
-              >
-                {board.label}
-              </OptionCard>
+              />
             ))}
           </div>
         </QuestionCard>
@@ -361,30 +405,35 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         <QuestionCard
           label="Target Grade"
           required
-          hint="Should your child enroll in the same grade, or move up one grade, when transitioning?"
+          tooltip="Should your child enroll in the same grade, or move up one grade, when transitioning?"
+          error={fieldErrors.targetGrade}
         >
           <div role="radiogroup" aria-label="Target Grade" className="flex flex-wrap gap-2">
             {TARGET_GRADE_OPTIONS.map((option) => (
-              <OptionCard
+              <InputCard
                 key={option.value}
-                variant="pill"
+                variant="chip"
                 mode="radio"
+                label={option.label}
                 selected={formData.targetGrade === option.value}
                 onClick={() => onFieldChange("targetGrade", option.value)}
-              >
-                {option.label}
-              </OptionCard>
+              />
             ))}
           </div>
         </QuestionCard>
 
-        <QuestionCard label="Transition Timeline" required error={fieldErrors.timeline}>
+        <QuestionCard
+          label="Transition Timeline"
+          required
+          tooltip="When you expect your child to start at their new school in India."
+          error={fieldErrors.timeline}
+        >
           <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => onFieldChange("timeline", value)} />
         </QuestionCard>
       </SectionContainer>
 
       <SectionContainer icon={BookOpen} title="Education History" description="Where your child studied before, and any prior schools or curricula attended.">
-        <QuestionCard label="Previous School Location" hint="Where was your child studying before?">
+        <QuestionCard label="Previous School Location" tooltip="Where your child was studying before their current school, if different.">
           <Select value={formData.previousLocation} onValueChange={(value) => onFieldChange("previousLocation", value)}>
             <SelectTrigger id="previous-location">
               <SelectValue placeholder="Select previous location" />
@@ -411,24 +460,25 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
           </QuestionCard>
         )}
 
-        <QuestionCard label="Have you (or your child) previously studied in India before moving to the United States?">
+        <QuestionCard
+          label="Have you (or your child) previously studied in India before moving to the United States?"
+          tooltip="This helps us understand your child's prior exposure to the Indian curriculum, if any."
+        >
           <div role="radiogroup" aria-label="Previously studied in India" className="flex flex-wrap gap-2">
-            <OptionCard
-              variant="pill"
+            <InputCard
+              variant="chip"
               mode="radio"
+              label="Yes"
               selected={formData.previouslyStudiedInIndia === "yes"}
               onClick={() => onFieldChange("previouslyStudiedInIndia", "yes")}
-            >
-              Yes
-            </OptionCard>
-            <OptionCard
-              variant="pill"
+            />
+            <InputCard
+              variant="chip"
               mode="radio"
+              label="No"
               selected={formData.previouslyStudiedInIndia === "no"}
               onClick={() => onFieldChange("previouslyStudiedInIndia", "no")}
-            >
-              No
-            </OptionCard>
+            />
           </div>
         </QuestionCard>
 
@@ -442,7 +492,11 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               style={{ overflow: "hidden" }}
             >
-              <QuestionCard label="Prior Schools" hint="Optional — add any prior schools or curricula your child has attended.">
+              <QuestionCard
+                label="Prior Schools"
+                optional
+                tooltip="List any previous schools so we can account for curriculum overlap or gaps."
+              >
                 <EducationHistoryList
                   entries={formData.educationHistory}
                   onChange={(entries) => onFieldChange("educationHistory", entries)}
@@ -453,7 +507,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
           )}
         </AnimatePresence>
       </SectionContainer>
-    </SectionContainer>
+    </SectionCard>
   );
 };
 

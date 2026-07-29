@@ -3,10 +3,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookOpen, User } from "lucide-react";
-import { StepFieldError, type StudentStepProps } from "./types";
-import SectionCard from "../ui/SectionCard";
-import QuestionCard from "../ui/QuestionCard";
-import InputCard from "../ui/InputCard";
+import type { StudentStepProps } from "./types";
+import SectionCard from "../../shared/SectionCard";
+import QuestionCard from "../../shared/QuestionCard";
+import InputCard from "../../shared/InputCard";
+import FieldError from "../../shared/FieldError";
 import VoiceInputButton from "../../shared/VoiceInputButton";
 import TimelineSelector from "../../shared/TimelineSelector";
 import SectionContainer from "../../shared/SectionContainer";
@@ -136,7 +137,12 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
 
   return (
     <SectionCard icon={User} title="Student Profile" description="Tell us a little about yourself before we begin.">
-      <QuestionCard label="Your Name" required>
+      <QuestionCard
+        label="Your Name"
+        required
+        tooltip="We'll use this to personalize your report."
+        invalid={!!(errors.studentName || errors.studentLastName)}
+      >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Input
@@ -146,7 +152,7 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
               onFocus={() => setFocusedNameField("first")}
               onChange={(e) => setField("studentName", e.target.value)}
             />
-            <StepFieldError errors={errors} field="studentName" />
+            <FieldError message={errors.studentName} />
           </div>
           <div>
             <Input
@@ -156,7 +162,7 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
               onFocus={() => setFocusedNameField("last")}
               onChange={(e) => setField("studentLastName", e.target.value)}
             />
-            <StepFieldError errors={errors} field="studentLastName" />
+            <FieldError message={errors.studentLastName} />
           </div>
         </div>
         <div className="mt-2 flex justify-end">
@@ -167,7 +173,12 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
         </div>
       </QuestionCard>
 
-      <QuestionCard label="School Stage" required error={errors.schoolStage}>
+      <QuestionCard
+        label="School Stage"
+        required
+        tooltip="Pick the stage that best describes where you are in school right now."
+        error={errors.schoolStage}
+      >
         <div role="radiogroup" aria-label="School Stage" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {SCHOOL_STAGES.map((stage) => (
             <InputCard
@@ -187,7 +198,13 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
         </div>
       </QuestionCard>
 
-      <QuestionCard label="Current Grade" htmlFor="snapshot-grade" required error={errors.snapshotGrade}>
+      <QuestionCard
+        label="Current Grade"
+        htmlFor="snapshot-grade"
+        required
+        tooltip="The grade you're currently in at school."
+        error={errors.snapshotGrade}
+      >
         <Select
           value={formData.snapshotGrade}
           onValueChange={(value) => setField("snapshotGrade", value)}
@@ -206,7 +223,12 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
         </Select>
       </QuestionCard>
 
-      <QuestionCard label="Current School Country" required error={errors.snapshotLocation}>
+      <QuestionCard
+        label="Current School Country"
+        required
+        tooltip="The country where you currently go to school."
+        error={errors.snapshotLocation}
+      >
         <div role="radiogroup" aria-label="Current School Country" className="flex flex-wrap gap-2">
           {COUNTRIES.map((loc) => (
             <InputCard
@@ -223,7 +245,13 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
       </QuestionCard>
 
       {formData.snapshotLocation === "us" && (
-        <QuestionCard label="US State" htmlFor="us-state" required error={errors.usState}>
+        <QuestionCard
+          label="US State"
+          htmlFor="us-state"
+          required
+          tooltip="Your current state helps us compare against the right local curriculum standards."
+          error={errors.usState}
+        >
           <Select value={formData.usState} onValueChange={(value) => setField("usState", value)}>
             <SelectTrigger id="us-state">
               <SelectValue placeholder="Select your state" />
@@ -249,7 +277,13 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
         </QuestionCard>
       )}
 
-      <QuestionCard label="Current Curriculum" htmlFor="current-curriculum" required error={errors.currentCurriculum}>
+      <QuestionCard
+        label="Current Curriculum"
+        htmlFor="current-curriculum"
+        required
+        tooltip="The curriculum or academic standards you currently follow at school."
+        error={errors.currentCurriculum}
+      >
         <Select
           value={formData.currentCurriculum}
           onValueChange={(value) => setField("currentCurriculum", value)}
@@ -278,7 +312,12 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
         </QuestionCard>
       )}
 
-      <QuestionCard label="Target Indian Board" required error={errors.targetGoal}>
+      <QuestionCard
+        label="Target Indian Board"
+        required
+        tooltip="The Indian education board you're considering for your next school."
+        error={errors.targetGoal}
+      >
         <div role="radiogroup" aria-label="Target Indian Board" className="flex flex-wrap gap-2">
           {TARGET_BOARDS.map((board) => (
             <InputCard
@@ -296,7 +335,7 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
         label="Target Grade"
         required
         error={errors.targetGrade}
-        hint="Should you enroll in the same grade, or move up one grade, when transitioning?"
+        tooltip="Should you enroll in the same grade, or move up one grade, when transitioning?"
       >
         <div role="radiogroup" aria-label="Target Grade" className="flex flex-wrap gap-2">
           {TARGET_GRADE_OPTIONS.map((option) => (
@@ -311,12 +350,17 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
         </div>
       </QuestionCard>
 
-      <QuestionCard label="Transition Timeline" required error={errors.timeline}>
+      <QuestionCard
+        label="Transition Timeline"
+        required
+        tooltip="When you expect to start at your new school in India."
+        error={errors.timeline}
+      >
         <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => setField("timeline", value)} />
       </QuestionCard>
 
       <SectionContainer icon={BookOpen} title="Education History" description="Where you studied before, and any prior schools or curricula attended.">
-        <QuestionCard label="Previous School Location" hint="Where were you studying before?">
+        <QuestionCard label="Previous School Location" tooltip="Where you were studying before your current school, if different.">
           <Select value={formData.previousLocation} onValueChange={(value) => setField("previousLocation", value)}>
             <SelectTrigger id="previous-location">
               <SelectValue placeholder="Select previous location" />
@@ -343,7 +387,10 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
           </QuestionCard>
         )}
 
-        <QuestionCard label="Have you previously studied in India before moving to the United States?">
+        <QuestionCard
+          label="Have you previously studied in India before moving to the United States?"
+          tooltip="This helps us understand your prior exposure to the Indian curriculum, if any."
+        >
           <div role="radiogroup" aria-label="Previously studied in India" className="flex flex-wrap gap-2">
             <InputCard
               mode="radio"
@@ -370,7 +417,11 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               style={{ overflow: "hidden" }}
             >
-              <QuestionCard label="Prior Schools" hint="Optional — add any prior schools or curricula you've attended.">
+              <QuestionCard
+                label="Prior Schools"
+                optional
+                tooltip="List any previous schools so we can account for curriculum overlap or gaps."
+              >
                 <EducationHistoryList
                   entries={formData.educationHistory}
                   onChange={(entries) => setField("educationHistory", entries)}

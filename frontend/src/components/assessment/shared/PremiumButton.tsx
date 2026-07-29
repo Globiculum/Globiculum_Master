@@ -29,12 +29,12 @@ let rippleSeq = 0;
 
 const MotionButton = motion.create(Button);
 
-// Shared premium nav/action button for the Student assessment: gradient
-// fill + shine sweep + click ripple for "primary" (Continue / Generate My
-// Report), a calmer bordered treatment for "secondary" (Back). Motion is
-// applied directly to the underlying <button> (not a wrapping div) so
-// Framer Motion's automatic tap-accessibility injection doesn't create a
-// second, unstyled Tab stop — see PersonaCTAButton for the same fix.
+// Shared premium nav/action button for both assessments: gradient fill +
+// shine sweep + click ripple for "primary" (Continue / Generate My
+// Report), a calmer bordered treatment for "secondary" (Previous / Back).
+// Motion is applied directly to the underlying <button> (not a wrapping
+// div) so Framer Motion's automatic tap-accessibility injection doesn't
+// create a second, unstyled Tab stop.
 //
 // Loading state deliberately has no spinner icon — the shimmer sweep runs
 // continuously (no pause between passes) so the button itself reads as
