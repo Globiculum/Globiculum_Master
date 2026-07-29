@@ -37,7 +37,15 @@
       "Bash(node check-tooltips.js)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/)",
       "Bash(node check-custom-subjects.js)",
-      "Bash(node check-custom-subjects-parent.js)"
+      "Bash(node check-custom-subjects-parent.js)",
+      "Bash(node check-validation.js)",
+      "Bash(node check-full-flow-parent.js)",
+      "Bash(node check-overlap-bug.js)",
+      "Bash(node check-other-fixes.js)",
+      "Bash(node check-voice-button2.js)",
+      "Bash(sed -i \"s/clip: { x: 0, y: 250, width: 1000, height: 300 }/clip: { x: 0, y: 400, width: 1000, height: 350 }/g\" check-voice-button2.js)",
+      "Bash(node check-voice-stop.js)",
+      "Bash(node check-student-other.js)"
     ]
   }
 }

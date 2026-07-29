@@ -3,6 +3,7 @@ import AssessmentLayout from "./ui/AssessmentLayout";
 import type { AssessmentStepperStep as StepperStep } from "../shared/AssessmentStepper";
 import { useStudentAssessmentState } from "./state/useStudentAssessmentState";
 import { useStudentAssessmentNavigation } from "./navigation/useStudentAssessmentNavigation";
+import { useScrollToFirstInvalidField } from "../shared/useScrollToFirstInvalidField";
 import StudentProfileStep from "./steps/StudentProfileStep";
 import AcademicProfileStep from "./steps/AcademicProfileStep";
 import WrapUpStep from "./steps/WrapUpStep";
@@ -37,7 +38,33 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
   const { formData, setField, toggleArrayField, setRecordField } = useStudentAssessmentState(prefillData);
   const navigation = useStudentAssessmentNavigation();
 
-  const stepProps = { formData, setField, toggleArrayField, setRecordField, errors: navigation.errors };
+  useScrollToFirstInvalidField(navigation.validationAttempt);
+
+  // Clears a field's error the moment the user changes it (see
+  // useStudentAssessmentNavigation's clearError), so a message doesn't
+  // linger once it's no longer accurate.
+  const handleSetField: typeof setField = (field, value) => {
+    setField(field, value);
+    navigation.clearError(field as string);
+  };
+
+  const handleToggleArrayField: typeof toggleArrayField = (field, value) => {
+    toggleArrayField(field, value);
+    navigation.clearError(field as string);
+  };
+
+  const handleSetRecordField: typeof setRecordField = (field, key, value) => {
+    setRecordField(field, key, value);
+    navigation.clearError(field);
+  };
+
+  const stepProps = {
+    formData,
+    setField: handleSetField,
+    toggleArrayField: handleToggleArrayField,
+    setRecordField: handleSetRecordField,
+    errors: navigation.errors,
+  };
 
   const renderStep = () => {
     switch (navigation.stepId) {

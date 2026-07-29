@@ -3,10 +3,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookOpen, User } from "lucide-react";
-import { StepFieldError, type StudentStepProps } from "./types";
+import type { StudentStepProps } from "./types";
 import SectionCard from "../../shared/SectionCard";
 import QuestionCard from "../../shared/QuestionCard";
 import InputCard from "../../shared/InputCard";
+import FieldError from "../../shared/FieldError";
 import VoiceInputButton from "../../shared/VoiceInputButton";
 import TimelineSelector from "../../shared/TimelineSelector";
 import SectionContainer from "../../shared/SectionContainer";
@@ -136,7 +137,12 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
 
   return (
     <SectionCard icon={User} title="Student Profile" description="Tell us a little about yourself before we begin.">
-      <QuestionCard label="Your Name" required tooltip="We'll use this to personalize your report.">
+      <QuestionCard
+        label="Your Name"
+        required
+        tooltip="We'll use this to personalize your report."
+        invalid={!!(errors.studentName || errors.studentLastName)}
+      >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Input
@@ -146,7 +152,7 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
               onFocus={() => setFocusedNameField("first")}
               onChange={(e) => setField("studentName", e.target.value)}
             />
-            <StepFieldError errors={errors} field="studentName" />
+            <FieldError message={errors.studentName} />
           </div>
           <div>
             <Input
@@ -156,7 +162,7 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
               onFocus={() => setFocusedNameField("last")}
               onChange={(e) => setField("studentLastName", e.target.value)}
             />
-            <StepFieldError errors={errors} field="studentLastName" />
+            <FieldError message={errors.studentLastName} />
           </div>
         </div>
         <div className="mt-2 flex justify-end">

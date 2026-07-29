@@ -6,12 +6,13 @@ import AssessmentHeader from "../shared/AssessmentHeader";
 import AssessmentStepper, { type AssessmentStepperStep } from "../shared/AssessmentStepper";
 import ProgressSidebar from "../shared/ProgressSidebar";
 import AssessmentFooter from "../shared/AssessmentFooter";
+import { useScrollToFirstInvalidField } from "../shared/useScrollToFirstInvalidField";
 import ParentStep1 from "./ParentStep1";
 import ParentStep2 from "./ParentStep2";
 import ParentStep3 from "./ParentStep3";
 import ParentStep4 from "./ParentStep4";
 import ParentStep5 from "./ParentStep5";
-import { canProceedFromStep, PARENT_TOTAL_STEPS } from "./parentValidation";
+import { validateParentStep, PARENT_TOTAL_STEPS } from "./parentValidation";
 import type { ParentFormData } from "./parentMapper";
 
 // ParentAssessment.tsx — the dedicated Parent state owner and step
@@ -63,7 +64,6 @@ const createDefaultParentFormData = (): ParentFormData => ({
   academicPath: [],
   selectedLanguages: [],
   languageProficiencies: {},
-  customLanguage: "",
   extracurriculars: [],
   languagesAtHome: [],
   foreignLanguageName: "",
@@ -92,6 +92,14 @@ const createDefaultParentFormData = (): ParentFormData => ({
 const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string, any>): ParentFormData => {
   if (!prefillData) return defaults;
 
+  // Older saved reports stored a single free-text "Other" language separately
+  // (customLanguage) instead of as its own selectedLanguages entry — fold it
+  // in here so editing an old report doesn't silently drop it.
+  const baseLanguages = Array.isArray(prefillData.selectedLanguages) ? prefillData.selectedLanguages : defaults.selectedLanguages;
+  const legacyCustomLanguage = typeof prefillData.customLanguage === "string" ? prefillData.customLanguage.trim() : "";
+  const mergedLanguages =
+    legacyCustomLanguage && !baseLanguages.includes(legacyCustomLanguage) ? [...baseLanguages, legacyCustomLanguage] : baseLanguages;
+
   return {
     ...defaults,
     childName: prefillData.childName || defaults.childName,
@@ -114,9 +122,8 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
     timeline: prefillData.timeline || defaults.timeline,
     educationHistory: Array.isArray(prefillData.educationHistory) ? prefillData.educationHistory : defaults.educationHistory,
     academicPath: Array.isArray(prefillData.academicPath) ? prefillData.academicPath : defaults.academicPath,
-    selectedLanguages: Array.isArray(prefillData.selectedLanguages) ? prefillData.selectedLanguages : defaults.selectedLanguages,
+    selectedLanguages: mergedLanguages,
     languageProficiencies: prefillData.languageProficiencies || defaults.languageProficiencies,
-    customLanguage: prefillData.customLanguage || defaults.customLanguage,
     extracurriculars: Array.isArray(prefillData.extracurriculars) ? prefillData.extracurriculars : defaults.extracurriculars,
     languagesAtHome: Array.isArray(prefillData.languagesAtHome) ? prefillData.languagesAtHome : defaults.languagesAtHome,
     foreignLanguageName: prefillData.foreignLanguageName || defaults.foreignLanguageName,
@@ -147,9 +154,25 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<ParentFormData>(() => mergePrefillData(createDefaultParentFormData(), prefillData));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [validationAttempt, setValidationAttempt] = useState(0);
+
+  useScrollToFirstInvalidField(validationAttempt);
+
+  // Clears a field's error the moment the user changes it, so a message
+  // doesn't linger once it's no longer accurate — full re-validation still
+  // runs on the next Continue click regardless.
+  const clearFieldError = (field: string) => {
+    setFieldErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
 
   const onFieldChange = <K extends keyof ParentFormData>(field: K, value: ParentFormData[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    clearFieldError(field as string);
   };
 
   const onArrayToggle = (field: keyof ParentFormData, value: string) => {
@@ -158,6 +181,7 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
       const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
       return { ...prev, [field]: next };
     });
+    clearFieldError(field);
   };
 
   const onRecordFieldChange = (
@@ -169,17 +193,27 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
       ...prev,
       [field]: { ...(prev[field] as Record<string, string>), [key]: value },
     }));
+    clearFieldError(field);
   };
 
   const goNext = () => {
+    const result = validateParentStep(currentStep, formData);
+    if (!result.valid) {
+      setFieldErrors(result.errors);
+      setValidationAttempt((n) => n + 1);
+      return;
+    }
+    setFieldErrors({});
     if (currentStep < PARENT_TOTAL_STEPS - 1) setCurrentStep((prev) => prev + 1);
   };
 
   const goPrev = () => {
+    setFieldErrors({});
     if (currentStep > 0) setCurrentStep((prev) => prev - 1);
   };
 
   const goToStep = (index: number) => {
+    setFieldErrors({});
     setCurrentStep(Math.max(0, Math.min(index, PARENT_TOTAL_STEPS - 1)));
   };
 
@@ -244,7 +278,7 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
           onNext={goNext}
           onSaveProgress={handleSaveProgress}
           isFirstStep={currentStep === 0}
-          canProceed={canProceedFromStep(currentStep, formData)}
+          canProceed
         />
       )}
     </AssessmentContainer>

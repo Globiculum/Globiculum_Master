@@ -7,7 +7,7 @@ import MultiSelect from "../shared/MultiSelect";
 import SectionCard from "../shared/SectionCard";
 import SectionContainer from "../shared/SectionContainer";
 import QuestionCard from "../shared/QuestionCard";
-import CustomSubjectList from "../shared/CustomSubjectList";
+import CustomEntryList from "../shared/CustomEntryList";
 import { HighSchoolMathDeepDive } from "../HighSchoolMathDeepDive";
 import type { ParentStepProps } from "./types";
 
@@ -95,6 +95,24 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
     );
   };
 
+  // Any selectedLanguages entry not in the predefined list is a custom
+  // "Other" language the user typed in — same pattern as custom subjects
+  // above, folded straight into the existing array field.
+  const customLanguages = formData.selectedLanguages.filter((lang) => !INDIAN_LANGUAGES.includes(lang));
+
+  const [showOtherLanguageInput, setShowOtherLanguageInput] = useState(customLanguages.length > 0);
+
+  const addCustomLanguage = (lang: string) => {
+    onFieldChange("selectedLanguages", [...formData.selectedLanguages, lang]);
+  };
+
+  const removeCustomLanguage = (lang: string) => {
+    onFieldChange(
+      "selectedLanguages",
+      formData.selectedLanguages.filter((l) => l !== lang)
+    );
+  };
+
   return (
     <SectionCard icon={BookOpen} title="Academic Path" description="Tell us what the student studies today.">
       <SectionContainer
@@ -134,8 +152,8 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
           )}
 
           {(showOtherInput || customSubjects.length > 0) && (
-            <CustomSubjectList
-              subjects={customSubjects}
+            <CustomEntryList
+              entries={customSubjects}
               onAdd={addCustomSubject}
               onRemove={removeCustomSubject}
               placeholder="e.g. Robotics, Design Thinking"
@@ -225,7 +243,22 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
             {INDIAN_LANGUAGES.map((lang) => (
               <InputCard key={lang} variant="chip" label={lang} selected={formData.selectedLanguages.includes(lang)} onClick={() => onArrayToggle("selectedLanguages", lang)} />
             ))}
+            <InputCard
+              variant="chip"
+              label="Other"
+              selected={showOtherLanguageInput || customLanguages.length > 0}
+              onClick={() => setShowOtherLanguageInput((prev) => !prev)}
+            />
           </div>
+
+          {(showOtherLanguageInput || customLanguages.length > 0) && (
+            <CustomEntryList
+              entries={customLanguages}
+              onAdd={addCustomLanguage}
+              onRemove={removeCustomLanguage}
+              placeholder="e.g. French, Mandarin"
+            />
+          )}
         </QuestionCard>
 
         {formData.selectedLanguages.length > 0 && (
@@ -308,20 +341,6 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
           </div>
         </SectionContainer>
       )}
-
-      <QuestionCard
-        label="Other language"
-        htmlFor="custom-language"
-        optional
-        tooltip="Any additional language your child speaks that wasn't listed above."
-      >
-        <Input
-          id="custom-language"
-          type="text"
-          value={formData.customLanguage}
-          onChange={(e) => onFieldChange("customLanguage", e.target.value)}
-        />
-      </QuestionCard>
 
       {formData.schoolStage !== "elementary" && (
         <QuestionCard

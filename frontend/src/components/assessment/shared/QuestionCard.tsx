@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import InfoTooltip from "./InfoTooltip";
+import FieldError from "./FieldError";
 
 // Per-field wrapper (label + tooltip + hint + error + input) shared by every
 // step in both the Parent and Student assessments — same label/required/
-// optional treatment, same animated error, same caption-scale hint text.
+// optional treatment, same animated error, same caption-scale hint text,
+// same invalid-state ring around the field's content.
 
 interface QuestionCardProps {
   label?: string;
@@ -22,40 +23,58 @@ interface QuestionCardProps {
    * fields in the same row that have neither a hint nor this flag, so
    * inputs placed side-by-side (e.g. in a grid) stay vertically aligned. */
   optional?: boolean;
+  /** Validation message — also marks the field invalid (red ring + scroll/
+   * focus target) and renders the message beneath the field. */
   error?: string;
+  /** Marks the field invalid (red ring + scroll/focus target) without
+   * rendering its own message — for composite fields (e.g. first/last name)
+   * whose sub-parts each render their own FieldError instead. */
+  invalid?: boolean;
   children: ReactNode;
   className?: string;
 }
 
-const QuestionCard = ({ label, htmlFor, tooltip, hint, required, optional, error, children, className }: QuestionCardProps) => (
-  <div className={cn("space-y-2.5", className)}>
-    {label && (
-      <div className="flex items-center gap-1.5">
-        <Label htmlFor={htmlFor} className="text-sm font-semibold text-foreground">
-          {label}
-          {required && <span className="ml-1 text-warning">*</span>}
-          {optional && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(Optional)</span>}
-        </Label>
-        {tooltip && <InfoTooltip description={tooltip} />}
-      </div>
-    )}
-    {hint && <p className="text-caption text-muted-foreground">{hint}</p>}
-    {children}
-    <AnimatePresence>
-      {error && (
-        <motion.p
-          role="alert"
-          className="text-sm font-medium text-destructive"
-          initial={{ opacity: 0, y: -4, height: 0 }}
-          animate={{ opacity: 1, y: 0, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-        >
-          {error}
-        </motion.p>
+const QuestionCard = ({
+  label,
+  htmlFor,
+  tooltip,
+  hint,
+  required,
+  optional,
+  error,
+  invalid,
+  children,
+  className,
+}: QuestionCardProps) => {
+  const isInvalid = invalid || !!error;
+
+  return (
+    <div
+      className={cn("space-y-2.5", className)}
+      data-field-invalid={isInvalid ? "true" : undefined}
+      tabIndex={isInvalid ? -1 : undefined}
+    >
+      {label && (
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor={htmlFor} className="text-sm font-semibold text-foreground">
+            {label}
+            {required && <span className="ml-1 text-warning">*</span>}
+            {optional && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(Optional)</span>}
+          </Label>
+          {tooltip && <InfoTooltip description={tooltip} />}
+        </div>
       )}
-    </AnimatePresence>
-  </div>
-);
+      {hint && <p className="text-caption text-muted-foreground">{hint}</p>}
+      <div
+        className={cn(
+          isInvalid && "rounded-xl ring-2 ring-destructive/60 ring-offset-2 ring-offset-background transition-shadow duration-200"
+        )}
+      >
+        {children}
+      </div>
+      <FieldError message={error} />
+    </div>
+  );
+};
 
 export default QuestionCard;

@@ -3,25 +3,28 @@ import { Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-interface CustomSubjectListProps {
-  subjects: string[];
-  onAdd: (subject: string) => void;
-  onRemove: (subject: string) => void;
+interface CustomEntryListProps {
+  entries: string[];
+  onAdd: (entry: string) => void;
+  onRemove: (entry: string) => void;
   placeholder?: string;
 }
 
-// Add-multiple-and-remove chip list for free-text "Other" subjects — shared
-// by both the Parent and Student Academic Path steps so custom subjects get
-// the same input row, chip styling, and Enter/Add/remove behavior in both
-// flows. Callers own where the resulting subject strings are stored (both
-// flows fold them straight into the existing academicPath string array).
-const CustomSubjectList = ({ subjects, onAdd, onRemove, placeholder = "Enter a subject" }: CustomSubjectListProps) => {
+// Add-multiple-and-remove chip list for free-text "Other" entries — shared by
+// every "Other" selection in both assessments (current subjects, languages,
+// and any future one) so they all get the same input row, chip styling, and
+// Enter/Add/remove behavior. `mt-4` gives clear separation from whatever
+// option grid/chip row sits above it, so the input row never reads as
+// overlapping the selected cards. Callers own where the resulting strings
+// are stored — both flows fold them straight into the existing string-array
+// field (academicPath, selectedLanguages) rather than a separate field.
+const CustomEntryList = ({ entries, onAdd, onRemove, placeholder = "Enter a value" }: CustomEntryListProps) => {
   const [draft, setDraft] = useState("");
 
   const handleAdd = () => {
     const trimmed = draft.trim();
     if (!trimmed) return;
-    if (subjects.some((subject) => subject.toLowerCase() === trimmed.toLowerCase())) {
+    if (entries.some((entry) => entry.toLowerCase() === trimmed.toLowerCase())) {
       setDraft("");
       return;
     }
@@ -37,7 +40,7 @@ const CustomSubjectList = ({ subjects, onAdd, onRemove, placeholder = "Enter a s
   };
 
   return (
-    <div className="space-y-3">
+    <div className="mt-4 space-y-3">
       <div className="flex gap-2">
         <Input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={handleKeyDown} placeholder={placeholder} />
         <Button type="button" variant="outline" onClick={handleAdd} disabled={!draft.trim()} className="shrink-0 gap-1.5">
@@ -46,18 +49,18 @@ const CustomSubjectList = ({ subjects, onAdd, onRemove, placeholder = "Enter a s
         </Button>
       </div>
 
-      {subjects.length > 0 && (
+      {entries.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {subjects.map((subject) => (
+          {entries.map((entry) => (
             <span
-              key={subject}
+              key={entry}
               className="inline-flex items-center gap-1.5 rounded-full border-2 border-secondary bg-secondary/10 px-3.5 py-1.5 text-sm font-medium text-secondary"
             >
-              {subject}
+              {entry}
               <button
                 type="button"
-                onClick={() => onRemove(subject)}
-                aria-label={`Remove ${subject}`}
+                onClick={() => onRemove(entry)}
+                aria-label={`Remove ${entry}`}
                 className="rounded-full p-0.5 transition-colors hover:bg-secondary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
               >
                 <X className="h-3 w-3" />
@@ -70,4 +73,4 @@ const CustomSubjectList = ({ subjects, onAdd, onRemove, placeholder = "Enter a s
   );
 };
 
-export default CustomSubjectList;
+export default CustomEntryList;

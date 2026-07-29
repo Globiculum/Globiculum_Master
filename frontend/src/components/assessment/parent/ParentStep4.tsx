@@ -50,10 +50,15 @@ const SUPPORT_NEEDS = [
   { value: "Emergency Support", icon: LifeBuoy },
 ];
 
-const ParentStep4 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps) => {
+const ParentStep4 = ({ formData, onFieldChange, onArrayToggle, fieldErrors }: ParentStepProps) => {
   return (
     <SectionCard icon={HeartHandshake} title="Support" description="What concerns you, and how can we help?">
-      <SectionContainer title="Biggest Concerns" description="What worries you most about the move?">
+      <SectionContainer
+        title="Biggest Concerns"
+        description="What worries you most about the move?"
+        required
+        error={fieldErrors.transitionConcerns}
+      >
         <ConcernCards options={TRANSITION_CONCERNS} selected={formData.transitionConcerns} onToggle={(value) => onArrayToggle("transitionConcerns", value)} />
       </SectionContainer>
 

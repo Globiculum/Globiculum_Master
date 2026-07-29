@@ -6,7 +6,7 @@ import type { StudentStepProps } from "./types";
 import SectionCard from "../../shared/SectionCard";
 import QuestionCard from "../../shared/QuestionCard";
 import InputCard from "../../shared/InputCard";
-import CustomSubjectList from "../../shared/CustomSubjectList";
+import CustomEntryList from "../../shared/CustomEntryList";
 
 // Step 2: Academic Path — current subjects, per-subject confidence, language
 // exposure for Indian schooling, and foreign language details. Current
@@ -63,6 +63,24 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
     );
   };
 
+  // Any selectedLanguages entry not in the predefined list is a custom
+  // "Other" language the user typed in — same pattern as custom subjects
+  // above, folded straight into the existing array field.
+  const customLanguages = formData.selectedLanguages.filter((lang) => !INDIAN_LANGUAGES.includes(lang));
+
+  const [showOtherLanguageInput, setShowOtherLanguageInput] = useState(customLanguages.length > 0);
+
+  const addCustomLanguage = (lang: string) => {
+    setField("selectedLanguages", [...formData.selectedLanguages, lang]);
+  };
+
+  const removeCustomLanguage = (lang: string) => {
+    setField(
+      "selectedLanguages",
+      formData.selectedLanguages.filter((l) => l !== lang)
+    );
+  };
+
   return (
     <SectionCard icon={BookOpen} title="Academic Path" description="Tell us what you're studying right now.">
       <QuestionCard
@@ -114,8 +132,8 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
         )}
 
         {(showOtherInput || customSubjects.length > 0) && (
-          <CustomSubjectList
-            subjects={customSubjects}
+          <CustomEntryList
+            entries={customSubjects}
             onAdd={addCustomSubject}
             onRemove={removeCustomSubject}
             placeholder="e.g. Robotics, Design Thinking"
@@ -163,7 +181,22 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
               onClick={() => toggleArrayField("selectedLanguages", lang)}
             />
           ))}
+          <InputCard
+            mode="checkbox"
+            label="Other"
+            selected={showOtherLanguageInput || customLanguages.length > 0}
+            onClick={() => setShowOtherLanguageInput((prev) => !prev)}
+          />
         </div>
+
+        {(showOtherLanguageInput || customLanguages.length > 0) && (
+          <CustomEntryList
+            entries={customLanguages}
+            onAdd={addCustomLanguage}
+            onRemove={removeCustomLanguage}
+            placeholder="e.g. French, Mandarin"
+          />
+        )}
       </QuestionCard>
 
       {formData.selectedLanguages.length > 0 && (
@@ -235,19 +268,6 @@ const AcademicProfileStep = ({ formData, setField, toggleArrayField, setRecordFi
           )}
         </QuestionCard>
       )}
-
-      <QuestionCard
-        label="Other language"
-        htmlFor="custom-language"
-        optional
-        tooltip="Any additional language you speak that wasn't listed above."
-      >
-        <Input
-          id="custom-language"
-          value={formData.customLanguage}
-          onChange={(e) => setField("customLanguage", e.target.value)}
-        />
-      </QuestionCard>
     </SectionCard>
   );
 };

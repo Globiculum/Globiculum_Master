@@ -10,7 +10,8 @@ import QuestionCard from "../shared/QuestionCard";
 import TimelineSelector from "../shared/TimelineSelector";
 import EducationHistoryList from "../shared/EducationHistoryList";
 import VoiceInputButton from "../shared/VoiceInputButton";
-import { ParentFieldError, type ParentStepProps } from "./types";
+import FieldError from "../shared/FieldError";
+import type { ParentStepProps } from "./types";
 
 // Step 1: School Profile.
 
@@ -144,7 +145,12 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
   return (
     <SectionCard icon={MapPin} title="School Profile" description="Tell us about your child's school and transition plans.">
       <SectionContainer icon={User} title="About Your Child" description="Let's start with the basics.">
-        <QuestionCard label="Child's Name" required tooltip="We'll use this to personalize the report and any communication about your child's transition.">
+        <QuestionCard
+          label="Child's Name"
+          required
+          tooltip="We'll use this to personalize the report and any communication about your child's transition."
+          invalid={!!(fieldErrors.childName || fieldErrors.childLastName)}
+        >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Input
@@ -154,7 +160,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
                 onFocus={() => setFocusedNameField("first")}
                 onChange={(e) => onFieldChange("childName", e.target.value)}
               />
-              <ParentFieldError errors={fieldErrors} field="childName" />
+              <FieldError message={fieldErrors.childName} />
             </div>
             <div>
               <Input
@@ -164,7 +170,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
                 onFocus={() => setFocusedNameField("last")}
                 onChange={(e) => onFieldChange("childLastName", e.target.value)}
               />
-              <ParentFieldError errors={fieldErrors} field="childLastName" />
+              <FieldError message={fieldErrors.childLastName} />
             </div>
           </div>
           <div className="mt-2 flex justify-end">
@@ -176,7 +182,13 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         </QuestionCard>
       </SectionContainer>
 
-      <SectionContainer icon={MapPin} title="Select School Stage" description="Which stage best describes your child?">
+      <SectionContainer
+        icon={MapPin}
+        title="Select School Stage"
+        description="Which stage best describes your child?"
+        required
+        error={fieldErrors.schoolStage}
+      >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <InputCard
             variant="large"
@@ -256,7 +268,12 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
           </QuestionCard>
         </div>
 
-        <QuestionCard label="Current School Country" required tooltip="The country where your child currently attends school.">
+        <QuestionCard
+          label="Current School Country"
+          required
+          tooltip="The country where your child currently attends school."
+          error={fieldErrors.snapshotLocation}
+        >
           <div role="radiogroup" aria-label="Current School Country" className="flex flex-wrap gap-2">
             {COUNTRIES.map((country) => (
               <InputCard
@@ -297,7 +314,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         )}
 
         {formData.usState === "other" && (
-          <QuestionCard label="Please enter your state" htmlFor="us-state-other">
+          <QuestionCard label="Please enter your state" htmlFor="us-state-other" error={fieldErrors.usStateOther}>
             <Input
               id="us-state-other"
               type="text"
@@ -309,7 +326,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         )}
 
         {formData.snapshotLocation === "other" && (
-          <QuestionCard label="Please specify your country" htmlFor="snapshot-location-other">
+          <QuestionCard label="Please specify your country" htmlFor="snapshot-location-other" error={fieldErrors.snapshotLocationOther}>
             <Input
               id="snapshot-location-other"
               type="text"
@@ -348,7 +365,11 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         </QuestionCard>
 
         {formData.currentCurriculum === "other" && (
-          <QuestionCard label="Please specify the curriculum system" htmlFor="current-curriculum-other">
+          <QuestionCard
+            label="Please specify the curriculum system"
+            htmlFor="current-curriculum-other"
+            error={fieldErrors.currentCurriculumOther}
+          >
             <Input
               id="current-curriculum-other"
               type="text"
@@ -361,7 +382,12 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
       </SectionContainer>
 
       <SectionContainer icon={GraduationCap} title="Target & Timeline" description="Where your child is headed, and by when.">
-        <QuestionCard label="Target Indian Board" required tooltip="The Indian education board you're considering enrolling your child into.">
+        <QuestionCard
+          label="Target Indian Board"
+          required
+          tooltip="The Indian education board you're considering enrolling your child into."
+          error={fieldErrors.targetGoal}
+        >
           <div role="radiogroup" aria-label="Target Indian Board" className="flex flex-wrap gap-2">
             {TARGET_BOARDS.map((board) => (
               <InputCard
@@ -380,6 +406,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
           label="Target Grade"
           required
           tooltip="Should your child enroll in the same grade, or move up one grade, when transitioning?"
+          error={fieldErrors.targetGrade}
         >
           <div role="radiogroup" aria-label="Target Grade" className="flex flex-wrap gap-2">
             {TARGET_GRADE_OPTIONS.map((option) => (

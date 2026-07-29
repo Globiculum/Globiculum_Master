@@ -16,7 +16,7 @@ const OVERALL_PERFORMANCE_OPTIONS = [
   { value: "needs-support", label: "Needs Support" },
 ];
 
-const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps) => {
+const ParentStep3 = ({ formData, onFieldChange, onArrayToggle, fieldErrors }: ParentStepProps) => {
   const selectedSubjectOptions = formData.academicPath.length > 0 ? formData.academicPath : [];
 
   const boardSubjects = (() => {
@@ -45,6 +45,7 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
           label="How does your child learn best?"
           required
           tooltip="Understanding your child's learning style helps us tailor recommendations in the report."
+          error={fieldErrors.learningStyles}
         >
           <LearningStyleObservations selectedStyles={formData.learningStyles} onToggle={(styleId) => onArrayToggle("learningStyles", styleId)} />
         </QuestionCard>
@@ -72,6 +73,7 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
           label="Overall Performance"
           required
           tooltip="A general sense of how your child is performing academically overall."
+          error={fieldErrors.overallPerformance}
         >
           <div role="radiogroup" aria-label="Overall Performance" className="flex flex-wrap gap-2">
             {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
@@ -94,7 +96,9 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
             ? "Which of the subjects you selected is the student's strongest?"
             : "Strongest Subjects (select subjects in Academic Path first)"
         }
+        required={selectedSubjectOptions.length > 0}
         tooltip="Pick the subjects where your child performs best — this highlights strengths in the report."
+        error={fieldErrors.strongestSubjects}
       >
         {selectedSubjectOptions.length > 0 ? (
           <div role="group" aria-label="Strongest Subjects" className="flex flex-wrap gap-2">
@@ -119,7 +123,9 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
             ? "Which subject is currently most challenging for the student?"
             : "Most Challenging Subjects (select subjects in Academic Path first)"
         }
+        required={selectedSubjectOptions.length > 0}
         tooltip="Pick the subjects your child finds hardest — this helps us identify priority focus areas."
+        error={fieldErrors.challengingSubjects}
       >
         {selectedSubjectOptions.length > 0 ? (
           <div role="group" aria-label="Most Challenging Subjects" className="flex flex-wrap gap-2">
@@ -142,6 +148,8 @@ const ParentStep3 = ({ formData, onFieldChange, onArrayToggle }: ParentStepProps
         icon={BarChart3}
         title="Strengthen for Indian Schooling"
         description="Which subjects would you most like the student to strengthen? Select all that apply — helps identify priority transition goals."
+        required
+        error={fieldErrors.strengthenGoals}
       >
         <div role="group" aria-label="Subjects to strengthen" className="flex flex-wrap gap-2">
           {boardSubjects.map((goal) => (

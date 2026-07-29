@@ -103,7 +103,6 @@ const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors,
               }`
             : "—",
         },
-        { label: "Other Language", value: formData.customLanguage || "—" },
       ],
     },
     {

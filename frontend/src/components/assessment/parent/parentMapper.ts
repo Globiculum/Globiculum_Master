@@ -34,12 +34,12 @@ export interface ParentFormData {
   educationHistory: EducationHistoryEntry[];
 
   // Step 2: Academic Profile
-  // Custom "Other" subjects live directly in academicPath as their own
-  // entries — no separate literal "Other" marker or single free-text field.
+  // Custom "Other" subjects/languages live directly in academicPath /
+  // selectedLanguages as their own entries — no separate literal "Other"
+  // marker or single free-text field for either.
   academicPath: string[];
   selectedLanguages: string[];
   languageProficiencies: Record<string, string>;
-  customLanguage: string;
   extracurriculars: string[];
   languagesAtHome: string[];
   foreignLanguageName: string;
