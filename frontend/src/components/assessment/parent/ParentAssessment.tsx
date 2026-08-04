@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpen, ClipboardCheck, HeartHandshake, MapPin, User } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 import AssessmentContainer from "../shared/AssessmentContainer";
 import AssessmentHeader from "../shared/AssessmentHeader";
 import AssessmentStepper, { type AssessmentStepperStep } from "../shared/AssessmentStepper";
@@ -155,8 +154,33 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
   const [formData, setFormData] = useState<ParentFormData>(() => mergePrefillData(createDefaultParentFormData(), prefillData));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [validationAttempt, setValidationAttempt] = useState(0);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   useScrollToFirstInvalidField(validationAttempt);
+
+  // Auto-save (sessionStorage, same key/shape submitAssessment already persists on
+  // submit — no Supabase call, no payload/validation change). Debounced so rapid
+  // typing doesn't hit storage on every keystroke; skips the mount-time run so
+  // loading a prefilled/draft report doesn't flash "Saved" before the user touches it.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setSaveStatus("saving");
+    const saveTimeout = setTimeout(() => {
+      sessionStorage.setItem("assessment-form-data", JSON.stringify(formData));
+      setSaveStatus("saved");
+    }, 600);
+    return () => clearTimeout(saveTimeout);
+  }, [formData]);
+
+  useEffect(() => {
+    if (saveStatus !== "saved") return;
+    const resetTimeout = setTimeout(() => setSaveStatus("idle"), 2000);
+    return () => clearTimeout(resetTimeout);
+  }, [saveStatus]);
 
   // Clears a field's error the moment the user changes it, so a message
   // doesn't linger once it's no longer accurate — full re-validation still
@@ -222,13 +246,6 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
     setCurrentStep(0);
   };
 
-  // Local-only convenience save (sessionStorage, same key/shape submitAssessment
-  // already persists on submit) — no Supabase call, no payload/validation change.
-  const handleSaveProgress = () => {
-    sessionStorage.setItem("assessment-form-data", JSON.stringify(formData));
-    toast({ title: "Progress saved", description: "Pick up right where you left off in this browser." });
-  };
-
   const stepProps = { formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors };
 
   const renderStep = () => {
@@ -276,7 +293,7 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
         <AssessmentFooter
           onPrev={goPrev}
           onNext={goNext}
-          onSaveProgress={handleSaveProgress}
+          saveStatus={saveStatus}
           isFirstStep={currentStep === 0}
           canProceed
         />
