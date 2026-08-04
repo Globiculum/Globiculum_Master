@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Bot, BookOpen, MessageCircle, Puzzle, Quote } from "lucide-react";
+import { Bot, BookOpen, MessageCircle, Puzzle } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 
 interface ProblemCard {
@@ -7,7 +7,6 @@ interface ProblemCard {
   icon: LucideIcon;
   title: string;
   description: string;
-  quote: string;
   color: string;
 }
 
@@ -17,7 +16,6 @@ const PROBLEM_CARDS: ProblemCard[] = [
     icon: MessageCircle,
     title: "WhatsApp Groups",
     description: "Generic advice that ignores your child's actual grade, board, or subject gaps.",
-    quote: "He stopped talking about when they were in India… he's in high stress because he doesn't know what to do.",
     color: "hsl(var(--accent))",
   },
   {
@@ -25,7 +23,6 @@ const PROBLEM_CARDS: ProblemCard[] = [
     icon: Bot,
     title: "ChatGPT & Google",
     description: "No NCERT mapping, no grade context — just a list of learning platforms.",
-    quote: "The analysis focused more on suggesting existing learning websites — not revealing gaps.",
     color: "hsl(var(--violet))",
   },
   {
@@ -33,7 +30,6 @@ const PROBLEM_CARDS: ProblemCard[] = [
     icon: BookOpen,
     title: "Tutors Without Assessment",
     description: "Teaching starts before anyone knows where your child actually stands.",
-    quote: "At least what to work on is important, right? Structure is missing.",
     color: "hsl(var(--secondary))",
   },
   {
@@ -41,7 +37,6 @@ const PROBLEM_CARDS: ProblemCard[] = [
     icon: Puzzle,
     title: "The Methodology Shock",
     description: "Discussion-based classrooms don't prepare kids for exam-heavy, teacher-led ones.",
-    quote: "More than academic transition, it is the social setup they have to adjust to.",
     color: "hsl(var(--mint))",
   },
 ];
@@ -63,11 +58,6 @@ const fadeUp: Variants = {
 const iconPop: Variants = {
   hidden: { opacity: 0, scale: 0.5 },
   visible: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: [0.34, 1.56, 0.64, 1], delay: 0.15 } },
-};
-
-const quoteFade: Variants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut", delay: 0.3 } },
 };
 
 const staggerContainer: Variants = {
@@ -96,7 +86,7 @@ const ProblemCardItem = ({ card }: { card: ProblemCard }) => {
         <span
           aria-hidden="true"
           className="pointer-events-none absolute right-5 top-2 select-none text-5xl font-black blur-[0.3px] transition-transform duration-[450ms] group-hover:-translate-y-1.5 sm:text-6xl"
-          style={{ color: "rgba(15,23,42,0.06)" }}
+          style={{ color: "rgba(15,23,42,0.14)" }}
         >
           {card.number}
         </span>
@@ -115,16 +105,7 @@ const ProblemCardItem = ({ card }: { card: ProblemCard }) => {
         </motion.div>
 
         <h3 className="relative mb-2 text-lg font-bold text-foreground">{card.title}</h3>
-        <p className="relative mb-4 text-sm leading-relaxed text-muted-foreground">{card.description}</p>
-
-        <motion.div
-          variants={quoteFade}
-          className="relative mt-auto flex gap-2 rounded-xl border-l-2 bg-[#F8FAFC] px-4 py-3"
-          style={{ borderLeftColor: card.color }}
-        >
-          <Quote className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: card.color }} aria-hidden="true" />
-          <p className="text-sm italic leading-relaxed text-slate-600">&ldquo;{card.quote}&rdquo;</p>
-        </motion.div>
+        <p className="relative text-sm leading-relaxed text-muted-foreground">{card.description}</p>
       </motion.div>
     </motion.div>
   );

@@ -31,7 +31,7 @@ const HeroSection = () => {
                 <span className="bg-gradient-mint bg-clip-text text-transparent font-extrabold">stands.</span>
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-primary-foreground/85 leading-relaxed max-w-3xl text-left">
-                A 10-minute assessment. Subject-by-subject gap analysis mapped to NCERT chapters. A personalised bridge plan — before your child sets foot in an Indian school.
+                A 10-minute assessment. Subject-by-subject gap analysis mapped to your target board's curriculum. A personalised bridge plan — before your child sets foot in an Indian school.
               </p>
             </div>
 

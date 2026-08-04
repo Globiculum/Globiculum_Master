@@ -17,7 +17,10 @@ interface EducationHistoryListProps {
   currentGrade?: string;
 }
 
-const COUNTRIES = ["India", "United States", "Canada", "United Kingdom", "Australia", "Singapore", "UAE", "Malaysia", "Other"];
+// Every entry here is a school attended in India (this list only renders once the
+// user confirms prior schooling in India), so Country isn't a real choice — it's
+// fixed to keep the row shape consistent with a single always-selected value.
+const COUNTRIES = ["India"];
 const CURRICULA = ["CBSE", "ICSE", "IB", "Cambridge", "State Board", "US Common Core", "Other"];
 
 const getGradeOptions = (currentGrade?: string) => {
@@ -25,7 +28,7 @@ const getGradeOptions = (currentGrade?: string) => {
   return Array.from({ length: Math.max(max, 1) }, (_, i) => String(i + 1));
 };
 
-const EMPTY_ENTRY: EducationHistoryEntry = { fromGrade: "", toGrade: "", country: "", curriculum: "" };
+const EMPTY_ENTRY: EducationHistoryEntry = { fromGrade: "", toGrade: "", country: "India", curriculum: "" };
 
 // Parent-only repeatable section — each row captures a prior schooling
 // stretch (From Grade / To Grade / Country / Curriculum). Composed entirely

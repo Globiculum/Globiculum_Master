@@ -34,7 +34,12 @@ const SectionContainer = ({ icon: Icon, title, description, children, className,
       </h3>
       {description && <InfoTooltip description={description} />}
     </div>
-    <div className={cn(error && "rounded-xl ring-2 ring-destructive/60 ring-offset-2 ring-offset-background transition-shadow duration-200")}>
+    <div
+      className={cn(
+        "space-y-4",
+        error && "rounded-xl ring-2 ring-destructive/60 ring-offset-2 ring-offset-background transition-shadow duration-200"
+      )}
+    >
       {children}
     </div>
     <FieldError message={error} />

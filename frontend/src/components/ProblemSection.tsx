@@ -34,20 +34,13 @@ const ProblemSection = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-white/85 font-medium">
-                  Master the depth and rigor of Indian education systems. A foundation built for academic excellence and cultural rootedness.
+                  Academic excellence rooted in Indian curriculum rigor.
                 </p>
-                <div className="space-y-3">
-                  {[
-                    { title: "CBSE & ICSE Excellence", desc: "Deep conceptual mastery, not just exam readiness" },
-                    { title: "Mathematical Rigour", desc: "Advanced computation and analytical reasoning" },
-                    { title: "Cultural & Language Foundation", desc: "Language proficiency and cultural context" },
-                  ].map((item) => (
-                    <div key={item.title} className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-white rounded-full mt-2" />
-                      <div>
-                        <h4 className="font-semibold text-white">{item.title}</h4>
-                        <p className="text-sm text-white/80">{item.desc}</p>
-                      </div>
+                <div className="space-y-2.5">
+                  {["CBSE & ICSE Excellence", "Mathematical Rigour", "Cultural & Language Foundation"].map((title) => (
+                    <div key={title} className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-white rounded-full shrink-0" />
+                      <h4 className="font-semibold text-white">{title}</h4>
                     </div>
                   ))}
                 </div>
@@ -90,20 +83,13 @@ const ProblemSection = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-white/85 font-medium">
-                  Maintain global curriculum flexibility and competitive edge. Equip your child for international admissions and global careers.
+                  Global-ready skills for international admissions and careers.
                 </p>
-                <div className="space-y-3">
-                  {[
-                    { title: "University Entrance Test / AP Preparation", desc: "Strategic readiness for global college admissions success" },
-                    { title: "Critical Thinking & Creativity", desc: "Project-based, inquiry-led learning approaches" },
-                    { title: "Global Competitiveness", desc: "Skills that travel, whichever country they live in next" },
-                  ].map((item) => (
-                    <div key={item.title} className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-white rounded-full mt-2" />
-                      <div>
-                        <h4 className="font-semibold text-white">{item.title}</h4>
-                        <p className="text-sm text-white/80">{item.desc}</p>
-                      </div>
+                <div className="space-y-2.5">
+                  {["University Entrance Test / AP Preparation", "Critical Thinking & Creativity", "Global Competitiveness"].map((title) => (
+                    <div key={title} className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-white rounded-full shrink-0" />
+                      <h4 className="font-semibold text-white">{title}</h4>
                     </div>
                   ))}
                 </div>
