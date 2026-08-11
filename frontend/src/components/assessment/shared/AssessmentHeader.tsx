@@ -52,7 +52,7 @@ const AssessmentHeader = ({
     >
       {title}
     </motion.h1>
-    <p className="mt-2 text-body text-muted-foreground">{subtitle}</p>
+    <p className="font-body mt-2 text-body text-muted-foreground">{subtitle}</p>
   </div>
 );
 

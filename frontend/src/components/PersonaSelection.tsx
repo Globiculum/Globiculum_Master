@@ -96,7 +96,7 @@ const PersonaSelection = ({ onContinue, onSelectionChange }: PersonaSelectionPro
         <PersonaCTAButton disabled={!selected} onClick={() => selected && onContinue(selected)}>
           Continue
         </PersonaCTAButton>
-        <p className="text-caption text-muted-foreground">We personalize everything based on your choice.</p>
+        <p className="font-body text-caption text-white/70">We personalize everything based on your choice.</p>
       </motion.div>
     </motion.div>
   );
