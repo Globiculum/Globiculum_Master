@@ -32,7 +32,6 @@ const NAV_LINKS = [
   { href: "/about", label: "About" },
   { href: "/begin-journey", label: "Begin Journey" },
   { href: "/reports", label: "My Reports" },
-  { href: "/our-advantage", label: "Our Advantage" },
   { href: "/pricing", label: "Pricing" },
 ];
 
