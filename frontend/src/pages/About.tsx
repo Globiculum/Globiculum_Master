@@ -3,7 +3,7 @@ import Footer from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Users, Target, Heart, Globe, Brain, Route, BookOpen, MessageCircle, Trophy, User, type LucideIcon } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import aboutHeroImage from "@/assets/about-page.png";
+import bgAboutImage from "@/assets/BG-ABOUT.png";
 
 interface AboutValue {
   icon: typeof Heart;
@@ -123,17 +123,17 @@ const AboutValueCard = ({ value }: { value: AboutValue }) => {
       <motion.div
         whileHover={shouldReduceMotion ? undefined : { y: -3 }}
         transition={{ type: "spring", stiffness: 300, damping: 24 }}
-        className="relative flex h-full items-start gap-2.5 rounded-xl border border-white/12 bg-primary/25 p-3 backdrop-blur-md transition-colors duration-300 group-hover:bg-primary/20 sm:p-3.5"
+        className="relative flex h-full min-h-[168px] flex-col items-start gap-3 rounded-xl border border-white/12 bg-primary/25 p-4 backdrop-blur-md transition-colors duration-300 group-hover:bg-primary/20 sm:p-5"
       >
         <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
           style={{ backgroundColor: `${value.color}26` }}
         >
-          <Icon className="h-4 w-4" style={{ color: value.color }} aria-hidden="true" />
+          <Icon className="h-5 w-5" style={{ color: value.color }} aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <h3 className="text-[13px] font-bold leading-tight text-white sm:text-sm">{value.title}</h3>
-          <p className="mt-0.5 text-[11.5px] leading-snug text-white/65 sm:text-xs">{value.description}</p>
+          <h3 className="text-sm font-bold leading-tight text-white">{value.title}</h3>
+          <p className="font-body mt-1.5 text-xs leading-relaxed text-white/65">{value.description}</p>
         </div>
       </motion.div>
     </motion.div>
@@ -172,7 +172,7 @@ const AdvantageFeatureCard = ({ feature }: { feature: AdvantageFeature }) => {
         </div>
 
         <h3 className="relative mb-2 text-lg font-bold text-foreground">{feature.title}</h3>
-        <p className="relative text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
+        <p className="font-body relative text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
       </motion.div>
     </motion.div>
   );
@@ -183,88 +183,73 @@ const About = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="relative overflow-hidden bg-gradient-hero py-10 sm:py-12 md:py-16">
-        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
+      <section className="relative overflow-hidden bg-primary">
+        <img
+          src={bgAboutImage}
+          alt="A family walking a glowing bridge that connects U.S. education to Indian education, moving from uncertainty toward a confident future"
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-primary via-primary/55 to-primary/15" />
 
-        <div className="container relative mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6">
-            {/* LEFT: intro + mission + values, all left-aligned and compact */}
-            <motion.div
-              className="text-center lg:text-left"
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.4 }}
-              variants={staggerContainer}
+        <div className="container relative mx-auto flex min-h-[600px] flex-col justify-center px-4 py-12 sm:min-h-[680px] sm:px-6 sm:py-14 lg:min-h-[760px] lg:py-16">
+          <motion.div
+            className="max-w-xl text-center lg:text-left"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.4 }}
+            variants={staggerContainer}
+          >
+            <motion.span
+              variants={fadeUp}
+              className="mb-4 inline-block rounded-full bg-accent px-5 py-2 text-sm font-bold uppercase tracking-wide text-accent-foreground shadow-[0_8px_24px_-8px_rgba(245,158,11,0.55)] sm:text-base"
+              style={{ letterSpacing: "1px" }}
             >
-              <motion.span
-                variants={fadeUp}
-                className="mb-4 inline-block rounded-full bg-accent px-5 py-2 text-sm font-bold uppercase tracking-wide text-accent-foreground shadow-[0_8px_24px_-8px_rgba(245,158,11,0.55)] sm:text-base"
-                style={{ letterSpacing: "1px" }}
-              >
-                Our Story
-              </motion.span>
+              Our Story
+            </motion.span>
 
-              <motion.h1
-                variants={fadeUp}
-                className="text-[28px] font-extrabold leading-tight text-white sm:text-[34px] md:text-[38px]"
-              >
-                About <span className="bg-gradient-mint bg-clip-text text-transparent">Globiculum</span>
-              </motion.h1>
-
-              <motion.p
-                variants={fadeUp}
-                className="mx-auto mt-3 max-w-lg text-[15px] leading-relaxed text-white/80 sm:text-base lg:mx-0"
-              >
-                Bridging educational worlds for Indian migrant families, one student at a time.
-              </motion.p>
-
-              {/* Mission — left-aligned, no boxed card, blends straight into the section */}
-              <motion.div
-                variants={fadeUp}
-                className="mx-auto mt-6 max-w-lg border-l-2 border-mint/50 pl-4 text-left sm:mt-7 lg:mx-0"
-              >
-                <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[2px] text-mint">
-                  <Target className="h-3.5 w-3.5" aria-hidden="true" />
-                  Our Mission
-                </p>
-                <p className="text-[15px] font-bold leading-relaxed text-white/95 sm:text-base">
-                  Empowering Indian migrant families to bridge two education systems — with confidence, not confusion.
-                </p>
-              </motion.div>
-
-              {/* Values — compact, horizontally aligned; full column width on desktop so the
-                  cards get enough room per-column and don't wrap into cramped, uneven shapes */}
-              <motion.div
-                variants={fadeUp}
-                className="mx-auto mt-6 grid max-w-lg grid-cols-1 gap-3 sm:mt-7 sm:grid-cols-3 lg:mx-0 lg:max-w-none"
-              >
-                {ABOUT_VALUES.map((value) => (
-                  <AboutValueCard key={value.title} value={value} />
-                ))}
-              </motion.div>
-            </motion.div>
-
-            {/* RIGHT: large hero image, masked so it fades into the dark gradient instead of sitting in a card */}
-            <motion.div
-              className="relative mx-auto h-[320px] w-full max-w-md sm:h-[420px] lg:mx-0 lg:h-[560px] lg:max-w-none"
-              initial={{ opacity: 0, scale: 0.96 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            <motion.h1
+              variants={fadeUp}
+              className="text-[28px] font-extrabold leading-tight text-white sm:text-[34px] md:text-[38px]"
             >
-              <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-secondary/20 blur-3xl" />
-              <img
-                src={aboutHeroImage}
-                alt="A family walking a glowing bridge that connects U.S. education to Indian education, moving from uncertainty toward a confident future"
-                loading="lazy"
-                className="animate-hero-float h-full w-full object-cover object-[center_20%]"
-                style={{
-                  WebkitMaskImage: "radial-gradient(58% 58% at 50% 46%, black 58%, black 76%, transparent 100%)",
-                  maskImage: "radial-gradient(58% 58% at 50% 46%, black 58%, black 76%, transparent 100%)",
-                }}
-              />
+              About <span className="bg-gradient-mint bg-clip-text text-transparent">Globiculum</span>
+            </motion.h1>
+
+            <motion.p
+              variants={fadeUp}
+              className="font-body mx-auto mt-3 max-w-lg text-[15px] leading-relaxed text-white/80 sm:text-base lg:mx-0"
+            >
+              Bridging educational worlds for Indian migrant families, one student at a time.
+            </motion.p>
+
+            {/* Mission — left-aligned, no boxed card, blends straight into the section */}
+            <motion.div
+              variants={fadeUp}
+              className="mx-auto mt-6 max-w-lg border-l-2 border-mint/50 pl-4 text-left sm:mt-7 lg:mx-0"
+            >
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[2px] text-mint">
+                <Target className="h-3.5 w-3.5" aria-hidden="true" />
+                Our Mission
+              </p>
+              <p className="text-[15px] font-bold leading-relaxed text-white/95 sm:text-base">
+                Empowering Indian migrant families to bridge two education systems — with confidence, not confusion.
+              </p>
             </motion.div>
-          </div>
+          </motion.div>
+
+          {/* Values — wider and taller than the text column above so each card gets
+              real breathing room instead of cramming into a narrow, busy strip. */}
+          <motion.div
+            className="mx-auto mt-6 grid max-w-2xl grid-cols-1 gap-4 text-left sm:mt-7 sm:grid-cols-3 lg:mx-0"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.3 }}
+            variants={staggerContainer}
+          >
+            {ABOUT_VALUES.map((value) => (
+              <AboutValueCard key={value.title} value={value} />
+            ))}
+          </motion.div>
         </div>
       </section>
 
@@ -293,7 +278,7 @@ const About = () => {
               What Makes <span className="text-secondary">Globiculum</span> Unique
             </motion.h2>
 
-            <motion.p variants={fadeUp} className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+            <motion.p variants={fadeUp} className="font-body mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               Discover what makes Globiculum unique — AI precision meets human care for every learner's journey.
             </motion.p>
           </motion.div>

@@ -60,8 +60,8 @@ const PersonaCTAButton = ({ disabled, loading, onClick, children }: PersonaCTABu
       whileTap={isInteractive ? { scale: 0.97 } : undefined}
       transition={{ duration: 0.15, ease: "easeOut" }}
       className={cn(
-        "group relative gap-2 overflow-hidden rounded-full bg-gradient-cta px-10 py-6 text-base font-semibold shadow-medium",
-        "transition-shadow duration-200 hover:shadow-glow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "group relative gap-2 overflow-hidden rounded-full bg-accent px-10 py-6 text-base font-semibold text-accent-foreground shadow-lg shadow-accent/25",
+        "transition-all duration-200 hover:bg-accent/90 hover:shadow-xl hover:shadow-accent/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none"
       )}
     >

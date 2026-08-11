@@ -64,7 +64,7 @@ const QuestionCard = ({
           {tooltip && <InfoTooltip description={tooltip} />}
         </div>
       )}
-      {hint && <p className="text-caption text-muted-foreground">{hint}</p>}
+      {hint && <p className="font-body text-caption text-muted-foreground">{hint}</p>}
       <div
         className={cn(
           isInvalid && "rounded-xl ring-2 ring-destructive/60 ring-offset-2 ring-offset-background transition-shadow duration-200"

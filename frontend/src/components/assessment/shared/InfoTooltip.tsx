@@ -34,7 +34,7 @@ const InfoTooltip = ({ description }: InfoTooltipProps) => {
         side="top"
         align="start"
         sideOffset={8}
-        className="w-[260px] max-w-[280px] rounded-xl border-border bg-card p-3 text-sm leading-snug text-muted-foreground shadow-medium"
+        className="font-body w-[260px] max-w-[280px] rounded-xl border-border bg-card p-3 text-sm leading-snug text-muted-foreground shadow-medium"
       >
         {description}
       </PopoverContent>

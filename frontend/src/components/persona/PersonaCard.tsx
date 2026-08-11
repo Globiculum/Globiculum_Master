@@ -24,11 +24,17 @@ const ACCENT_STYLES = {
     iconWrap: "bg-gradient-to-br from-primary/12 to-primary/[0.04] border-primary/15",
     icon: "text-primary",
     border: "from-primary via-secondary to-primary",
+    // Selected state: solid dark-teal fill instead of the subtle resting tint.
+    selectedIconWrap: "bg-gradient-to-br from-secondary to-primary border-transparent",
+    selectedIcon: "text-white",
   },
   violet: {
     iconWrap: "bg-gradient-to-br from-violet/15 to-violet/[0.04] border-violet/15",
     icon: "text-violet",
     border: "from-violet via-secondary to-violet",
+    // Selected state: solid dark blue-violet fill, mirroring Parent's treatment.
+    selectedIconWrap: "bg-gradient-to-br from-violet to-primary border-transparent",
+    selectedIcon: "text-white",
   },
 } as const;
 
@@ -100,11 +106,16 @@ const PersonaCard = ({ icon: Icon, title, description, chips, accent, selected, 
         )}
 
         <motion.div
-          whileHover={{ rotate: 4, scale: 1.05 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border", styles.iconWrap)}
+          animate={{ scale: selected ? 1.15 : 1 }}
+          whileHover={{ rotate: 4, scale: selected ? 1.15 : 1.05 }}
+          transition={{ type: "spring", stiffness: 500, damping: 20 }}
+          className={cn(
+            "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border transition-colors duration-200",
+            selected ? styles.selectedIconWrap : styles.iconWrap,
+            selected && "shadow-glow-sm"
+          )}
         >
-          <Icon className={cn("h-6 w-6", styles.icon)} />
+          <Icon className={cn("h-6 w-6 transition-colors duration-200", selected ? styles.selectedIcon : styles.icon)} />
         </motion.div>
 
         <div className="min-w-0 flex-1 pr-6">
