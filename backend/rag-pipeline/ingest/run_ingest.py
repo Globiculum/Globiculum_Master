@@ -2,7 +2,7 @@
 Master ingestion runner.
 
 Usage:
-    # Full ingestion (NCERT + US CC + embeddings):
+    # Full ingestion (NCERT + US CC + NGSS + embeddings):
     python ingest/run_ingest.py
 
     # Only NCERT:
@@ -10,6 +10,9 @@ Usage:
 
     # Only US Common Core:
     python ingest/run_ingest.py --only us_cc
+
+    # Only NGSS (US Science):
+    python ingest/run_ingest.py --only ngss
 
     # Only generate embeddings (after nodes are already inserted):
     python ingest/run_ingest.py --only embeddings
@@ -39,8 +42,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--only",
-        choices=["ncert", "us_cc", "embeddings"],
-        help="Run only one step instead of all three.",
+        choices=["ncert", "us_cc", "ngss", "embeddings"],
+        help="Run only one step instead of all four.",
     )
     parser.add_argument(
         "--fresh",
@@ -54,7 +57,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--embed-only-curriculum",
-        choices=["ncert-cbse", "us-common-core"],
+        choices=["ncert-cbse", "us-common-core", "ngss"],
         help="When generating embeddings, restrict to this curriculum only.",
     )
     args = parser.parse_args()
@@ -64,8 +67,9 @@ def main() -> None:
     print("=" * 60)
 
     # Validate config before doing anything
+    will_run_embeddings = args.only in (None, "embeddings") and not args.no_embed
     try:
-        validate_config()
+        validate_config(require_embeddings=will_run_embeddings)
     except EnvironmentError as e:
         print(f"\n[ERROR] {e}")
         sys.exit(1)
@@ -74,6 +78,7 @@ def main() -> None:
 
     run_ncert     = args.only in (None, "ncert")
     run_us_cc     = args.only in (None, "us_cc")
+    run_ngss      = args.only in (None, "ngss")
     run_embeddings = args.only in (None, "embeddings") and not args.no_embed
 
     # ── Step 1: NCERT ─────────────────────────────────────────────────────────
@@ -86,7 +91,12 @@ def main() -> None:
         from ingest_us_cc import ingest_us_cc
         ingest_us_cc(fresh=args.fresh)
 
-    # ── Step 3: Generate embeddings ───────────────────────────────────────────
+    # ── Step 3: NGSS (US Science) ──────────────────────────────────────────────
+    if run_ngss:
+        from ingest_ngss import ingest_ngss
+        ingest_ngss(fresh=args.fresh)
+
+    # ── Step 4: Generate embeddings ───────────────────────────────────────────
     if run_embeddings:
         from generate_embeddings import generate_embeddings
         curricula = None

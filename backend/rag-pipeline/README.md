@@ -1,6 +1,6 @@
 # AcademiAlign — RAG Backend
 
-Python data ingestion pipeline for loading NCERT and US Common Core curriculum data into Supabase, then generating vector embeddings for semantic gap analysis.
+Python data ingestion pipeline for loading NCERT, US Common Core, and NGSS curriculum data into Supabase, then generating vector embeddings for semantic gap analysis.
 
 ---
 
@@ -17,6 +17,7 @@ rag-backend/
 └── ingest/
     ├── ingest_ncert.py       ← NCERT Excel → curriculum_nodes + edges
     ├── ingest_us_cc.py       ← US Common Core Excel → curriculum_nodes + edges
+    ├── ingest_ngss.py        ← NGSS Excel → curriculum_nodes (no edges — flat standards)
     ├── generate_embeddings.py← OpenAI embeddings → curriculum_embeddings
     └── run_ingest.py         ← Master runner (use this to run everything)
 ```
@@ -69,7 +70,8 @@ python ingest/run_ingest.py
 This runs in order:
 1. Ingest all NCERT files → `curriculum_nodes` + `curriculum_edges`
 2. Ingest US Common Core file → `curriculum_nodes` + `curriculum_edges`
-3. Generate embeddings for all new nodes → `curriculum_embeddings`
+3. Ingest NGSS file → `curriculum_nodes` (no edges — flat standards, no hierarchy in source data)
+4. Generate embeddings for all new nodes → `curriculum_embeddings`
 
 ### Partial runs
 
@@ -79,6 +81,9 @@ python ingest/run_ingest.py --only ncert
 
 # Only US Common Core
 python ingest/run_ingest.py --only us_cc
+
+# Only NGSS
+python ingest/run_ingest.py --only ngss
 
 # Only generate embeddings (after nodes are already inserted)
 python ingest/run_ingest.py --only embeddings
@@ -129,26 +134,59 @@ Edge          →  relationship_type='contains'  (parent_standard → child)
 
 `metadata.source_id` = `concept_id` column (e.g. `CC-ebfed4de`)
 
+### How NGSS maps to `curriculum_nodes`
+
+Each NGSS Excel row = 1 **performance expectation** (standard)
+
+```
+Standard row  →  node_type='standard',  curriculum_system='ngss'
+No edges — the source file has no parent/cluster hierarchy column
+(unlike US CC's "Parent Standard"), so NGSS nodes are flat.
+```
+
+`metadata.source_id` = `"NGSS-" + Standard Code` (e.g. `NGSS-K-2-ETS1-1`)
+
+Kept as a **separate `curriculum_system`** from `us-common-core` (not merged into
+it) because NGSS is a distinct standards framework covering Science only, while
+US Common Core covers Math + ELA. A student's "target: US" curriculum may need
+gap analysis against either or both depending on subject.
+
+Field gaps vs US Common Core (see full comparison in project memory / PR notes):
+- No `concept_id`, `embedding_text`, `Parent Standard`, `Cluster`, or
+  `Alt Standard Code` columns in the source file — `source_id` and
+  `embedding_text` are generated during ingestion/embedding instead.
+- `Sub-Topic`, `Depth Level`, `Difficulty Score`, `Estimated Hours`,
+  `Prerequisites`, `Has Prerequisites` columns exist in the sheet but are
+  100% empty for all 208 rows — read defensively but store as `None`/`False`.
+- `Domain Code` + `Domain Name` are actually richer than US CC's single
+  `Domain` column (split into a short code and full name).
+- No DB schema changes were needed — `curriculum_nodes.metadata` is `jsonb`,
+  so all NGSS-specific fields fit in the existing table.
+
 ### Embeddings
 
 Stored in `curriculum_embeddings` table:
-- 1536-dimensional vectors (matches `vector(1536)` column)
-- Model: `text-embedding-3-small` by default
+- 2048-dimensional vectors (matches `vector(2048)` column, see
+  `20260712000001_update_embedding_dims_2048.sql`)
+- Model: `nvidia/llama-nemotron-embed-vl-1b-v2:free` via OpenRouter (free tier)
 - NCERT chapters:  `"NCERT Class 6 — Mathematics — Chapter: Fractions — …"`
 - NCERT subtopics: `"NCERT Class 6 — Mathematics — Chapter: Fractions — Topic: Unit fractions"`
 - US CC standards: uses the pre-built `embedding_text` column from the dataset
+- NGSS standards:  `"NGSS - Grade - Domain - Standard: <code> - Description - Clarification"`
 
 ---
 
-## Expected counts (approximate)
+## Expected counts (approximate, as of last ingestion run)
 
-| Curriculum | Chapters/Standards | Subtopics | Total nodes |
-|---|---|---|---|
-| NCERT (Classes 1–12) | ~600 | ~6,000 | ~6,600 |
-| US Common Core (Math + ELA) | ~3,500 | — | ~3,500 |
-| **Total** | | | **~10,100** |
+| Curriculum | Node count | Notes |
+|---|---|---|
+| NCERT (Classes 1–12) | 9,244 | 1,245 chapters (`topic`) + 7,999 subtopics (`learning_outcome`) |
+| US Common Core (Math + ELA) | 1,385 | all `standard` nodes |
+| NGSS (Science, K–12) | 208 | all `standard` nodes, flat (no edges) |
+| **Total** | **10,837** | |
 
-Embedding cost (text-embedding-3-small): **< $0.05** for the full corpus.
+Embedding cost: free tier (OpenRouter Nemotron embeddings), rate-limited to
+~20 req/min — see `EMBEDDING_BATCH_SIZE` in `config.py`.
 
 ---
 

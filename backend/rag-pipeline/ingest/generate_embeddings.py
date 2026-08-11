@@ -7,6 +7,7 @@ Embedding text strategy per node_type:
   NCERT subtopic  (learning_outcome) -> "Class N - Subject - Parent Chapter - Subtopic text"
   US CC standard  (standard)         -> uses pre-built metadata.embedding_text if present,
                                         otherwise "Subject - Domain - Cluster - Description - Comments"
+  NGSS standard   (standard)         -> "NGSS - Grade - Domain - Standard Code - Description - Clarification"
 
 Model: nvidia/llama-nemotron-embed-vl-1b-v2:free via OpenRouter (2048 dims) - FREE tier.
 Rate:  ~20 req/min, ~200 req/day on free tier. Script resumes from last checkpoint.
@@ -30,6 +31,7 @@ from config import (
     INSERT_BATCH_SIZE,
     CURRICULUM_NCERT,
     CURRICULUM_US_CC,
+    CURRICULUM_NGSS,
 )
 from db.supabase_client import get_client
 
@@ -94,6 +96,21 @@ def _build_embedding_text(node: dict) -> str:
                 f"Topic: {name}",
             ]
 
+        return " - ".join(p for p in parts if p).strip()
+
+    elif curriculum == CURRICULUM_NGSS:
+        grade = meta.get("grade") or ""
+        domain = meta.get("domain") or ""
+        standard_code = meta.get("standard_code") or ""
+        clarification = meta.get("comments_examples") or ""
+        parts = [
+            "NGSS",
+            grade,
+            domain,
+            f"Standard: {standard_code}" if standard_code else "",
+            description,
+            clarification[:200] if clarification else "",
+        ]
         return " - ".join(p for p in parts if p).strip()
 
     else:

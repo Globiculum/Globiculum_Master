@@ -213,6 +213,10 @@ const CURRICULUM_DB_REGISTRY: Record<string, { dbSystem: string; nodeType: strin
   'common_core':    { dbSystem: 'us-common-core', nodeType: 'standard' },
   'us-common-core': { dbSystem: 'us-common-core', nodeType: 'standard' },
   'us':             { dbSystem: 'us-common-core', nodeType: 'standard' },
+  // NGSS (US Science) — Common Core only covers Math/ELA, merged in alongside
+  // 'us-common-core' inside runAlignmentRAG below.
+  'ngss':           { dbSystem: 'ngss',           nodeType: 'standard' },
+  'science':        { dbSystem: 'ngss',           nodeType: 'standard' },
   // 'ib-myp':      { dbSystem: 'ib-myp',          nodeType: 'objective' },
   // 'cambridge':   { dbSystem: 'cambridge-igcse',  nodeType: 'topic'    },
 };
@@ -289,23 +293,41 @@ async function runAlignmentRAG(
   const gradeMin = Math.max(1, gradeLevel - 1);
   const gradeMax = Math.min(12, gradeLevel + 1);
 
-  const { data: rawData, error } = await logger.measureRetrieval(
+  const baseParams = {
+    source_curriculum: sourceEntry.dbSystem,
+    target_curriculum: targetEntry.dbSystem,
+    grade_min: gradeMin,
+    grade_max: gradeMax,
+    similarity_threshold: 0.0,                    // fetch ALL; percentile applied below
+    result_limit: 300,
+    source_node_type: sourceEntry.nodeType,        // curriculum-specific
+    target_node_type_filter: targetEntry.nodeType, // curriculum-specific
+  };
+
+  const { data: primaryData, error } = await logger.measureRetrieval(
     'find_curriculum_gaps_rag',
-    async () => supabase.rpc('find_curriculum_gaps_rag', {
-      source_curriculum: sourceEntry.dbSystem,
-      target_curriculum: targetEntry.dbSystem,
-      grade_min: gradeMin,
-      grade_max: gradeMax,
-      similarity_threshold: 0.0,                    // fetch ALL; percentile applied below
-      result_limit: 300,
-      source_node_type: sourceEntry.nodeType,        // curriculum-specific
-      target_node_type_filter: targetEntry.nodeType, // curriculum-specific
-    })
+    async () => supabase.rpc('find_curriculum_gaps_rag', baseParams)
   );
 
-  if (error || !rawData || rawData.length === 0) {
+  if (error || !primaryData || primaryData.length === 0) {
     logger.warn('RAG data unavailable', { error: error?.message });
     return buildEstimatedAlignment(sourceEntry.dbSystem, targetEntry.dbSystem, gradeLevel, ['math', 'english', 'science']);
+  }
+
+  // US Common Core only covers Math/ELA — merge in NGSS (Science) gaps so a
+  // "us-common-core" target also reflects Science alignment.
+  let rawData: any[] = primaryData;
+  if (targetEntry.dbSystem === 'us-common-core') {
+    const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
+    const { data: ngssData, error: ngssError } = await logger.measureRetrieval(
+      'find_curriculum_gaps_rag:ngss',
+      async () => supabase.rpc('find_curriculum_gaps_rag', { ...baseParams, target_curriculum: ngssEntry.dbSystem, target_node_type_filter: ngssEntry.nodeType })
+    );
+    if (ngssError) {
+      logger.warn('NGSS RAG merge error (non-fatal)', { error: ngssError.message });
+    } else if (ngssData && ngssData.length > 0) {
+      rawData = [...rawData, ...ngssData];
+    }
   }
 
   // ── Adaptive percentile classification ─────────────────────────────────

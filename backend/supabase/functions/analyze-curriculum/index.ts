@@ -61,6 +61,10 @@ const CURRICULUM_DB_REGISTRY: Record<string, CurriculumEntry> = {
   'common_core':   { dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Common Core' },
   'us-common-core':{ dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Common Core' },
   'us':            { dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Common Core' },
+  // ── NGSS (US Science) — Common Core only covers Math/ELA, so this is a
+  // separate standards framework merged in alongside 'us-common-core' below.
+  'ngss':          { dbSystem: 'ngss',           nodeType: 'standard', label: 'US NGSS (Science)' },
+  'science':       { dbSystem: 'ngss',           nodeType: 'standard', label: 'US NGSS (Science)' },
   // ── Future curricula (uncomment when ingested into DB) ─────────────────
   // 'ib-myp':     { dbSystem: 'ib-myp',            nodeType: 'objective', label: 'IB MYP' },
   // 'cambridge':  { dbSystem: 'cambridge-igcse',    nodeType: 'topic',    label: 'Cambridge IGCSE' },
@@ -818,10 +822,33 @@ serve(async (req) => {
         };
         addDebug('rag_rpc_params', 'Calling find_curriculum_gaps_rag', rpcParams);
 
-        const { data: rawGaps, error: rpcError } = await logger.measureRetrieval(
+        const { data: primaryGaps, error: rpcError } = await logger.measureRetrieval(
           'find_curriculum_gaps_rag',
           async () => supabase.rpc('find_curriculum_gaps_rag', rpcParams)
         );
+
+        // ── Merge in secondary target curricula ──────────────────────────────
+        // US Common Core only covers Math/ELA. When the resolved target is
+        // 'us-common-core', also pull NGSS (Science) gaps and merge them in so
+        // the combined "US" target includes Science. Both use node_type
+        // 'standard', so the existing filtering/classification logic below
+        // works unchanged on the merged set.
+        let rawGaps: GapNode[] = primaryGaps || [];
+        if (!rpcError && targetEntry.dbSystem === 'us-common-core') {
+          const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
+          const ngssParams = { ...rpcParams, target_curriculum: ngssEntry.dbSystem, target_node_type_filter: ngssEntry.nodeType };
+          const { data: ngssGaps, error: ngssError } = await logger.measureRetrieval(
+            'find_curriculum_gaps_rag:ngss',
+            async () => supabase.rpc('find_curriculum_gaps_rag', ngssParams)
+          );
+          if (ngssError) {
+            logger.warn('NGSS RAG merge error (non-fatal)', { error: ngssError.message });
+            addDebug('rag_ngss_merge_error', 'find_curriculum_gaps_rag failed for ngss', { error: ngssError.message });
+          } else if (ngssGaps && ngssGaps.length > 0) {
+            addDebug('rag_ngss_merge', 'Merged NGSS (Science) gap rows into target set', { ngssRowCount: ngssGaps.length });
+            rawGaps = [...rawGaps, ...ngssGaps];
+          }
+        }
 
         if (rpcError) {
           logger.warn('RAG RPC error (non-fatal, using LLM fallback)', { error: rpcError.message });
