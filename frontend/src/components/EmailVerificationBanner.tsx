@@ -68,10 +68,11 @@ const EmailVerificationBanner = ({ user }: EmailVerificationBannerProps) => {
         size="icon"
         className="absolute right-2 top-2 h-6 w-6"
         onClick={() => setDismissed(true)}
+        aria-label="Dismiss"
       >
-        <X className="h-4 w-4" />
+        <X className="h-4 w-4" aria-hidden="true" />
       </Button>
-      <AlertTriangle className="h-4 w-4 text-warning" />
+      <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
       <AlertTitle className="text-warning">Email Not Verified</AlertTitle>
       <AlertDescription className="text-warning/80">
         <p className="mb-3">

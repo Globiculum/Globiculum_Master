@@ -183,10 +183,10 @@ const About = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="relative overflow-hidden bg-primary">
+      <section id="main-content" tabIndex={-1} className="relative overflow-hidden bg-primary outline-none">
         <img
           src={bgAboutImage}
-          alt="A family walking a glowing bridge that connects U.S. education to Indian education, moving from uncertainty toward a confident future"
+          alt=""
           aria-hidden="true"
           className="absolute inset-0 h-full w-full object-cover"
         />

@@ -11,7 +11,7 @@ const STATS = [
 
 const HeroSection = () => {
   return (
-    <section className="bg-primary relative overflow-hidden">
+    <section id="main-content" tabIndex={-1} className="bg-primary relative overflow-hidden outline-none">
       {/* Hero band — the image (with its own baked-in badges) is sized only to this
           band, not the whole section, so it never has to stretch/crop to also cover
           the stats strip below. That's what was pushing the badges into collision

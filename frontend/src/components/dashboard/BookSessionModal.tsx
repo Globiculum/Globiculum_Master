@@ -116,9 +116,9 @@ const BookSessionModal = ({ open, onOpenChange, gapSubjects = [], onBooked }: Bo
         <div className="space-y-5 pt-2">
           {/* Subject */}
           <div className="space-y-2">
-            <Label>Subject *</Label>
+            <Label htmlFor="book-session-subject">Subject *</Label>
             <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger>
+              <SelectTrigger id="book-session-subject">
                 <SelectValue placeholder="Choose a subject" />
               </SelectTrigger>
               <SelectContent>
@@ -136,9 +136,9 @@ const BookSessionModal = ({ open, onOpenChange, gapSubjects = [], onBooked }: Bo
 
           {/* Session Type */}
           <div className="space-y-2">
-            <Label>Session Type *</Label>
+            <Label htmlFor="book-session-type">Session Type *</Label>
             <Select value={sessionType} onValueChange={setSessionType}>
-              <SelectTrigger>
+              <SelectTrigger id="book-session-type">
                 <SelectValue placeholder="Choose session type" />
               </SelectTrigger>
               <SelectContent>
@@ -156,17 +156,18 @@ const BookSessionModal = ({ open, onOpenChange, gapSubjects = [], onBooked }: Bo
 
           {/* Date */}
           <div className="space-y-2">
-            <Label>Date *</Label>
+            <Label id="book-session-date-label">Date *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
+                  aria-describedby="book-session-date-label"
                   className={cn(
                     "w-full justify-start text-left font-normal",
                     !date && "text-muted-foreground"
                   )}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  <CalendarIcon className="mr-2 h-4 w-4" aria-hidden="true" />
                   {date ? format(date, "PPP") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
@@ -185,9 +186,9 @@ const BookSessionModal = ({ open, onOpenChange, gapSubjects = [], onBooked }: Bo
 
           {/* Time */}
           <div className="space-y-2">
-            <Label>Time Slot *</Label>
+            <Label htmlFor="book-session-time">Time Slot *</Label>
             <Select value={time} onValueChange={setTime}>
-              <SelectTrigger>
+              <SelectTrigger id="book-session-time">
                 <SelectValue placeholder="Choose a time" />
               </SelectTrigger>
               <SelectContent>
@@ -202,8 +203,9 @@ const BookSessionModal = ({ open, onOpenChange, gapSubjects = [], onBooked }: Bo
 
           {/* Notes */}
           <div className="space-y-2">
-            <Label>Notes (optional)</Label>
+            <Label htmlFor="book-session-notes">Notes (optional)</Label>
             <Textarea
+              id="book-session-notes"
               placeholder="Any specific topics or questions you'd like to cover..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -218,7 +220,7 @@ const BookSessionModal = ({ open, onOpenChange, gapSubjects = [], onBooked }: Bo
           >
             {saving ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                 Booking...
               </>
             ) : (

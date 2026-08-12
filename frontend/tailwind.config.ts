@@ -47,6 +47,7 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
           light: "hsl(var(--accent-light))",
+          contrast: "hsl(var(--accent-contrast))",
         },
         mint: {
           DEFAULT: "hsl(var(--mint))",

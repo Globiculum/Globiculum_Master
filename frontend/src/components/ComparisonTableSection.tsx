@@ -98,7 +98,7 @@ const ComparisonTableSection = () => {
                     </span>
                     <span role="cell" className="flex justify-center">
                       {row.others === "partial" ? (
-                        <span className="text-xs font-semibold uppercase tracking-wide text-accent" aria-label="Partial">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-accent-contrast" aria-label="Partial">
                           Partial
                         </span>
                       ) : (

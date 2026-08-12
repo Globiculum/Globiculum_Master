@@ -87,8 +87,9 @@ const GuardianDashboard = ({ studentUserId, studentName }: GuardianDashboardProp
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div role="status" aria-live="polite" className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" aria-hidden="true" />
+        <span className="sr-only">Loading progress…</span>
       </div>
     );
   }
@@ -99,9 +100,9 @@ const GuardianDashboard = ({ studentUserId, studentName }: GuardianDashboardProp
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Eye className="h-6 w-6 text-primary" />
-            <h2 className="text-3xl font-bold">
+            <h1 className="text-3xl font-bold">
               <span className="text-primary">{studentName}</span>'s Progress
-            </h2>
+            </h1>
           </div>
           <p className="text-muted-foreground">Read-only view of educational progress and assessments</p>
         </div>

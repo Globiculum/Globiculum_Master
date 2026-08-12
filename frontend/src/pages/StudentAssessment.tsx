@@ -23,7 +23,7 @@ const StudentAssessment = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="py-10 md:py-16">
+      <section id="main-content" tabIndex={-1} className="py-10 outline-none md:py-16">
         <div className="container mx-auto px-4">
           <StudentAssessmentController
             prefillData={prefillFormData}

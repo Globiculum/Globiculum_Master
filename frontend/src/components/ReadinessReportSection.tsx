@@ -96,20 +96,21 @@ const ReadinessReportSection = () => {
               Transition Readiness Report
             </h3>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={zoomOut} disabled={scale <= 0.5}>
-                <ZoomOut className="h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={zoomOut} disabled={scale <= 0.5} aria-label="Zoom out">
+                <ZoomOut className="h-4 w-4" aria-hidden="true" />
               </Button>
               <button
                 onClick={resetZoom}
+                aria-label={`Reset zoom, currently ${Math.round(scale * 100)} percent`}
                 className="text-sm text-muted-foreground hover:text-foreground min-w-[4rem] text-center"
               >
                 {Math.round(scale * 100)}%
               </button>
-              <Button variant="outline" size="sm" onClick={zoomIn} disabled={scale >= 3}>
-                <ZoomIn className="h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={zoomIn} disabled={scale >= 3} aria-label="Zoom in">
+                <ZoomIn className="h-4 w-4" aria-hidden="true" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(false)}>
-                <X className="h-5 w-5" />
+              <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(false)} aria-label="Close fullscreen view">
+                <X className="h-5 w-5" aria-hidden="true" />
               </Button>
             </div>
           </div>

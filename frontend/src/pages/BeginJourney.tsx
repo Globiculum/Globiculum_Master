@@ -79,7 +79,12 @@ const BeginJourney = () => {
       <Header />
 
       <section
-        className={cn("relative overflow-hidden", showPersonaStep ? "bg-primary" : "bg-gradient-subtle py-8 md:py-12")}
+        id="main-content"
+        tabIndex={-1}
+        className={cn(
+          "relative overflow-hidden outline-none",
+          showPersonaStep ? "bg-primary" : "bg-gradient-subtle py-8 md:py-12"
+        )}
       >
         {showPersonaStep && (
           <>

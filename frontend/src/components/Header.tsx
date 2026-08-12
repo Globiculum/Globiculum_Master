@@ -163,8 +163,17 @@ const Header = ({ children }: HeaderProps = {}) => {
 
   return (
     <header className="bg-primary border-b border-primary-glow sticky top-0 z-50">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-accent-foreground focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <a href="/" className="flex items-center space-x-2">
+        <a
+          href="/"
+          className="flex items-center space-x-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
+        >
           <img
             src={globiculumLogo}
             alt="Globiculum"
@@ -177,7 +186,7 @@ const Header = ({ children }: HeaderProps = {}) => {
             <a
               key={link.href}
               href={link.href}
-              className="text-primary-foreground/80 hover:text-secondary transition-colors font-medium"
+              className="rounded-sm text-primary-foreground/80 hover:text-secondary transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
             >
               {link.label}
             </a>
@@ -191,8 +200,9 @@ const Header = ({ children }: HeaderProps = {}) => {
               size="icon"
               className="relative text-primary-foreground hover:bg-primary-foreground/10"
               onClick={() => navigate("/dashboard")}
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
             >
-              <Bell className="h-5 w-5" />
+              <Bell className="h-5 w-5" aria-hidden="true" />
               {unreadCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground px-1">
                   {unreadCount > 99 ? "99+" : unreadCount}
@@ -208,8 +218,9 @@ const Header = ({ children }: HeaderProps = {}) => {
                 variant="ghost"
                 size="icon"
                 className="md:hidden text-primary-foreground hover:bg-primary-foreground/10"
+                aria-label="Open menu"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-5 w-5" aria-hidden="true" />
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[280px] bg-primary border-l-primary-glow">
@@ -224,7 +235,7 @@ const Header = ({ children }: HeaderProps = {}) => {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="block px-3 py-3 rounded-md text-primary-foreground/80 hover:text-secondary hover:bg-primary-foreground/10 transition-colors font-medium"
+                    className="block px-3 py-3 rounded-md text-primary-foreground/80 hover:text-secondary hover:bg-primary-foreground/10 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
                   >
                     {link.label}
                   </a>
