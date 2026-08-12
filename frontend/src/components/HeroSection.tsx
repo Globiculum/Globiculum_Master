@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, GraduationCap, Globe, ShieldCheck, Zap } from "lucide-react";
-import heroChild from "@/assets/family_hero image.jpeg";
+import bgHeroImage from "@/assets/bg-hero-image.png";
 
 const STATS = [
   { icon: GraduationCap, value: "25+", label: "Families interviewed", color: "hsl(var(--mint))" },
@@ -11,12 +11,23 @@ const STATS = [
 
 const HeroSection = () => {
   return (
-    <section className="py-12 sm:py-16 md:py-28 bg-gradient-hero relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
+    <section id="main-content" tabIndex={-1} className="bg-primary relative overflow-hidden outline-none">
+      {/* Hero band — the image (with its own baked-in badges) is sized only to this
+          band, not the whole section, so it never has to stretch/crop to also cover
+          the stats strip below. That's what was pushing the badges into collision
+          with the real stats row. */}
+      <div className="relative overflow-hidden py-12 sm:py-16 md:py-28">
+        <img
+          src={bgHeroImage}
+          alt=""
+          role="presentation"
+          loading="eager"
+          className="absolute inset-0 h-full w-full object-cover object-[80%_38%]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/70 to-primary/10" />
 
-      <div className="container mx-auto px-4 sm:px-6 relative">
-        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.35fr_1fr] lg:gap-8">
-          <div className="max-w-4xl space-y-6 sm:space-y-8">
+        <div className="container relative mx-auto px-4 sm:px-6">
+          <div className="max-w-2xl space-y-6 sm:space-y-8">
             <div className="space-y-4 sm:space-y-6">
               <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-[1.08] text-primary-foreground text-left">
                 <span className="text-primary-foreground">Moving back</span>
@@ -56,40 +67,13 @@ const HeroSection = () => {
               </Button>
             </div>
           </div>
-
-          {/* Hero image — decorative, presentational only */}
-          <div className="flex justify-center lg:justify-end">
-            <div className="relative w-[95%] sm:w-[85%] lg:w-full lg:max-w-2xl">
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -z-10 scale-125"
-                style={{
-                  background:
-                    "radial-gradient(circle at center, hsl(var(--secondary) / 0.28) 0%, hsl(var(--secondary) / 0.12) 35%, transparent 75%)",
-                }}
-              />
-
-              <img
-                src={heroChild}
-                alt=""
-                role="presentation"
-                loading="lazy"
-                className="relative mx-auto w-full select-none animate-hero-float"
-                style={{
-                  objectFit: "contain",
-                  WebkitMaskImage:
-                    "radial-gradient(circle, rgba(0,0,0,1) 38%, rgba(0,0,0,0.85) 52%, rgba(0,0,0,0.4) 68%, transparent 88%)",
-                  maskImage:
-                    "radial-gradient(circle, rgba(0,0,0,1) 38%, rgba(0,0,0,0.85) 52%, rgba(0,0,0,0.4) 68%, transparent 88%)",
-                  filter: "drop-shadow(0 35px 80px rgba(0,0,0,0.35)) contrast(1.05) saturate(1.05)",
-                }}
-              />
-            </div>
-          </div>
         </div>
+      </div>
 
-        {/* Trust stats — full-width strip beneath the two-column hero content */}
-        <div className="mt-12 border-t border-white/10 pt-8 sm:mt-16 sm:pt-10">
+      {/* Trust stats — separate band on plain background, below the image entirely
+          so it can never overlap the badges baked into the hero art above. */}
+      <div className="container relative mx-auto px-4 sm:px-6">
+        <div className="border-t border-white/10 py-8 sm:py-10">
           <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 sm:gap-y-0">
             {STATS.map((stat) => (
               <div

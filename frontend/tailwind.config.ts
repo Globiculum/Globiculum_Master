@@ -14,8 +14,11 @@ export default {
     },
     extend: {
       fontFamily: {
+        // Poppins: headings, nav, buttons, UI labels, metrics, card headings (site default).
         sans: ['Poppins', 'sans-serif'],
         heading: ['Poppins', 'sans-serif'],
+        // Carlito: body copy, descriptions, instructions, long-form/educational content.
+        body: ['Carlito', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -44,6 +47,7 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
           light: "hsl(var(--accent-light))",
+          contrast: "hsl(var(--accent-contrast))",
         },
         mint: {
           DEFAULT: "hsl(var(--mint))",

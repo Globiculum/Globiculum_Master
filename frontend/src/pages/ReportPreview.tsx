@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Header from "@/components/Header";
@@ -584,14 +584,14 @@ const ReportPreview = () => {
 
           {redirecting ? (
             <Card className="border border-border">
-              <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
+              <CardContent role="status" aria-live="polite" className="flex flex-col items-center justify-center py-16 space-y-4">
                 <div className="relative">
                   <div className="relative p-4 bg-muted rounded-full">
-                    <Loader2 className="h-10 w-10 text-muted-foreground animate-spin" />
+                    <Loader2 className="h-10 w-10 text-muted-foreground animate-spin" aria-hidden="true" />
                   </div>
                 </div>
                 <div className="text-center space-y-1">
-                  <h3 className="text-lg font-semibold">No Assessment Data Found</h3>
+                  <h1 className="text-lg font-semibold">No Assessment Data Found</h1>
                   <p className="text-sm text-muted-foreground max-w-sm">
                     Redirecting you to the assessment form...
                   </p>
@@ -606,7 +606,7 @@ const ReportPreview = () => {
                 <div className="p-3 bg-destructive/10 rounded-full">
                   <AlertTriangle className="h-10 w-10 text-destructive" />
                 </div>
-                <h3 className="text-lg font-semibold">Analysis Failed</h3>
+                <h1 className="text-lg font-semibold">Analysis Failed</h1>
                 <p className="text-sm text-muted-foreground text-center max-w-sm">{error}</p>
                 <Button onClick={() => window.location.reload()} size="sm">Try Again</Button>
               </CardContent>
@@ -621,11 +621,11 @@ const ReportPreview = () => {
                     <FileText className="h-8 w-8 text-primary" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl">
-                  {isIndiaReadinessGoal(formData.targetGoal) 
-                    ? "Your Transition Readiness Report" 
+                <h1 className="text-2xl font-semibold leading-none tracking-tight">
+                  {isIndiaReadinessGoal(formData.targetGoal)
+                    ? "Your Transition Readiness Report"
                     : "Your Curriculum Analysis Report"}
-                </CardTitle>
+                </h1>
                 <p className="text-sm text-muted-foreground">
                   AI-powered analysis based on your child's educational journey
                 </p>

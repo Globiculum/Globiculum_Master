@@ -18,6 +18,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import bgPricingImage from "@/assets/bg-pricing.png";
 
 const TRUST_BADGES = [
   { icon: Bot, label: "AI Powered" },
@@ -116,12 +117,12 @@ const FAQS = [
 
 const renderComparisonCell = (value: string | boolean) => {
   if (typeof value === "string") {
-    return <span className="text-sm font-medium text-foreground">{value}</span>;
+    return <span className="text-sm font-medium text-white/90">{value}</span>;
   }
   return value ? (
-    <Check className="mx-auto h-5 w-5 text-secondary" />
+    <Check className="mx-auto h-5 w-5 text-mint" />
   ) : (
-    <Minus className="mx-auto h-4 w-4 text-muted-foreground/40" />
+    <Minus className="mx-auto h-4 w-4 text-white/25" />
   );
 };
 
@@ -133,24 +134,22 @@ const PricingPage = () => {
       <Header />
 
       {/* SECTION 1 — HERO */}
-      <section className="relative overflow-hidden bg-background py-16 md:py-24">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-secondary/10 blur-3xl" />
-          <div className="absolute top-10 -right-24 h-80 w-80 rounded-full bg-violet/10 blur-3xl" />
-          <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-mint/20 blur-3xl" />
-        </div>
+      <section id="main-content" tabIndex={-1} className="relative overflow-hidden bg-primary py-16 outline-none md:py-24">
+        <img src={bgPricingImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
 
         <div className="container relative mx-auto px-4">
           <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-4 flex items-center justify-center gap-2">
-              <Sparkles className="h-4 w-4 text-secondary" />
-              <span className="text-sm font-semibold uppercase tracking-wide text-secondary">Pricing</span>
-            </div>
-            <h1 className="text-4xl font-bold leading-tight md:text-5xl">
-              Simple,{" "}
-              <span className="bg-gradient-cta bg-clip-text text-transparent">transparent pricing.</span>
+            <span
+              className="mb-6 inline-block rounded-full bg-accent px-6 py-2.5 text-base font-bold uppercase tracking-wide text-accent-foreground shadow-[0_8px_24px_-8px_rgba(245,158,11,0.55)] sm:text-lg"
+              style={{ letterSpacing: "1px" }}
+            >
+              Pricing
+            </span>
+            <h1 className="text-[28px] font-extrabold leading-tight text-white sm:text-[36px] md:text-[42px]">
+              Simple, <span className="bg-gradient-mint bg-clip-text text-transparent">transparent pricing.</span>
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
+            <p className="font-body mx-auto mt-4 max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">
               Start free and upgrade only when you're ready. Designed for parents, students, tutors and
               institutions.
             </p>
@@ -159,9 +158,9 @@ const PricingPage = () => {
               {TRUST_BADGES.map(({ icon: Icon, label }) => (
                 <span
                   key={label}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-card/80 px-4 py-1.5 text-sm font-medium text-muted-foreground shadow-soft backdrop-blur-sm"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm font-medium text-white/85 backdrop-blur-sm"
                 >
-                  <Icon className="h-3.5 w-3.5 text-secondary" />
+                  <Icon className="h-3.5 w-3.5 text-mint" aria-hidden="true" />
                   {label}
                 </span>
               ))}
@@ -194,7 +193,7 @@ const PricingPage = () => {
                   <h3 className={cn("text-xl font-bold", plan.featured ? "text-primary-foreground" : "text-foreground")}>
                     {plan.name}
                   </h3>
-                  <p className={cn("mt-1 text-sm", plan.featured ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                  <p className={cn("font-body mt-1 text-sm", plan.featured ? "text-primary-foreground/70" : "text-muted-foreground")}>
                     {plan.description}
                   </p>
                 </div>
@@ -240,31 +239,32 @@ const PricingPage = () => {
       </section>
 
       {/* SECTION 3 — FEATURE COMPARISON TABLE */}
-      <section className="py-16 md:py-24">
-        <div className="container mx-auto px-4">
+      <section className="relative overflow-hidden bg-gradient-hero py-16 md:py-24">
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
+        <div className="container relative mx-auto px-4">
           <div className="mx-auto mb-10 max-w-2xl text-center">
-            <h2 className="text-3xl font-bold md:text-4xl">
-              Compare <span className="text-secondary">plans</span>
+            <h2 className="text-3xl font-bold text-white md:text-4xl">
+              Compare <span className="bg-gradient-mint bg-clip-text text-transparent">plans</span>
             </h2>
-            <p className="mt-3 text-muted-foreground">Every feature, side by side.</p>
+            <p className="font-body mt-3 text-white/70">Every feature, side by side.</p>
           </div>
 
-          <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+          <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-white/15 bg-primary/25 shadow-strong backdrop-blur-md">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-sm font-semibold text-foreground">Feature</TableHead>
-                  <TableHead className="text-center text-sm font-semibold text-foreground">Free</TableHead>
-                  <TableHead className="text-center text-sm font-semibold text-secondary">Premium</TableHead>
-                  <TableHead className="text-center text-sm font-semibold text-foreground">Institution</TableHead>
+                <TableRow className="border-white/10 hover:bg-transparent">
+                  <TableHead className="text-sm font-semibold text-white">Feature</TableHead>
+                  <TableHead className="text-center text-sm font-semibold text-white">Free</TableHead>
+                  <TableHead className="text-center text-sm font-semibold text-mint">Premium</TableHead>
+                  <TableHead className="text-center text-sm font-semibold text-white">Institution</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {COMPARISON_ROWS.map((row) => (
-                  <TableRow key={row.label}>
-                    <TableCell className="text-sm font-medium text-foreground">{row.label}</TableCell>
+                  <TableRow key={row.label} className="border-white/10 hover:bg-white/5">
+                    <TableCell className="font-body text-sm font-medium text-white/90">{row.label}</TableCell>
                     <TableCell className="text-center">{renderComparisonCell(row.free)}</TableCell>
-                    <TableCell className="bg-secondary/5 text-center">{renderComparisonCell(row.premium)}</TableCell>
+                    <TableCell className="bg-white/5 text-center">{renderComparisonCell(row.premium)}</TableCell>
                     <TableCell className="text-center">{renderComparisonCell(row.institution)}</TableCell>
                   </TableRow>
                 ))}
@@ -290,7 +290,7 @@ const PricingPage = () => {
                   <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">
                     {faq.question}
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">{faq.answer}</AccordionContent>
+                  <AccordionContent className="font-body text-muted-foreground">{faq.answer}</AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
@@ -299,23 +299,20 @@ const PricingPage = () => {
       </section>
 
       {/* SECTION 5 — FINAL CTA */}
-      <section className="relative overflow-hidden bg-primary py-16 md:py-20">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-16 left-1/4 h-64 w-64 rounded-full bg-secondary/20 blur-3xl" />
-          <div className="absolute -bottom-16 right-1/4 h-64 w-64 rounded-full bg-violet/20 blur-3xl" />
-        </div>
+      <section className="relative overflow-hidden bg-gradient-hero py-16 md:py-20">
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
         <div className="container relative mx-auto px-4 text-center">
           <FileCheck className="mx-auto mb-4 h-10 w-10 text-mint" />
-          <h2 className="text-3xl font-bold text-primary-foreground md:text-4xl">
+          <h2 className="text-3xl font-bold text-white md:text-4xl">
             Ready to begin your curriculum journey?
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-primary-foreground/70">
+          <p className="font-body mx-auto mt-3 max-w-xl text-white/70">
             Get your first AI-powered readiness report free — no credit card required.
           </p>
           <Button
             asChild
             size="lg"
-            className="mt-8 gap-2 rounded-full bg-gradient-cta px-8 text-base font-semibold text-white shadow-medium transition-all duration-300 hover:shadow-strong hover:brightness-105"
+            className="mt-8 gap-2 rounded-full bg-accent px-8 text-base font-semibold text-accent-foreground shadow-lg shadow-accent/25 transition-all duration-300 hover:bg-accent/90 hover:shadow-xl hover:shadow-accent/30"
           >
             <Link to="/begin-journey">
               Start Free Assessment

@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
 import { Loader2 } from "lucide-react";
 
@@ -27,11 +27,13 @@ const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isValidSession, setIsValidSession] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | undefined>();
 
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (session) {
         setIsValidSession(true);
       } else {
@@ -49,13 +51,11 @@ const ResetPassword = () => {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPasswordError(undefined);
+    setConfirmPasswordError(undefined);
 
     if (password !== confirmPassword) {
-      toast({
-        variant: "destructive",
-        title: "Passwords don't match",
-        description: "Please make sure both passwords are the same.",
-      });
+      setConfirmPasswordError("Passwords don't match. Please make sure both passwords are the same.");
       return;
     }
 
@@ -77,12 +77,16 @@ const ResetPassword = () => {
       // Sign out and redirect to login
       await supabase.auth.signOut();
       navigate("/auth");
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to reset password",
-      });
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
+        setPasswordError(error.errors[0]?.message);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to reset password",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -92,8 +96,8 @@ const ResetPassword = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
         <Card className="w-full max-w-md shadow-lg">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+          <CardContent role="status" aria-live="polite" className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" aria-hidden="true" />
             <p className="text-muted-foreground">Verifying your reset link...</p>
           </CardContent>
         </Card>
@@ -106,7 +110,7 @@ const ResetPassword = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="text-center space-y-2">
-            <CardTitle className="text-2xl font-bold">Link Expired</CardTitle>
+            <h1 className="text-2xl font-bold leading-none tracking-tight">Link Expired</h1>
             <CardDescription>
               This password reset link is invalid or has expired.
             </CardDescription>
@@ -125,11 +129,11 @@ const ResetPassword = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-2">
-          <CardTitle className="text-2xl font-bold">Reset Your Password</CardTitle>
+          <h1 className="text-2xl font-bold leading-none tracking-tight">Reset Your Password</h1>
           <CardDescription>Enter your new password below</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleResetPassword} className="space-y-4">
+          <form onSubmit={handleResetPassword} className="space-y-4" noValidate>
             <div className="space-y-2">
               <Label htmlFor="new-password">New Password</Label>
               <Input
@@ -137,12 +141,24 @@ const ResetPassword = () => {
                 type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (passwordError) setPasswordError(undefined);
+                }}
                 required
                 disabled={loading}
                 autoComplete="new-password"
+                aria-invalid={!!passwordError}
+                aria-describedby={passwordError ? "new-password-error" : "new-password-strength"}
               />
-              <PasswordStrengthIndicator password={password} />
+              {passwordError && (
+                <p id="new-password-error" role="alert" className="text-sm text-destructive">
+                  {passwordError}
+                </p>
+              )}
+              <div id="new-password-strength">
+                <PasswordStrengthIndicator password={password} />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm-password">Confirm Password</Label>
@@ -151,11 +167,21 @@ const ResetPassword = () => {
                 type="password"
                 placeholder="••••••••"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (confirmPasswordError) setConfirmPasswordError(undefined);
+                }}
                 required
                 disabled={loading}
                 autoComplete="new-password"
+                aria-invalid={!!confirmPasswordError}
+                aria-describedby={confirmPasswordError ? "confirm-password-error" : undefined}
               />
+              {confirmPasswordError && (
+                <p id="confirm-password-error" role="alert" className="text-sm text-destructive">
+                  {confirmPasswordError}
+                </p>
+              )}
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Resetting..." : "Reset Password"}

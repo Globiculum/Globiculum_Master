@@ -100,9 +100,9 @@ const Dashboard = () => {
     <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">
             Your <span className="text-primary">Globiculum Dashboard</span>
-          </h2>
+          </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Write dashboard content for parents and students, covering gap report, learning plan, culture modules, alerts, and booking.
           </p>
@@ -222,7 +222,7 @@ const Dashboard = () => {
                 </div>
                 
                 <div className="text-center p-3 rounded-lg bg-accent/10">
-                  <div className="text-2xl font-bold text-accent">12</div>
+                  <div className="text-2xl font-bold text-accent-contrast">12</div>
                   <div className="text-xs text-muted-foreground">Weeks Active</div>
                 </div>
                 
@@ -274,12 +274,12 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link to="/content-export">
-                  <Button className="w-full bg-gradient-primary" size="sm">
-                    <FileText className="mr-2 h-4 w-4" />
+                <Button asChild className="w-full bg-gradient-primary" size="sm">
+                  <Link to="/content-export">
+                    <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
                     Export Content Documentation
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           </div>

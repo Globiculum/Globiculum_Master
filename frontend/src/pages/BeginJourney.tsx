@@ -7,10 +7,9 @@ import ParentAssessment from "@/components/assessment/parent/ParentAssessment";
 import { PARENT_TOTAL_STEPS } from "@/components/assessment/parent/parentValidation";
 import { STUDENT_TOTAL_STEPS } from "@/components/assessment/student/StudentAssessmentController";
 import PersonaSelection, { type Persona } from "@/components/PersonaSelection";
-import PersonaBackground from "@/components/persona/PersonaBackground";
-import LivingIllustration from "@/components/persona/LivingIllustration";
 import { Clock, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import beginJourneyImage from "@/assets/BEGIN-JOURNEY.png";
 
 // Parent (5 steps) and Student (4 steps) are different lengths — the step
 // indicator on this screen previews whichever flow is currently highlighted,
@@ -80,13 +79,34 @@ const BeginJourney = () => {
       <Header />
 
       <section
+        id="main-content"
+        tabIndex={-1}
         className={cn(
-          "py-8 md:py-12",
-          showPersonaStep ? "relative overflow-hidden bg-background" : "bg-gradient-subtle"
+          "relative overflow-hidden outline-none",
+          showPersonaStep ? "bg-primary" : "bg-gradient-subtle py-8 md:py-12"
         )}
       >
-        {showPersonaStep && <PersonaBackground />}
-        <div className="container relative mx-auto px-4">
+        {showPersonaStep && (
+          <>
+            <img
+              src={beginJourneyImage}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-gradient-to-r from-primary via-primary/50 to-primary/10"
+            />
+            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-primary/10" />
+          </>
+        )}
+        <div
+          className={cn(
+            "container relative mx-auto px-4",
+            showPersonaStep && "flex min-h-[640px] flex-col justify-center py-12 sm:min-h-[740px] sm:py-14 lg:min-h-[840px] lg:py-16"
+          )}
+        >
           <MotionConfig reducedMotion="user">
             <AnimatePresence mode="wait">
               {showPersonaStep ? (
@@ -97,85 +117,75 @@ const BeginJourney = () => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.35, ease: "easeInOut" }}
                 >
-                  <div className="mb-8 grid grid-cols-1 items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-                    <div className="text-center lg:text-left">
-                      <div className="mb-3 flex items-center justify-center gap-2.5 lg:justify-start">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-secondary">
-                          Step 1 of {previewTotalSteps}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: previewTotalSteps }).map((_, index) => (
-                            <span
-                              key={index}
-                              className={cn(
-                                "h-1.5 rounded-full transition-all",
-                                index === 0 ? "w-4 bg-secondary" : "w-1.5 bg-muted"
-                              )}
-                            />
-                          ))}
-                        </div>
+                  <div className="max-w-xl text-center lg:text-left">
+                    <div className="mb-3 flex items-center justify-center gap-2.5 lg:justify-start">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-mint">
+                        Step 1 of {previewTotalSteps}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: previewTotalSteps }).map((_, index) => (
+                          <span
+                            key={index}
+                            className={cn(
+                              "h-1.5 rounded-full transition-all",
+                              index === 0 ? "w-4 bg-mint" : "w-1.5 bg-white/20"
+                            )}
+                          />
+                        ))}
                       </div>
-
-                      <motion.h1
-                        className="text-h1 text-foreground"
-                        initial={{ opacity: 0, y: 16 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                      >
-                        Choose Your <span className="bg-gradient-cta bg-clip-text text-transparent">Journey</span>
-                      </motion.h1>
-                      <motion.p
-                        className="mx-auto mt-3 max-w-md text-body text-muted-foreground lg:mx-0"
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                      >
-                        Tell us who this assessment is for so we can personalize your experience.
-                      </motion.p>
-
-                      <motion.div
-                        className="mx-auto mt-4 inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-caption text-muted-foreground lg:mx-0 lg:justify-start"
-                        initial="hidden"
-                        animate="show"
-                        variants={{
-                          hidden: {},
-                          show: { transition: { staggerChildren: 0.08, delayChildren: 0.25 } },
-                        }}
-                      >
-                        <motion.span
-                          className="inline-flex items-center gap-1.5"
-                          variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
-                          transition={{ duration: 0.3 }}
-                          whileHover={{ scale: 1.05 }}
-                        >
-                          <Lock className="h-3.5 w-3.5 text-secondary" />
-                          Private &amp; Secure
-                        </motion.span>
-                        <span className="text-border">•</span>
-                        <motion.span
-                          className="inline-flex items-center gap-1.5"
-                          variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
-                          transition={{ duration: 0.3 }}
-                          whileHover={{ scale: 1.05 }}
-                        >
-                          <Clock className="h-3.5 w-3.5 text-secondary" />
-                          8–10 Minutes
-                        </motion.span>
-                      </motion.div>
                     </div>
 
-                    <div className="hidden justify-center lg:flex">
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.94 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5, delay: 0.15 }}
+                    <motion.h1
+                      className="text-h1 text-white"
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      Choose Your <span className="bg-gradient-mint bg-clip-text text-transparent">Journey</span>
+                    </motion.h1>
+                    <motion.p
+                      className="font-body mx-auto mt-3 max-w-md text-body text-white/80 lg:mx-0"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      Tell us who this assessment is for so we can personalize your experience.
+                    </motion.p>
+
+                    <motion.div
+                      className="mx-auto mt-4 inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-caption text-white/70 lg:mx-0 lg:justify-start"
+                      initial="hidden"
+                      animate="show"
+                      variants={{
+                        hidden: {},
+                        show: { transition: { staggerChildren: 0.08, delayChildren: 0.25 } },
+                      }}
+                    >
+                      <motion.span
+                        className="inline-flex items-center gap-1.5"
+                        variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+                        transition={{ duration: 0.3 }}
+                        whileHover={{ scale: 1.05 }}
                       >
-                        <LivingIllustration />
-                      </motion.div>
-                    </div>
+                        <Lock className="h-3.5 w-3.5 text-mint" />
+                        Private &amp; Secure
+                      </motion.span>
+                      <span className="text-white/30">•</span>
+                      <motion.span
+                        className="inline-flex items-center gap-1.5"
+                        variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+                        transition={{ duration: 0.3 }}
+                        whileHover={{ scale: 1.05 }}
+                      >
+                        <Clock className="h-3.5 w-3.5 text-mint" />
+                        8–10 Minutes
+                      </motion.span>
+                    </motion.div>
                   </div>
 
-                  <PersonaSelection onContinue={handlePersonaContinue} onSelectionChange={setPreviewPersona} />
+                  <div className="mt-10 sm:mt-12 lg:mt-16">
+                    <PersonaSelection onContinue={handlePersonaContinue} onSelectionChange={setPreviewPersona} />
+                  </div>
                 </motion.div>
               ) : (
                 <motion.div

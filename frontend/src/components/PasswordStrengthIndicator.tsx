@@ -64,9 +64,9 @@ export const PasswordStrengthIndicator = ({ password }: PasswordStrengthIndicato
         {requirements.map((req, index) => (
           <li key={index} className="flex items-center gap-2">
             {req.met ? (
-              <Check className="h-3 w-3 text-success flex-shrink-0" />
+              <Check className="h-3 w-3 text-success flex-shrink-0" aria-hidden="true" />
             ) : (
-              <X className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <X className="h-3 w-3 text-muted-foreground flex-shrink-0" aria-hidden="true" />
             )}
             <span className={req.met ? "text-success" : "text-muted-foreground"}>
               {req.label}

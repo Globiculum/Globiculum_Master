@@ -226,12 +226,12 @@ const ReportsHistory = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="py-12 md:py-16">
+      <section id="main-content" tabIndex={-1} className="py-12 outline-none md:py-16">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold">Your Reports</h1>
-              <p className="text-muted-foreground mt-1">View and manage your saved curriculum alignment reports</p>
+              <p className="font-body text-muted-foreground mt-1">View and manage your saved curriculum alignment reports</p>
             </div>
             <Button onClick={() => navigate("/begin-journey")}>
               <FileText className="h-4 w-4 mr-2" />

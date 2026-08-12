@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -100,8 +100,9 @@ const Onboarding = () => {
 
   if (authLoading || checkingProfile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div role="status" aria-live="polite" className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+        <span className="sr-only">Loading…</span>
       </div>
     );
   }
@@ -191,7 +192,7 @@ const Onboarding = () => {
           <>
             <CardHeader className="text-center space-y-2">
               <Users className="h-10 w-10 text-primary mx-auto" />
-              <CardTitle className="text-2xl">Welcome to Globiculum</CardTitle>
+              <h1 className="text-2xl font-semibold leading-none tracking-tight">Welcome to Globiculum</h1>
               <CardDescription>Let's personalize your experience. Are you a…</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -199,7 +200,9 @@ const Onboarding = () => {
                 {(["parent", "student"] as const).map((role) => (
                   <button
                     key={role}
+                    type="button"
                     onClick={() => setFormData((p) => ({ ...p, role }))}
+                    aria-pressed={formData.role === role}
                     className={`p-6 rounded-xl border-2 transition-all text-center space-y-2 ${
                       formData.role === role
                         ? "border-primary bg-primary/5 shadow-md"
@@ -207,9 +210,9 @@ const Onboarding = () => {
                     }`}
                   >
                     {role === "parent" ? (
-                      <Users className="h-8 w-8 mx-auto text-primary" />
+                      <Users className="h-8 w-8 mx-auto text-primary" aria-hidden="true" />
                     ) : (
-                      <GraduationCap className="h-8 w-8 mx-auto text-secondary" />
+                      <GraduationCap className="h-8 w-8 mx-auto text-secondary" aria-hidden="true" />
                     )}
                     <span className="block text-sm font-semibold capitalize">{role}</span>
                   </button>
@@ -224,9 +227,9 @@ const Onboarding = () => {
           <>
             <CardHeader className="text-center space-y-2">
               <BookOpen className="h-10 w-10 text-secondary mx-auto" />
-              <CardTitle className="text-2xl">
+              <h1 className="text-2xl font-semibold leading-none tracking-tight">
                 {formData.role === "parent" ? "Tell us about your child" : "Tell us about yourself"}
-              </CardTitle>
+              </h1>
               <CardDescription>We'll use this to build a personalized readiness plan.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -242,9 +245,9 @@ const Onboarding = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Current Grade</Label>
+                <Label htmlFor="onboarding-grade">Current Grade</Label>
                 <Select value={formData.currentGrade} onValueChange={(v) => setFormData((p) => ({ ...p, currentGrade: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
+                  <SelectTrigger id="onboarding-grade"><SelectValue placeholder="Select grade" /></SelectTrigger>
                   <SelectContent>
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((g) => (
                       <SelectItem key={g} value={String(g)}>Grade {g}</SelectItem>
@@ -254,9 +257,9 @@ const Onboarding = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Current School Country</Label>
+                <Label htmlFor="onboarding-country">Current School Country</Label>
                 <Select value={formData.schoolCountry} onValueChange={(v) => setFormData((p) => ({ ...p, schoolCountry: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
+                  <SelectTrigger id="onboarding-country"><SelectValue placeholder="Select country" /></SelectTrigger>
                   <SelectContent>
                     {countryOptions.map((c) => (
                       <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
@@ -273,14 +276,14 @@ const Onboarding = () => {
           <>
             <CardHeader className="text-center space-y-2">
               <GraduationCap className="h-10 w-10 text-accent mx-auto" />
-              <CardTitle className="text-2xl">Curriculum Transition</CardTitle>
+              <h1 className="text-2xl font-semibold leading-none tracking-tight">Curriculum Transition</h1>
               <CardDescription>Which curriculum is your child moving from and to?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-2">
-                <Label>Moving FROM</Label>
+                <Label htmlFor="onboarding-curriculum-from">Moving FROM</Label>
                 <Select value={formData.curriculumFrom} onValueChange={(v) => setFormData((p) => ({ ...p, curriculumFrom: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Current curriculum" /></SelectTrigger>
+                  <SelectTrigger id="onboarding-curriculum-from"><SelectValue placeholder="Current curriculum" /></SelectTrigger>
                   <SelectContent>
                     {detailedCurriculumOptions.map((c) => (
                       <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
@@ -290,9 +293,9 @@ const Onboarding = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Moving TO</Label>
+                <Label htmlFor="onboarding-curriculum-to">Moving TO</Label>
                 <Select value={formData.curriculumTo} onValueChange={(v) => setFormData((p) => ({ ...p, curriculumTo: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Target curriculum" /></SelectTrigger>
+                  <SelectTrigger id="onboarding-curriculum-to"><SelectValue placeholder="Target curriculum" /></SelectTrigger>
                   <SelectContent>
                     {detailedCurriculumOptions.map((c) => (
                       <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
@@ -315,14 +318,16 @@ const Onboarding = () => {
           <>
             <CardHeader className="text-center space-y-2">
               <Calendar className="h-10 w-10 text-primary mx-auto" />
-              <CardTitle className="text-2xl">When are you planning to transition?</CardTitle>
+              <h1 className="text-2xl font-semibold leading-none tracking-tight">When are you planning to transition?</h1>
               <CardDescription>This helps us prioritize what to prepare first.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {timelineOptions.map((opt) => (
                 <button
                   key={opt.value}
+                  type="button"
                   onClick={() => setFormData((p) => ({ ...p, transitionTimeline: opt.value }))}
+                  aria-pressed={formData.transitionTimeline === opt.value}
                   className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
                     formData.transitionTimeline === opt.value
                       ? "border-primary bg-primary/5"
@@ -330,9 +335,9 @@ const Onboarding = () => {
                   }`}
                 >
                   {formData.transitionTimeline === opt.value ? (
-                    <CheckCircle className="h-5 w-5 text-primary shrink-0" />
+                    <CheckCircle className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
                   ) : (
-                    <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 shrink-0" />
+                    <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 shrink-0" aria-hidden="true" />
                   )}
                   <span className="text-sm font-medium">{opt.label}</span>
                 </button>

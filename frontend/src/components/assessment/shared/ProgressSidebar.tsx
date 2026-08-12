@@ -130,7 +130,7 @@ const ProgressSidebar = ({ steps, currentIndex, avatar }: ProgressSidebarProps) 
       </motion.div>
 
       <motion.div
-        className="flex items-center gap-2 rounded-2xl border border-border bg-mint/10 p-4 text-xs text-muted-foreground"
+        className="font-body flex items-center gap-2 rounded-2xl border border-border bg-mint/10 p-4 text-xs text-muted-foreground"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.16, ease: "easeOut" }}
