@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -94,8 +95,12 @@ const AdminPage = () => {
 
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Label htmlFor="admin-search" className="sr-only">
+              {activeTab === "users" ? "Search users" : "Search reports"}
+            </Label>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
+              id="admin-search"
               placeholder={activeTab === "users" ? "Search by email or name..." : "Search by email, student, or curriculum..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}

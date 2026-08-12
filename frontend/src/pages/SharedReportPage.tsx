@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Loader2, FileText, BookOpen, AlertTriangle, Calendar, Lightbulb, Clock, ShieldAlert, LinkIcon } from "lucide-react";
 
 interface SubjectAnalysis {
@@ -102,8 +103,9 @@ const SharedReportPage = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div role="status" aria-live="polite" className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+          <span className="sr-only">Loading shared report…</span>
         </div>
         <Footer />
       </div>
@@ -126,8 +128,11 @@ const SharedReportPage = () => {
                   <ShieldAlert className="h-10 w-10 text-destructive" />
                 )}
               </div>
-              <h2 className="text-xl font-semibold">Unable to Load Report</h2>
+              <h1 className="text-xl font-semibold">Unable to Load Report</h1>
               <p className="text-muted-foreground text-center">{error || "Report not found"}</p>
+              <Button asChild variant="outline">
+                <a href="/">Back to Home</a>
+              </Button>
             </CardContent>
           </Card>
         </div>

@@ -81,7 +81,7 @@ const InviteGuardianModal = ({ open, onOpenChange, studentProfileId }: InviteGua
           <div className="space-y-2">
             <Label htmlFor="guardian-email">Guardian's Email Address</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="guardian-email"
                 type="email"
@@ -106,12 +106,12 @@ const InviteGuardianModal = ({ open, onOpenChange, studentProfileId }: InviteGua
           <Button onClick={handleInvite} disabled={sending || !email.trim() || !studentProfileId}>
             {sending ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                 Sending...
               </>
             ) : (
               <>
-                <UserPlus className="h-4 w-4 mr-2" />
+                <UserPlus className="h-4 w-4 mr-2" aria-hidden="true" />
                 Send Invitation
               </>
             )}

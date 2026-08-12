@@ -274,12 +274,12 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link to="/content-export">
-                  <Button className="w-full bg-gradient-primary" size="sm">
-                    <FileText className="mr-2 h-4 w-4" />
+                <Button asChild className="w-full bg-gradient-primary" size="sm">
+                  <Link to="/content-export">
+                    <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
                     Export Content Documentation
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           </div>
