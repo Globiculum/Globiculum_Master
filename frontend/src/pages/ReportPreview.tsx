@@ -325,9 +325,25 @@ const ReportPreview = () => {
     };
 
     const saveReportToDatabase = async (analysisData: AnalysisData) => {
+      if (isSaved) return;
       try {
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) return;
+        // refreshSession() fires TOKEN_REFRESHED which updates the PostgREST
+        // client's Authorization header — without this, auth.uid() is NULL in
+        // Postgres and the RLS INSERT policy silently blocks the row.
+        let userId: string | null = null;
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (!refreshError && refreshData.session?.user) {
+          userId = refreshData.session.user.id;
+        } else {
+          const { data: { session: fallback } } = await supabase.auth.getSession();
+          if (!fallback?.user) {
+            toast.error("Session expired. Please sign in again to save your report.");
+            navigate("/auth", { replace: true });
+            return;
+          }
+          userId = fallback.user.id;
+        }
+        const userData = { user: { id: userId } };
 
         const insertPayload: any = {
           user_id: userData.user.id,
@@ -342,6 +358,7 @@ const ReportPreview = () => {
 
         if (saveError) {
           console.error("Failed to save report:", saveError);
+          toast.error(`Could not save report: ${saveError.message}`);
         } else {
           setIsSaved(true);
           toast.success("Report saved to your history");

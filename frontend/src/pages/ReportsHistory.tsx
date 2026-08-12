@@ -5,7 +5,6 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { FileText, Trash2, Eye, Loader2, Clock, Target, BookOpen, AlertTriangle, Calendar, Lightbulb, Download, GraduationCap, TrendingUp, Share2, RotateCcw } from "lucide-react";
@@ -29,12 +28,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+type GapItem = string | { topic: string; resourceUrl?: string };
+const getGapTopic = (g: GapItem): string => (typeof g === "string" ? g : g.topic);
+
 interface SubjectAnalysis {
   subject: string;
   topicsCovered: number;
   totalTopics: number;
   alignmentLevel: "strong" | "moderate" | "high_gap";
-  keyGaps: string[];
+  keyGaps: GapItem[];
 }
 
 interface TimelinePhase {
@@ -50,7 +52,7 @@ interface AnalysisData {
     estimatedDuration: string;
   };
   subjectAnalysis: SubjectAnalysis[];
-  criticalGaps: string[];
+  criticalGaps: GapItem[];
   bridgeTimeline: {
     phase1: TimelinePhase;
     phase2: TimelinePhase;
@@ -100,13 +102,18 @@ const ReportsHistory = () => {
 
   const fetchReports = async () => {
     setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) { setLoading(false); return; }
+
     const { data, error } = await supabase
       .from("saved_reports" as any)
       .select("id, title, form_data, analysis_data, created_at")
+      .eq("user_id", session.user.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
     if (error) {
-      toast.error("Failed to load reports");
+      toast.error(`Failed to load reports: ${error.message}`);
       console.error(error);
     } else {
       setReports((data as unknown as SavedReport[]) || []);
@@ -115,12 +122,16 @@ const ReportsHistory = () => {
   };
 
   const fetchAssessments = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+
     const { data, error } = await supabase
       .from("assessments")
-      .select("id, assessment_data, status, completed_at, created_at, student_profile_id, student_profiles(student_name)")
+      .select("id, assessment_data, status, completed_at, created_at, student_profile_id")
+      .eq("user_id", session.user.id)
       .eq("status", "completed")
       .is("deleted_at", null)
-      .order("completed_at", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Failed to fetch assessments:", error);
@@ -241,8 +252,8 @@ const ReportsHistory = () => {
                   const data = assessment.assessment_data as Record<string, unknown>;
                   const analysisResult = data?.analysisResult as Record<string, unknown> | undefined;
                   const overallAlignment = (analysisResult?.overallAlignment as Record<string, unknown>)?.percentage as number | undefined;
-                  const studentName = (assessment as any).student_profiles?.student_name || "Student";
                   const grade = data?.snapshotGrade;
+                  const studentName = (data?.childName as string) || (data?.studentName as string) || `Grade ${String(grade || "N/A")} Student`;
 
                   return (
                     <Card key={assessment.id} className="hover:border-primary/50 transition-colors">
@@ -372,7 +383,18 @@ const ReportsHistory = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setSelectedReport(report)}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              navigate("/report-preview", {
+                                state: {
+                                  formData: report.form_data,
+                                  savedAnalysis: report.analysis_data,
+                                },
+                              })
+                            }
+                          >
                             <Eye className="h-4 w-4 mr-1.5" />
                             View Full Report
                           </Button>
@@ -380,7 +402,6 @@ const ReportsHistory = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              // Navigate to assessment form with pre-filled data and prev_report_id
                               navigate("/begin-journey", {
                                 state: {
                                   prefillFormData: report.form_data,
@@ -391,6 +412,19 @@ const ReportsHistory = () => {
                           >
                             <RotateCcw className="h-4 w-4 mr-1.5" />
                             Retake
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={sharingId === report.id}
+                            onClick={() => handleShare(report.id)}
+                            title="Share report"
+                          >
+                            {sharingId === report.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Share2 className="h-4 w-4" />
+                            )}
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -482,7 +516,7 @@ const ReportsHistory = () => {
             </div>
           </DialogHeader>
           
-          <ScrollArea className="flex-1 max-h-[calc(100vh-120px)] md:max-h-[calc(90vh-120px)]">
+          <div className="overflow-y-auto max-h-[calc(100vh-120px)] md:max-h-[calc(90vh-120px)]">
             {selectedReport?.analysis_data && (
               <div className="p-4 md:p-6 space-y-6">
                 {/* Quick Overview */}
@@ -544,7 +578,7 @@ const ReportsHistory = () => {
                           {subject.keyGaps?.length > 0 && (
                             <div className="text-sm text-muted-foreground">
                               <span className="font-medium">Gaps: </span>
-                              {subject.keyGaps.join(", ")}
+                              {subject.keyGaps.map(getGapTopic).join(", ")}
                             </div>
                           )}
                         </CardContent>
@@ -566,7 +600,7 @@ const ReportsHistory = () => {
                           {selectedReport.analysis_data.criticalGaps.map((gap, idx) => (
                             <li key={idx} className="text-sm flex items-start gap-2">
                               <span className="text-rose-500 mt-1">•</span>
-                              <span>{gap}</span>
+                              <span>{getGapTopic(gap)}</span>
                             </li>
                           ))}
                         </ul>
@@ -671,7 +705,7 @@ const ReportsHistory = () => {
                 )}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
 

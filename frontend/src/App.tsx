@@ -46,7 +46,7 @@ const App = () => (
           <Route 
             path="/reports" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute skipOnboardingCheck>
                 <ReportsHistory />
               </ProtectedRoute>
             } 
@@ -80,7 +80,7 @@ const App = () => (
           <Route 
             path="/dashboard" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute skipOnboardingCheck>
                 <DashboardPage />
               </ProtectedRoute>
             } 
