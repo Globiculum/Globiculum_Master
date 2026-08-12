@@ -36,6 +36,9 @@
     --accent: 38 92% 50%;
     --accent-foreground: 222 47% 11%;
     --accent-light: 38 92% 85%;
+    /* Same hue/saturation, darkened for use as TEXT on light backgrounds — the base
+       --accent only computes to 2.15:1 on white (fails WCAG 1.4.3); this hits 4.84:1. */
+    --accent-contrast: 38 92% 32%;
 
     /* Mint Teal #5EEAD4 (brand support color) */
     --mint: 171 77% 64%;

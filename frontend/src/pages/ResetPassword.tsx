@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
@@ -106,7 +106,7 @@ const ResetPassword = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="text-center space-y-2">
-            <CardTitle className="text-2xl font-bold">Link Expired</CardTitle>
+            <h1 className="text-2xl font-bold leading-none tracking-tight">Link Expired</h1>
             <CardDescription>
               This password reset link is invalid or has expired.
             </CardDescription>
@@ -125,7 +125,7 @@ const ResetPassword = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-2">
-          <CardTitle className="text-2xl font-bold">Reset Your Password</CardTitle>
+          <h1 className="text-2xl font-bold leading-none tracking-tight">Reset Your Password</h1>
           <CardDescription>Enter your new password below</CardDescription>
         </CardHeader>
         <CardContent>

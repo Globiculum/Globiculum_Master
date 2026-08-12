@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { MotionConfig } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import StudentAssessmentController from "@/components/assessment/student/StudentAssessmentController";
@@ -23,13 +24,15 @@ const StudentAssessment = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="py-10 md:py-16">
+      <section id="main-content" tabIndex={-1} className="py-10 outline-none md:py-16">
         <div className="container mx-auto px-4">
-          <StudentAssessmentController
-            prefillData={prefillFormData}
-            prevReportId={prevReportId}
-            onChangePersona={handleChangePersona}
-          />
+          <MotionConfig reducedMotion="user">
+            <StudentAssessmentController
+              prefillData={prefillFormData}
+              prevReportId={prevReportId}
+              onChangePersona={handleChangePersona}
+            />
+          </MotionConfig>
         </div>
       </section>
 

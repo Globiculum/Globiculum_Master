@@ -340,7 +340,16 @@ const KnowledgeGraphView = ({
                     key={node.id}
                     transform={`translate(${node.x ?? 0},${node.y ?? 0})`}
                     onClick={() => handleNodeClick(node)}
-                    className="cursor-pointer"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleNodeClick(node);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${node.label}, mastery: ${node.mastery}`}
+                    className="cursor-pointer focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-primary"
                   >
                     <circle
                       r={node.radius}

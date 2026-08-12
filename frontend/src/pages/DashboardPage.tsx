@@ -14,8 +14,9 @@ const DashboardPage = () => {
 
   if (loading || guardianLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div role="status" aria-live="polite" className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+        <span className="sr-only">Loading dashboard…</span>
       </div>
     );
   }
@@ -23,7 +24,7 @@ const DashboardPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="container mx-auto px-4 pt-6 space-y-4">
+      <div id="main-content" tabIndex={-1} className="container mx-auto px-4 pt-6 space-y-4 outline-none">
         {user && <EmailVerificationBanner user={user} />}
         {isGuardian && selectedStudent && (
           <GuardianBanner studentName={selectedStudent.studentName} />

@@ -261,7 +261,7 @@ const GapAnalysisReport = () => {
                       </ul>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-accent mb-4">CBSE/Indian Board Approach</h4>
+                      <h4 className="font-semibold text-accent-contrast mb-4">CBSE/Indian Board Approach</h4>
                       <ul className="space-y-3 text-sm">
                         <li className="flex items-start gap-3">
                           <div className="w-2 h-2 bg-accent rounded-full mt-2" />

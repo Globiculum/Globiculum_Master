@@ -18,6 +18,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import bgPricingImage from "@/assets/bg-pricing.png";
 
 const TRUST_BADGES = [
   { icon: Bot, label: "AI Powered" },
@@ -133,7 +134,8 @@ const PricingPage = () => {
       <Header />
 
       {/* SECTION 1 — HERO */}
-      <section className="relative overflow-hidden bg-gradient-hero py-16 md:py-24">
+      <section id="main-content" tabIndex={-1} className="relative overflow-hidden bg-primary py-16 outline-none md:py-24">
+        <img src={bgPricingImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
         <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
 
         <div className="container relative mx-auto px-4">

@@ -215,7 +215,7 @@ const ReportsHistory = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <section className="py-12 md:py-16">
+      <section id="main-content" tabIndex={-1} className="py-12 outline-none md:py-16">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="flex items-center justify-between mb-8">
             <div>
