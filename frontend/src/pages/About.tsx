@@ -190,7 +190,14 @@ const About = () => {
           aria-hidden="true"
           className="absolute inset-0 h-full w-full object-cover"
         />
-        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-primary via-primary/55 to-primary/15" />
+        {/* Below lg, the tall mobile min-height forces an extreme object-cover crop
+            (zoomed into a narrow vertical slice), and the text/cards span the full
+            width instead of the left ~45% column — the desktop left-to-right gradient
+            left both the heading and the value cards sitting on a barely-dimmed,
+            over-zoomed part of the image. A strong, near-uniform scrim reads correctly
+            once content spans the full width; the lighter left-to-right treatment only
+            takes over once there's room for the image to read as a distinct visual. */}
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-primary via-primary/90 to-primary/70 lg:bg-gradient-to-r lg:from-primary lg:via-primary/55 lg:to-primary/15" />
 
         <div className="container relative mx-auto flex min-h-[600px] flex-col justify-center px-4 py-12 sm:min-h-[680px] sm:px-6 sm:py-14 lg:min-h-[760px] lg:py-16">
           <motion.div

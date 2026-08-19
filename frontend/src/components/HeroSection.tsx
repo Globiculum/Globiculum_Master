@@ -16,15 +16,29 @@ const HeroSection = () => {
           band, not the whole section, so it never has to stretch/crop to also cover
           the stats strip below. That's what was pushing the badges into collision
           with the real stats row. */}
-      <div className="relative overflow-hidden py-12 sm:py-16 md:py-28">
-        <img
-          src={bgHeroImage}
-          alt=""
-          role="presentation"
-          loading="eager"
-          className="absolute inset-0 h-full w-full object-cover object-[80%_38%]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/70 to-primary/10" />
+      <div className="relative overflow-hidden py-12 sm:py-16 md:py-28 xl:min-h-[640px] 2xl:min-h-[720px]">
+        {/* Capped at 1400px (matching the site's own container max-width) so ultra-wide
+            viewports don't force object-cover into an increasingly aggressive crop —
+            that was pushing the image's baked-in badges out of frame past ~1920px. The
+            extra min-height at xl/2xl gives the crop more vertical room to work with
+            too. The section's own bg-primary fills any remaining edge space, blending
+            seamlessly since it matches the image's own dark palette. */}
+        <div className="absolute inset-0 mx-auto max-w-[1400px]">
+          <img
+            src={bgHeroImage}
+            alt=""
+            role="presentation"
+            loading="eager"
+            className="h-full w-full object-cover object-[80%_30%]"
+          />
+        </div>
+        {/* Below lg, the text column (max-w-2xl) exceeds the viewport width, so the
+            left-to-right desktop gradient (tuned for text confined to the left ~45%)
+            leaves the right portion of wrapped text sitting over a barely-dimmed part
+            of the image. A top-to-bottom scrim reads correctly once text spans the
+            full width; the left-to-right treatment only takes over once there's
+            actually room for the image to read as a distinct right-hand visual. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-primary via-primary/90 to-primary/55 lg:bg-gradient-to-r lg:from-primary lg:via-primary/70 lg:to-primary/10" />
 
         <div className="container relative mx-auto px-4 sm:px-6">
           <div className="max-w-2xl space-y-6 sm:space-y-8">
