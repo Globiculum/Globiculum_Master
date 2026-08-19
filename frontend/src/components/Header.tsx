@@ -146,13 +146,13 @@ const Header = ({ children }: HeaderProps = {}) => {
       <>
         <Button
           variant="ghost"
-          className="hidden md:inline-flex text-primary-foreground hover:text-secondary hover:bg-primary-foreground/10"
+          className="hidden lg:inline-flex text-primary-foreground hover:text-secondary hover:bg-primary-foreground/10"
           asChild
         >
           <a href="/auth">Sign In</a>
         </Button>
         <Button
-          className="hidden md:inline-flex bg-accent text-accent-foreground hover:bg-accent/90 transition-all duration-300 font-semibold"
+          className="hidden lg:inline-flex bg-accent text-accent-foreground hover:bg-accent/90 transition-all duration-300 font-semibold"
           asChild
         >
           <a href="/auth">Get Started</a>
@@ -181,7 +181,10 @@ const Header = ({ children }: HeaderProps = {}) => {
           />
         </a>
 
-        <nav className="hidden md:flex items-center space-x-6">
+        {/* lg (1024px), not md (768px) — at tablet widths the 5 links + Sign In + Get
+            Started don't have room and wrap awkwardly. The mobile menu covers that
+            whole range now instead. */}
+        <nav className="hidden lg:flex items-center space-x-6">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
@@ -217,7 +220,7 @@ const Header = ({ children }: HeaderProps = {}) => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden text-primary-foreground hover:bg-primary-foreground/10"
+                className="lg:hidden text-primary-foreground hover:bg-primary-foreground/10"
                 aria-label="Open menu"
               >
                 <Menu className="h-5 w-5" aria-hidden="true" />
