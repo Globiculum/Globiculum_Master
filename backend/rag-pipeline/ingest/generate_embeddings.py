@@ -5,13 +5,11 @@ that don't yet have an entry in curriculum_embeddings, then stores them.
 Embedding text strategy per node_type:
   NCERT chapter   (topic)            -> "Class N - Subject - Chapter - Description - Learning Objectives"
   NCERT subtopic  (learning_outcome) -> "Class N - Subject - Parent Chapter - Subtopic text"
-  US CC standard  (standard)         -> uses pre-built metadata.embedding_text if present,
-                                        otherwise "Subject - Domain - Cluster - Description - Comments"
+  US CC / state   (standard)         -> uses pre-built metadata.embedding_text if present
   NGSS standard   (standard)         -> "NGSS - Grade - Domain - Standard Code - Description - Clarification"
 
-Model: nvidia/llama-nemotron-embed-vl-1b-v2:free via OpenRouter (2048 dims) - FREE tier.
-Rate:  ~20 req/min, ~200 req/day on free tier. Script resumes from last checkpoint.
-DB:    Requires migration 20260712000001_update_embedding_dims_2048.sql applied first.
+Model: text-embedding-3-small via OpenAI ($0.02/1M tokens, 1536-dim vectors).
+DB:    Requires migration 20260819000000_update_embedding_dims_1536.sql applied first.
 """
 
 import hashlib
@@ -23,8 +21,7 @@ from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import (
-    OPENROUTER_API_KEY,
-    OPENROUTER_BASE_URL,
+    OPENAI_API_KEY,
     EMBEDDING_MODEL,
     EMBEDDING_DIMS,
     EMBEDDING_BATCH_SIZE,
@@ -114,7 +111,10 @@ def _build_embedding_text(node: dict) -> str:
         return " - ".join(p for p in parts if p).strip()
 
     else:
-        # Generic fallback
+        # Generic fallback — prefer pre-built embedding_text (set by API ingest)
+        prebuilt = meta.get("embedding_text") or ""
+        if prebuilt:
+            return prebuilt.strip()
         return f"{name} {description}".strip()
 
 
@@ -122,165 +122,214 @@ def _content_hash(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
-# ── Fetch nodes without embeddings ────────────────────────────────────────────
+# ── System discovery & per-page helpers ───────────────────────────────────────
 
-def _fetch_nodes_without_embeddings(client, batch_size: int = 1000) -> list[dict]:
+def _get_curriculum_systems(client) -> list[str]:
     """
-    Returns all curriculum_nodes that have no corresponding curriculum_embeddings row.
-    Uses a LEFT JOIN via RPC or manual client-side filter.
+    Return sorted list of distinct curriculum_system values via RPC.
+    Falls back to a limited client-side scan if the RPC doesn't exist yet.
     """
-    # Fetch all node IDs that already have embeddings
-    existing_ids: set[str] = set()
-    offset = 0
-    while True:
-        resp = (
-            client.table("curriculum_embeddings")
-            .select("node_id")
-            .range(offset, offset + batch_size - 1)
-            .execute()
-        )
-        rows = resp.data or []
-        for row in rows:
-            existing_ids.add(row["node_id"])
-        if len(rows) < batch_size:
-            break
-        offset += batch_size
-
-    print(f"  Nodes with existing embeddings: {len(existing_ids)}")
-
-    # Fetch all curriculum_nodes
-    all_nodes: list[dict] = []
-    offset = 0
-    while True:
+    try:
+        resp = client.rpc("get_distinct_curriculum_systems").execute()
+        return sorted(r["curriculum_system"] for r in (resp.data or []))
+    except Exception:
+        # Fallback: fetch first 1000 rows for system names (covers up to ~15 systems)
         resp = (
             client.table("curriculum_nodes")
-            .select("id, node_type, name, description, grade_level_min, grade_level_max, curriculum_system, metadata")
-            .range(offset, offset + batch_size - 1)
+            .select("curriculum_system")
+            .limit(1000)
             .execute()
         )
-        rows = resp.data or []
-        all_nodes.extend(rows)
-        if len(rows) < batch_size:
-            break
-        offset += batch_size
-
-    # Filter to nodes without embeddings
-    pending = [n for n in all_nodes if n["id"] not in existing_ids]
-    return pending
+        return sorted({r["curriculum_system"] for r in (resp.data or [])})
 
 
-# ── OpenRouter embedding call ─────────────────────────────────────────────────
+def _count_nodes_for_system(client, curriculum_system: str) -> int:
+    """Return total node count for a curriculum_system."""
+    resp = (
+        client.table("curriculum_nodes")
+        .select("id", count="exact", head=True)
+        .eq("curriculum_system", curriculum_system)
+        .execute()
+    )
+    return resp.count or 0
+
+
+def _already_embedded_ids(client, node_ids: list[str]) -> set[str]:
+    """Return the subset of node_ids that already have an embedding row."""
+    if not node_ids:
+        return set()
+    resp = (
+        client.table("curriculum_embeddings")
+        .select("node_id")
+        .in_("node_id", node_ids)
+        .execute()
+    )
+    return {r["node_id"] for r in (resp.data or [])}
+
+
+# ── OpenAI embedding call ───────────────────────────────────────────────────────
 
 def _embed_texts(texts: list[str], model: str = EMBEDDING_MODEL) -> list[list[float]]:
     """
-    Call OpenRouter embeddings API (OpenAI-compatible) for a batch of texts.
-    Returns list of embedding vectors (each is list[float] of length 2048).
-    Uses nvidia/llama-nemotron-embed-vl-1b-v2:free — free model on OpenRouter.
-    Retries once on 429 rate-limit with a 60-second backoff.
-    We use requests directly because OpenRouter responses have leading whitespace
-    that the openai SDK parser cannot handle.
+    Call OpenAI embeddings API for a batch of texts.
+    Returns list of 1536-dim float vectors using text-embedding-3-small.
+    Retries once on 429 with a 60-second backoff.
     """
-    import json, requests
-    url = f"{OPENROUTER_BASE_URL}/embeddings"
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/academi-align",
-        "X-Title": "AcademiAlign RAG Ingestion",
-    }
-    payload = {"input": texts, "model": model, "encoding_format": "float"}
+    from openai import OpenAI, RateLimitError
+
+    client = OpenAI(api_key=OPENAI_API_KEY)
 
     def _call() -> list[list[float]]:
-        resp = requests.post(url, headers=headers, json=payload, timeout=120)
-        resp.raise_for_status()
-        # Strip leading whitespace that OpenRouter sometimes returns
-        raw = resp.text.strip()
-        data = json.loads(raw)
-        vectors = [item["embedding"] for item in data["data"]]
+        resp = client.embeddings.create(model=model, input=texts)
+        vectors = [item.embedding for item in resp.data]
         if vectors and len(vectors[0]) != EMBEDDING_DIMS:
             raise ValueError(
-                f"Expected {EMBEDDING_DIMS}-dim vectors from OpenRouter, got {len(vectors[0])}. "
+                f"Expected {EMBEDDING_DIMS}-dim vectors, got {len(vectors[0])}. "
                 f"Check EMBEDDING_DIMS in config.py matches the model output."
             )
         return vectors
 
     try:
         return _call()
-    except requests.HTTPError as exc:
-        if exc.response.status_code == 429:
-            print("\n  [RATE LIMIT] Waiting 60s before retry...")
-            time.sleep(60)
-            return _call()
-        raise
+    except RateLimitError:
+        print("\n  [RATE LIMIT] Waiting 60s before retry...")
+        time.sleep(60)
+        return _call()
 
 
 # ── Main generation function ───────────────────────────────────────────────────
 
+NODE_PAGE_SIZE = 100    # nodes fetched + embedded per round-trip
+EMBED_INSERT_BATCH = 50  # embedding upsert batch (50 × 1536 floats ≈ 300KB per request)
+
+
 def generate_embeddings(curricula: list[str] | None = None) -> None:
     """
     Generate and store embeddings for curriculum_nodes that don't have them yet.
+    Streams one curriculum_system at a time, embeds and stores each page
+    immediately to avoid timeouts and OOM on large datasets (190K+ nodes).
 
     Args:
-        curricula: Optional list of curriculum_system values to process
-                   (e.g. ['ncert-cbse']). None = process all.
+        curricula: Optional list of curriculum_system values to process.
+                   None = process all systems discovered in DB.
     """
     print("\n=== Embedding Generation ===")
     print(f"Model: {EMBEDDING_MODEL}  |  Dims: {EMBEDDING_DIMS}")
 
     client = get_client()
 
-    print("Fetching nodes without embeddings...")
-    pending_nodes = _fetch_nodes_without_embeddings(client)
-
+    # Discover which systems to process
+    systems = _get_curriculum_systems(client)
     if curricula:
-        pending_nodes = [
-            n for n in pending_nodes if n["curriculum_system"] in curricula
-        ]
+        systems = [s for s in systems if s in curricula]
 
-    print(f"  Nodes to embed: {len(pending_nodes)}")
-    if not pending_nodes:
-        print("All nodes already have embeddings. Nothing to do.")
+    if not systems:
+        print("No curriculum systems found. Nothing to do.")
         return
 
-    # ── Build embedding texts ─────────────────────────────────────────────────
-    texts = [_build_embedding_text(n) for n in pending_nodes]
+    print(f"  Systems to process ({len(systems)}): {', '.join(systems)}\n")
 
-    # ── Process in batches ────────────────────────────────────────────────────
-    embedding_records: list[dict] = []
-    total_batches = (len(texts) + EMBEDDING_BATCH_SIZE - 1) // EMBEDDING_BATCH_SIZE
+    grand_total = 0
 
-    for i in tqdm(range(0, len(texts), EMBEDDING_BATCH_SIZE),
-                  total=total_batches, desc="Embedding batches"):
-        batch_texts = texts[i : i + EMBEDDING_BATCH_SIZE]
-        batch_nodes = pending_nodes[i : i + EMBEDDING_BATCH_SIZE]
+    for system in systems:
+        total_nodes = _count_nodes_for_system(client, system)
+        print(f"[{system}]  {total_nodes:,} nodes total")
 
-        try:
-            vectors = _embed_texts(batch_texts)
-        except Exception as exc:
-            print(f"\n[ERROR] Embedding batch {i//EMBEDDING_BATCH_SIZE} failed: {exc}")
-            print("  Waiting 10s before continuing...")
-            time.sleep(10)
-            continue
+        system_count = 0
+        offset = 0
 
-        for node, vector, text in zip(batch_nodes, vectors, batch_texts):
-            embedding_records.append({
-                "node_id": node["id"],
-                "embedding": vector,
-                "embedding_model": EMBEDDING_MODEL,
-                "content_hash": _content_hash(text),
-            })
+        with tqdm(total=total_nodes, desc=f"  {system[:30]}", unit="nodes") as pbar:
+            while True:
+                # ── Fetch page of nodes ──────────────────────────────────────
+                for attempt in range(3):
+                    try:
+                        resp = (
+                            client.table("curriculum_nodes")
+                            .select(
+                                "id, node_type, name, description, "
+                                "grade_level_min, grade_level_max, "
+                                "curriculum_system, metadata"
+                            )
+                            .eq("curriculum_system", system)
+                            .range(offset, offset + NODE_PAGE_SIZE - 1)
+                            .execute()
+                        )
+                        break
+                    except Exception as exc:
+                        if attempt == 2:
+                            raise
+                        print(f"\n  [WARN] Fetch error (attempt {attempt+1}): {exc}")
+                        time.sleep(5)
+                        client = get_client()
 
-        # Throttle: free tier is ~20 req/min, so wait 3s between batches
-        time.sleep(3.0)
+                nodes = resp.data or []
+                if not nodes:
+                    break
 
-    # ── Insert embedding records ──────────────────────────────────────────────
-    if embedding_records:
-        print(f"\nStoring {len(embedding_records)} embeddings in DB...")
-        for i in tqdm(range(0, len(embedding_records), INSERT_BATCH_SIZE),
-                      desc="Inserting embeddings"):
-            batch = embedding_records[i : i + INSERT_BATCH_SIZE]
-            client.table("curriculum_embeddings").upsert(
-                batch, on_conflict="node_id"
-            ).execute()
+                pbar.update(len(nodes))
 
-    print(f"\n[OK] Embedding generation complete. {len(embedding_records)} embeddings stored.")
+                # ── Skip nodes that already have embeddings ──────────────────
+                node_ids = [n["id"] for n in nodes]
+                for attempt in range(3):
+                    try:
+                        done_ids = _already_embedded_ids(client, node_ids)
+                        break
+                    except Exception as exc:
+                        if attempt == 2:
+                            done_ids = set()
+                            print(f"\n  [WARN] Could not check existing embeddings: {exc}")
+                        else:
+                            time.sleep(3)
+                            client = get_client()
+                pending = [n for n in nodes if n["id"] not in done_ids]
+
+                if pending:
+                    texts = [_build_embedding_text(n) for n in pending]
+
+                    try:
+                        vectors = _embed_texts(texts)
+                    except Exception as exc:
+                        print(f"\n  [WARN] Embed failed at offset {offset}: {exc}")
+                        print("  Waiting 30s before continuing...")
+                        time.sleep(30)
+                        offset += NODE_PAGE_SIZE
+                        continue
+
+                    records = [
+                        {
+                            "node_id": node["id"],
+                            "embedding": vector,
+                            "embedding_model": EMBEDDING_MODEL,
+                            "content_hash": _content_hash(text),
+                        }
+                        for node, vector, text in zip(pending, vectors, texts)
+                    ]
+
+                    # ── Store immediately (small batches for large vectors) ──
+                    for i in range(0, len(records), EMBED_INSERT_BATCH):
+                        batch = records[i : i + EMBED_INSERT_BATCH]
+                        for attempt in range(3):
+                            try:
+                                client.table("curriculum_embeddings").upsert(
+                                    batch, on_conflict="node_id",
+                                ).execute()
+                                break
+                            except Exception as exc:
+                                if attempt == 2:
+                                    print(f"\n  [WARN] Upsert failed after 3 tries: {exc}")
+                                else:
+                                    time.sleep(5)
+                                    client = get_client()
+
+                    system_count += len(records)
+                    grand_total += len(records)
+
+                if len(nodes) < NODE_PAGE_SIZE:
+                    break
+
+                offset += NODE_PAGE_SIZE
+                time.sleep(0.1)   # light pause; OpenAI paid has high TPM limit
+
+        print(f"  → {system_count:,} new embeddings stored for [{system}]\n")
+
+    print(f"[OK] Embedding generation complete. {grand_total:,} total embeddings stored.")

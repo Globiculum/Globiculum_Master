@@ -27,7 +27,7 @@ from config import (
     CURRICULUM_NCERT,
     INSERT_BATCH_SIZE,
 )
-from db.supabase_client import get_client, batch_insert, get_existing_source_ids
+from db.supabase_client import get_client, batch_insert, get_existing_source_ids, delete_edges_for_curriculum
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -88,6 +88,11 @@ def process_file(filepath: Path, existing_source_ids: set[str]) -> tuple[list[di
     """
     Parse one NCERT Excel file.
 
+    `existing_source_ids` is mutated in place as rows are processed (not just
+    checked) so that a Standard Code repeated within THIS file — e.g. a
+    duplicated row in the source spreadsheet — is also deduplicated, not only
+    codes repeated across different files.
+
     Returns:
         chapter_nodes  — list of dicts ready for curriculum_nodes insert
         subtopic_nodes — list of (dict, parent_standard_code) tuples
@@ -144,6 +149,7 @@ def process_file(filepath: Path, existing_source_ids: set[str]) -> tuple[list[di
                 },
             }
             chapter_nodes.append(chapter_node)
+            existing_source_ids.add(chapter_source_id)
 
         # ── Subtopic nodes ────────────────────────────────────────────────────
         subtopics = _split_lines(row.get("Subtopics"))
@@ -175,6 +181,7 @@ def process_file(filepath: Path, existing_source_ids: set[str]) -> tuple[list[di
                 },
             }
             subtopic_nodes.append((subtopic_node, standard_code))
+            existing_source_ids.add(sub_source_id)
 
     return chapter_nodes, subtopic_nodes
 
@@ -200,7 +207,8 @@ def ingest_ncert(fresh: bool = False) -> None:
 
     # ── Optional: wipe existing NCERT data ───────────────────────────────────
     if fresh:
-        print("[FRESH MODE] Deleting existing NCERT nodes...")
+        print("[FRESH MODE] Deleting existing NCERT edges, then nodes...")
+        delete_edges_for_curriculum(client, CURRICULUM_NCERT)
         client.table("curriculum_nodes").delete().eq(
             "curriculum_system", CURRICULUM_NCERT
         ).execute()
@@ -222,6 +230,14 @@ def ingest_ncert(fresh: bool = False) -> None:
     all_subtopic_pairs: list[tuple[dict, str]] = []
 
     # ── Parse all files ───────────────────────────────────────────────────────
+    # `existing` is shared across all process_file() calls and mutated inside
+    # them, so a Standard Code that repeats across files (e.g. Class 12 "Core"
+    # English is identical across the Arts/Commerce/Medical/Non-Medical stream
+    # files) or within a file is only ever inserted once. Without this, the
+    # same source_id can be inserted multiple times in a single run and the
+    # chapter->subtopic edge insert then violates the curriculum_edges
+    # (source,target,relationship_type) unique constraint, since every
+    # duplicate resolves to the same DB id pair.
     for fpath in tqdm(files, desc="Parsing files"):
         ch_nodes, sub_pairs = process_file(fpath, existing)
         for cn in ch_nodes:

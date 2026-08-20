@@ -24,13 +24,12 @@ SUPABASE_URL: str = (
 )
 SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
-# ── OpenRouter (embeddings) ───────────────────────────────────────────────────
-# Free model: nvidia/llama-nemotron-embed-vl-1b-v2:free — outputs 2048 dims.
-# DB schema uses vector(2048) after migration 20260712000001_update_embedding_dims_2048.sql
-OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
-EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "nvidia/llama-nemotron-embed-vl-1b-v2:free")
-EMBEDDING_DIMS: int = 2048  # Must match vector(2048) in curriculum_embeddings table
+# ── OpenAI (embeddings) ───────────────────────────────────────────────────────
+# text-embedding-3-small: $0.02/1M tokens, 1536-dim vectors.
+# DB schema uses vector(1536) after migration 20260819000000_update_embedding_dims_1536.sql
+OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+EMBEDDING_DIMS: int = 1536  # Must match vector(1536) in curriculum_embeddings table
 
 # ── Data paths ────────────────────────────────────────────────────────────────
 
@@ -49,10 +48,23 @@ NGSS_DATA_PATH: Path = Path(os.getenv(
     str(_base.parent / "data" / "Us" / "ngss.xlsx")
 ))
 
+# ── Common Standards Project API ──────────────────────────────────────────────
+# Free API for US state and national standards.
+# Register at https://commonstandardsproject.com to get an API key.
+CSP_API_KEY: str = os.getenv("CSP_API_KEY", "")
+CSP_BASE_URL: str = os.getenv(
+    "CSP_BASE_URL", "https://api.commonstandardsproject.com"
+)
+# Default jurisdictions to ingest when --jurisdiction is not specified.
+# Use partial name matches (case-insensitive).
+CSP_DEFAULT_JURISDICTIONS: list[str] = [
+    "Common Core State Standards",
+]
+
 # ── Batch sizes ───────────────────────────────────────────────────────────────
 INSERT_BATCH_SIZE: int = int(os.getenv("INSERT_BATCH_SIZE", "50"))
-# Free-tier OpenRouter rate limit is ~20 req/min — keep batch small to avoid 429s
-EMBEDDING_BATCH_SIZE: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "20"))
+# OpenAI paid tier supports up to 2048 inputs per request; 100 is a safe batch size
+EMBEDDING_BATCH_SIZE: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "100"))
 
 # ── Curriculum system identifiers (must be consistent across DB queries) ──────
 CURRICULUM_NCERT = "ncert-cbse"
@@ -75,8 +87,8 @@ def validate_config(require_embeddings: bool = True) -> None:
         missing.append("SUPABASE_URL (or VITE_SUPABASE_URL)")
     if not SUPABASE_SERVICE_ROLE_KEY:
         missing.append("SUPABASE_SERVICE_ROLE_KEY")
-    if require_embeddings and not OPENROUTER_API_KEY:
-        missing.append("OPENROUTER_API_KEY")
+    if require_embeddings and not OPENAI_API_KEY:
+        missing.append("OPENAI_API_KEY")
     if missing:
         raise EnvironmentError(
             f"Missing required environment variables: {', '.join(missing)}\n"
