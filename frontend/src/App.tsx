@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -24,6 +24,27 @@ import PricingPage from "./pages/PricingPage";
 
 const queryClient = new QueryClient();
 
+// Dev-only escape hatch: /report-preview?dev=true skips ProtectedRoute so the
+// Report Preview UI can be reviewed locally without signing in. import.meta.env.DEV
+// is statically false in production builds, so this branch is compiled out and
+// dead-code-eliminated — it can never activate outside a local Vite dev server.
+// Every other route, and /report-preview itself without the exact query param,
+// stays behind ProtectedRoute as before.
+const ReportPreviewRoute = () => {
+  const location = useLocation();
+  const devPreviewActive = import.meta.env.DEV && new URLSearchParams(location.search).get("dev") === "true";
+
+  if (devPreviewActive) {
+    return <ReportPreview />;
+  }
+
+  return (
+    <ProtectedRoute skipOnboardingCheck>
+      <ReportPreview />
+    </ProtectedRoute>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -40,13 +61,9 @@ const App = () => (
           <Route path="/student-assessment" element={<StudentAssessment />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/about" element={<About />} />
-          <Route 
-            path="/report-preview" 
-            element={
-              <ProtectedRoute skipOnboardingCheck>
-                <ReportPreview />
-              </ProtectedRoute>
-            } 
+          <Route
+            path="/report-preview"
+            element={<ReportPreviewRoute />}
           />
           <Route 
             path="/reports" 
