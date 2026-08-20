@@ -7,6 +7,7 @@ const ALLOWED_ORIGINS = [
   'https://www.academi-align.app',
   'https://arnaintellignece.com',
   'https://www.arnaintellignece.com',
+  'https://lovable.dev',
 ];
 
 // Development origins (automatically allowed in non-production)
