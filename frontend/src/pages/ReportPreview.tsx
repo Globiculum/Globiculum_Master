@@ -1,20 +1,19 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { FileText, Download, ArrowLeft, Target, BookOpen, Clock, Lightbulb, AlertTriangle, Loader2, TrendingUp, Calendar, GraduationCap, Globe, Info, GitCompareArrows, ChevronDown, ChevronRight, Layers } from "lucide-react";
+import { FileText, Download, ArrowLeft, Target, AlertTriangle, Loader2, GitCompareArrows, Layers } from "lucide-react";
 import ReportComparison from "@/components/ReportComparison";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { generateReportPDF } from "@/lib/generateReportPDF";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { mergeWithBaseline } from "@/lib/gradeBaselineTopics";
-import { getGapReason, isIBTarget } from "@/lib/gapExplanations";
+import { getGapReason } from "@/lib/gapExplanations";
 import ReportGenerationLoader, { type LoaderPersona } from "@/components/assessment/shared/ReportGenerationLoader";
+import globiculumLogo from "@/assets/globiculum-logo.png";
 
 const PERSONA_STORAGE_KEY = "globiculum-selected-persona";
 const getPersona = (): LoaderPersona => (sessionStorage.getItem(PERSONA_STORAGE_KEY) === "parent" ? "parent" : "student");
@@ -23,6 +22,539 @@ const getPersona = (): LoaderPersona => (sessionStorage.getItem(PERSONA_STORAGE_
 const isIndiaReadinessGoal = (targetGoal?: string): boolean => {
   if (!targetGoal) return true;
   return /india|cbse|icse|state[\s-]?board|ncert/i.test(targetGoal);
+};
+
+// Turns a stored option slug (e.g. "cambridge-igcse", "within-3-months") into
+// readable display text, preserving known curriculum/country acronyms and
+// keeping number ranges like "3-6" from being split apart.
+const SLUG_ACRONYMS = new Set(["cbse", "icse", "ib", "igcse", "us", "uk", "uae", "ncert", "teks", "pyp"]);
+const humanizeSlug = (value?: string): string => {
+  if (!value) return "";
+  return value
+    .replace(/(\d+)-(\d+)/g, "$1–$2")
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) =>
+      SLUG_ACRONYMS.has(word.toLowerCase()) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)
+    )
+    .join(" ");
+};
+
+// targetGrade is stored relative to snapshotGrade ("same" | "next") — this only
+// derives a display label for the already-captured value, it doesn't change how
+// the assessment stores or scores the grade.
+const computeTargetGradeLabel = (snapshotGrade?: string | number, targetGrade?: string): string => {
+  const base = typeof snapshotGrade === "number" ? snapshotGrade : parseInt(String(snapshotGrade ?? ""), 10);
+  if (!Number.isFinite(base)) return targetGrade ? humanizeSlug(targetGrade) : "";
+  const target = targetGrade === "next" ? base + 1 : base;
+  return `Grade ${target}`;
+};
+
+// Qualitative bucket derived purely from the EXISTING readiness percentage —
+// not a new scoring calculation, just a label for the summary strip.
+const deriveRiskLevel = (percentage?: number): string => {
+  if (typeof percentage !== "number" || Number.isNaN(percentage)) return "—";
+  if (percentage >= 75) return "Low";
+  if (percentage >= 50) return "Medium";
+  return "High";
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- formData itself is untyped raw storage (see getFormData below)
+const buildTransitionSummary = (formData: any): string => {
+  const currentCountry = formData.snapshotLocation === "us" ? "US" : humanizeSlug(formData.snapshotLocation) || "Current Location";
+  const currentState = formData.snapshotLocation === "us" && formData.usState && formData.usState !== "other"
+    ? humanizeSlug(formData.usState)
+    : "";
+  const currentCurriculum = humanizeSlug(formData.currentCurriculum);
+  const currentGrade = formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "";
+  const currentDetail = [currentState, currentCurriculum, currentGrade].filter(Boolean).join(", ");
+  const currentLabel = currentDetail ? `${currentCountry} (${currentDetail})` : currentCountry;
+
+  const targetGradeLabel = computeTargetGradeLabel(formData.snapshotGrade, formData.targetGrade);
+  const targetCurriculum = humanizeSlug(formData.targetGoal);
+  const targetDetail = [targetCurriculum, targetGradeLabel].filter(Boolean).join(", ");
+  const targetLabel = isIndiaReadinessGoal(formData.targetGoal)
+    ? `India${targetDetail ? ` (${targetDetail})` : ""}`
+    : targetDetail || "Target Curriculum";
+
+  return `${currentLabel} → ${targetLabel}`;
+};
+
+// Only surfaces fields the assessment actually captures — no fabricated
+// school name or calendar date, just honestly-labeled proxies (school stage,
+// bucketed timeline) for the two reference fields with no backing data.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- formData itself is untyped raw storage (see getFormData below)
+const buildProfileRows = (formData: any): { label: string; value: string }[] => {
+  const firstName = formData.childName || formData.studentName;
+  const lastName = formData.childLastName || formData.studentLastName;
+  const name = [firstName, lastName].filter(Boolean).join(" ") || "—";
+  const schoolStageLabel = formData.schoolStage ? `${humanizeSlug(formData.schoolStage)} School` : "—";
+  const languages = Array.isArray(formData.selectedLanguages) && formData.selectedLanguages.length > 0
+    ? formData.selectedLanguages.map((l: string) => humanizeSlug(l)).join(", ")
+    : "—";
+  return [
+    { label: "Name", value: name },
+    { label: "Age", value: formData.snapshotAge ? String(formData.snapshotAge) : "—" },
+    { label: "School Stage", value: schoolStageLabel },
+    { label: "Current Curriculum", value: humanizeSlug(formData.currentCurriculum) || "—" },
+    { label: "Target Curriculum", value: humanizeSlug(formData.targetGoal) || "—" },
+    { label: "Transition Timeline", value: humanizeSlug(formData.timeline) || "—" },
+    { label: "Language(s)", value: languages },
+  ];
+};
+
+// Per-subject alignment % derived from the EXISTING topicsCovered/totalTopics
+// ratio already returned by the analysis — not a new score, just a display %.
+const summarizeSubjects = (analysis: AnalysisData) => {
+  const withPercentage = analysis.subjectAnalysis.map((s) => ({
+    ...s,
+    percentage: s.totalTopics > 0 ? Math.round((s.topicsCovered / s.totalTopics) * 100) : 0,
+  }));
+  const strong = withPercentage.filter((s) => s.alignmentLevel === "strong");
+  const moderate = withPercentage.filter((s) => s.alignmentLevel === "moderate");
+  const critical = withPercentage.filter((s) => s.alignmentLevel === "high_gap");
+  const weakest = [...withPercentage].sort((a, b) => a.percentage - b.percentage)[0];
+  return { withPercentage, strong, moderate, critical, weakest };
+};
+
+const joinNames = (items: { subject: string }[]): string => items.map((s) => s.subject).join(", ");
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- formData itself is untyped raw storage (see getFormData below)
+const buildExecutiveSummary = (formData: any, analysis: AnalysisData): string[] => {
+  const { strong, moderate, critical, weakest } = summarizeSubjects(analysis);
+  const percentage = analysis.overallAlignment.percentage;
+  const risk = deriveRiskLevel(percentage);
+  const duration = analysis.overallAlignment.estimatedDuration;
+  const currentCurriculum = humanizeSlug(formData.currentCurriculum) || "the current curriculum";
+  const currentGrade = formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "the current grade level";
+  const targetCurriculum = humanizeSlug(formData.targetGoal) || "the target curriculum";
+  const targetGradeLabel = computeTargetGradeLabel(formData.snapshotGrade, formData.targetGrade) || "the target grade";
+
+  const paragraphs: string[] = [];
+
+  let p1 = `This transition assessment indicates a ${risk} overall risk with a ${percentage}% readiness score — reflecting how much of ${targetCurriculum} ${targetGradeLabel} expectations are already in place from the student's ${currentCurriculum} ${currentGrade} record.`;
+  if (strong.length > 0) {
+    p1 += ` ${joinNames(strong)} ${strong.length === 1 ? "is" : "are"} strong, directly transferable foundation${strong.length === 1 ? "" : "s"} that need${strong.length === 1 ? "s" : ""} only light bridging.`;
+  }
+  paragraphs.push(p1);
+
+  const p2parts: string[] = [];
+  if (moderate.length > 0) {
+    p2parts.push(`${joinNames(moderate)} need${moderate.length === 1 ? "s" : ""} moderate reinforcement.`);
+  }
+  if (critical.length > 0) {
+    p2parts.push(`${joinNames(critical)} ${critical.length === 1 ? "is" : "are"} the clear priorit${critical.length === 1 ? "y" : "ies"} and should receive the majority of the preparation window.`);
+  }
+  if (p2parts.length > 0) paragraphs.push(p2parts.join(" "));
+
+  let p3 = `With a structured, front-loaded bridge plan, the student is well-positioned to enter ${targetCurriculum} ${targetGradeLabel} on schedule within the estimated ${duration} preparation window.`;
+  if (weakest) {
+    p3 += ` ${weakest.subject}, currently at ${weakest.percentage}% alignment, should be the first focus area.`;
+  }
+  paragraphs.push(p3);
+
+  return paragraphs;
+};
+
+const buildKeyTakeaways = (analysis: AnalysisData): string[] => {
+  const { strong, moderate, critical, weakest } = summarizeSubjects(analysis);
+  const bullets: string[] = [];
+
+  if (strong.length > 0) {
+    bullets.push(`${joinNames(strong)} need${strong.length === 1 ? "s" : ""} only light bridging — already strongly aligned with target expectations.`);
+  }
+  if (moderate.length > 0) {
+    bullets.push(`${joinNames(moderate)} require${moderate.length === 1 ? "s" : ""} targeted, moderate preparation.`);
+  }
+  if (weakest) {
+    bullets.push(`${weakest.subject} is the single most important prep area, currently at ${weakest.percentage}% alignment.`);
+  }
+  bullets.push(`Estimated preparation window: ${analysis.overallAlignment.estimatedDuration}.`);
+  if (analysis.criticalGaps.length > 0) {
+    bullets.push(`${analysis.criticalGaps.length} critical gap${analysis.criticalGaps.length === 1 ? "" : "s"} identified and should be front-loaded before the transition starts.`);
+  }
+
+  return bullets;
+};
+
+// Presentational relabelings of the EXISTING alignmentLevel field — not a new
+// scoring system. There is no per-subject numeric week estimate in the
+// analysis data, so catch-up speed is shown qualitatively rather than a
+// fabricated week count.
+const SUBJECT_CONFIDENCE_LABEL: Record<SubjectAnalysis["alignmentLevel"], string> = {
+  strong: "High Confidence",
+  moderate: "Medium Confidence",
+  high_gap: "Low Confidence",
+};
+
+const SUBJECT_PACE_LABEL: Record<SubjectAnalysis["alignmentLevel"], string> = {
+  strong: "Quick Review",
+  moderate: "Moderate Prep",
+  high_gap: "Extended Prep",
+};
+
+const SUBJECT_DIFFICULTY: Record<SubjectAnalysis["alignmentLevel"], { level: string; explanation: string }> = {
+  strong: {
+    level: "Low",
+    explanation: "Underlying concepts transfer well — remaining gaps are narrow and should close quickly with light, focused practice.",
+  },
+  moderate: {
+    level: "Medium",
+    explanation: "Core concepts are learnable, but some content and assessment style will be new — steady, regular practice is recommended.",
+  },
+  high_gap: {
+    level: "High",
+    explanation: "This subject needs structured, front-loaded preparation across multiple topics to reach grade-level readiness.",
+  },
+};
+
+// No per-subject "strengths" list exists in the analysis data — only
+// topicsCovered/totalTopics and keyGaps. This surfaces what's actually known
+// rather than inventing specific topic names.
+const buildSubjectStrengths = (subject: SubjectAnalysis): string[] => {
+  const bullets: string[] = [`${subject.topicsCovered} of ${subject.totalTopics} target topics already covered.`];
+  if (subject.alignmentLevel === "strong") {
+    bullets.push("No significant gaps identified in this subject.");
+  } else if (subject.keyGaps.length === 0) {
+    bullets.push("No specific gap topics flagged for this subject yet.");
+  }
+  return bullets;
+};
+
+// Only gaps that already carry a real resourceUrl (from the curriculum
+// database, via keyGaps) become resource links — nothing is invented.
+const buildSubjectResources = (subject: SubjectAnalysis): { label: string; url: string }[] =>
+  subject.keyGaps
+    .map((gap) => ({ label: getGapTopic(gap), url: getGapUrl(gap) }))
+    .filter((r): r is { label: string; url: string } => !!r.url);
+
+// Three metrics from ONLY existing fields: readiness is the existing overall
+// percentage; academic risk is its direct complement; transition risk is the
+// existing subjectsNeedingBridge count as a share of all assessed subjects.
+// No independent risk score is invented.
+const deriveRiskMetrics = (analysis: AnalysisData): { label: string; percentage: number; tone: "positive" | "risk" }[] => {
+  const readiness = Math.max(0, Math.min(100, analysis.overallAlignment.percentage));
+  const academicRisk = 100 - readiness;
+  const totalSubjects = analysis.subjectAnalysis.length;
+  const needingBridge = analysis.overallAlignment.subjectsNeedingBridge?.length ?? 0;
+  const transitionRisk = totalSubjects > 0 ? Math.round((needingBridge / totalSubjects) * 100) : academicRisk;
+  return [
+    { label: "Academic Risk", percentage: academicRisk, tone: "risk" },
+    { label: "Transition Risk", percentage: transitionRisk, tone: "risk" },
+    { label: "Exam Readiness", percentage: readiness, tone: "positive" },
+  ];
+};
+
+// Total prep months come from the bridge timeline's own phase durations
+// (e.g. "Months 7-8") or, failing that, the overall estimatedDuration string
+// — never a fixed/invented number.
+const extractMonthCount = (analysis: AnalysisData): number => {
+  const candidates = [analysis.bridgeTimeline?.phase3?.duration, analysis.overallAlignment?.estimatedDuration].filter(
+    (v): v is string => !!v
+  );
+  for (const text of candidates) {
+    const numbers = (text.match(/\d+/g) ?? []).map(Number);
+    if (numbers.length > 0) return Math.max(1, ...numbers);
+  }
+  return 3;
+};
+
+// Splits an existing bullet list across N months as evenly as possible —
+// pure redistribution of real content, no new bullets are written.
+const distributeAcrossMonths = <T,>(items: T[], monthCount: number): T[][] => {
+  if (monthCount <= 0) return [];
+  if (items.length === 0) return Array.from({ length: monthCount }, () => [] as T[]);
+  if (items.length >= monthCount) {
+    const result: T[][] = Array.from({ length: monthCount }, () => [] as T[]);
+    items.forEach((item, i) => {
+      const bucket = Math.min(monthCount - 1, Math.floor((i * monthCount) / items.length));
+      result[bucket].push(item);
+    });
+    return result;
+  }
+  return Array.from({ length: monthCount }, () => items);
+};
+
+// Completion % is a plain linear month/total ramp reaching exactly 100% at
+// the final month — a timeline position, not a new readiness calculation.
+// Each month is assigned to whichever real bridgeTimeline phase covers it
+// (parsed from that phase's own "Months X-Y" range), and that phase's real
+// bullets are distributed across its months for the Focus Areas column.
+const buildMonthlyBridgePlan = (
+  analysis: AnalysisData
+): { phase: string; month: number; focusAreas: string; percentage: number }[] => {
+  const monthCount = extractMonthCount(analysis);
+  const phases = [analysis.bridgeTimeline.phase1, analysis.bridgeTimeline.phase2, analysis.bridgeTimeline.phase3];
+
+  const parsedRanges = phases.map((p): [number, number] | null => {
+    const nums = (p.duration.match(/\d+/g) ?? []).map(Number);
+    if (nums.length >= 2) return [nums[0], nums[nums.length - 1]];
+    if (nums.length === 1) return [nums[0], nums[0]];
+    return null;
+  });
+
+  const phaseSpans: [number, number][] = parsedRanges.every((r): r is [number, number] => r !== null)
+    ? (parsedRanges as [number, number][])
+    : (() => {
+        const base = Math.floor(monthCount / 3);
+        const remainder = monthCount % 3;
+        let cursor = 1;
+        return [0, 1, 2].map((i) => {
+          const span = base + (i < remainder ? 1 : 0);
+          const start = cursor;
+          const end = Math.max(start, cursor + span - 1);
+          cursor += span;
+          return [start, end] as [number, number];
+        });
+      })();
+
+  const bulletsPerPhaseMonth = phaseSpans.map(([start, end], i) => {
+    const span = Math.max(1, end - start + 1);
+    return distributeAcrossMonths(phases[i].bullets, span);
+  });
+
+  return Array.from({ length: monthCount }, (_, idx) => {
+    const month = idx + 1;
+    const percentage = month === monthCount ? 100 : Math.round((month / monthCount) * 100);
+    let phaseIndex = phaseSpans.findIndex(([start, end]) => month >= start && month <= end);
+    if (phaseIndex === -1) phaseIndex = phaseSpans.length - 1;
+    const [start] = phaseSpans[phaseIndex];
+    const offsetInPhase = Math.min(month - start, bulletsPerPhaseMonth[phaseIndex].length - 1);
+    const bullets = bulletsPerPhaseMonth[phaseIndex][Math.max(0, offsetInPhase)] ?? [];
+    return {
+      phase: phases[phaseIndex].name,
+      month,
+      focusAreas: bullets.join(" · ") || phases[phaseIndex].name,
+      percentage,
+    };
+  });
+};
+
+const buildWhyStartNow = (analysis: AnalysisData): string => {
+  const topGaps = analysis.criticalGaps.slice(0, 2).map(getGapTopic);
+  const duration = analysis.overallAlignment.estimatedDuration;
+  if (topGaps.length === 0) {
+    return `Beginning preparation now keeps the plan on track for the estimated ${duration} timeline, rather than compressing everything into the final weeks.`;
+  }
+  const gapPhrase = topGaps.join(" and ");
+  const plural = analysis.criticalGaps.length > 1;
+  return `The highest-priority gap${plural ? "s" : ""} — ${gapPhrase} — carr${plural ? "y" : "ies"} the greatest academic impact and should be addressed first. Starting preparation now keeps the overall plan on track for the estimated ${duration} timeline, rather than compressing everything into the final weeks.`;
+};
+
+const buildRoadmapExplanation = (analysis: AnalysisData): string => {
+  const topGaps = analysis.criticalGaps.slice(0, 2).map(getGapTopic);
+  const duration = analysis.overallAlignment.estimatedDuration;
+  const phase1Name = analysis.bridgeTimeline.phase1.name;
+  const phase3Name = analysis.bridgeTimeline.phase3.name;
+  const gapPhrase = topGaps.length > 0 ? topGaps.join(" and ") : "The highest-priority gaps";
+  return `The roadmap is front-loaded deliberately: ${gapPhrase} carr${topGaps.length === 1 ? "ies" : "y"} the greatest academic risk, so ${topGaps.length > 0 ? "they are" : "it is"} addressed early under ${phase1Name}. The remaining months build toward ${phase3Name.toLowerCase()}, confirming readiness well ahead of the end of the estimated ${duration} preparation window.`;
+};
+
+// Prioritizes real resource links, then falls back to real study/skill tips —
+// nothing here is generated, only reused from the existing recommendations.
+const buildImmediateActions = (analysis: AnalysisData): { label: string; url?: string }[] => {
+  const actions: { label: string; url?: string }[] = [];
+  analysis.recommendations.resources.slice(0, 2).forEach((r) => {
+    actions.push({ label: getResName(r), url: getResUrl(r) });
+  });
+  analysis.recommendations.study.slice(0, 2).forEach((s) => actions.push({ label: s }));
+  analysis.recommendations.skillStrategy.slice(0, 2).forEach((s) => actions.push({ label: s }));
+  return actions.slice(0, 5);
+};
+
+// Reuses the existing student-facing study tips, plus one checklist item per
+// top real critical-gap topic — no new items are written.
+const buildStudentChecklist = (analysis: AnalysisData): string[] => {
+  const items = [...analysis.recommendations.study];
+  analysis.criticalGaps.slice(0, 2).forEach((gap) => items.push(`Review ${getGapTopic(gap)}.`));
+  return items.slice(0, 6);
+};
+
+// Reuses the existing skill-strategy and cultural/classroom-adaptation tips —
+// both are already framed as guidance for whoever is supporting the student,
+// which fits a teacher/school audience.
+const buildTeacherRecommendations = (analysis: AnalysisData): string[] =>
+  [...analysis.recommendations.skillStrategy, ...analysis.recommendations.culturalLanguage].slice(0, 6);
+
+// Combines the two real resource sources: report-level recommendations.resources
+// and per-subject keyGaps[].resourceUrl — deduped, nothing invented.
+const buildLearningResources = (analysis: AnalysisData): { label: string; url?: string }[] => {
+  const fromRecommendations = analysis.recommendations.resources.map((r) => ({ label: getResName(r), url: getResUrl(r) }));
+  const fromGaps = analysis.subjectAnalysis.flatMap((s) =>
+    s.keyGaps.map((g) => ({ label: getGapTopic(g), url: getGapUrl(g) })).filter((r) => !!r.url)
+  );
+  const seen = new Set<string>();
+  return [...fromRecommendations, ...fromGaps]
+    .filter((r) => {
+      const key = r.url || r.label;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 8);
+};
+
+// Every subject's alignment % is real. There is no per-subject "study hours"
+// field anywhere in the backend response, so hour figures below are an
+// ESTIMATE constructed from that real gap size — disclosed via the on-page
+// captions, not a hidden score. HOURS_PER_WEEK_AT_FULL_GAP and the weekly
+// taper are fixed, transparent planning assumptions, not derived data.
+const HOURS_PER_WEEK_AT_FULL_GAP = 5;
+const WEEKLY_PLAN_WEEKS = 4;
+const WEEKLY_PLAN_TAPER = [1, 0.9, 0.8, 0.7];
+
+const subjectGapPercentages = (analysis: AnalysisData): { subject: string; percentage: number }[] =>
+  analysis.subjectAnalysis.map((s) => ({
+    subject: s.subject,
+    percentage: s.totalTopics > 0 ? Math.round((s.topicsCovered / s.totalTopics) * 100) : 0,
+  }));
+
+// Total estimated hours per subject to close its gap, scaled against the
+// report's own real estimated preparation length (via extractMonthCount).
+const buildStudyHoursToCloseGaps = (analysis: AnalysisData): { subject: string; hours: number }[] => {
+  const totalWeeks = extractMonthCount(analysis) * 4;
+  return subjectGapPercentages(analysis).map(({ subject, percentage }) => ({
+    subject,
+    hours: Math.round(((100 - percentage) / 100) * totalWeeks * HOURS_PER_WEEK_AT_FULL_GAP),
+  }));
+};
+
+// A near-term (4-week) weekly hour allocation per subject, front-loaded then
+// tapering — the same disclosed, uniform taper applied to every subject.
+const buildWeeklyStudyPlan = (
+  analysis: AnalysisData
+): { subjects: string[]; rows: { week: number; hours: number[] }[] } => {
+  const subjects = subjectGapPercentages(analysis);
+  const baseWeeklyHours = subjects.map(({ percentage }) => Math.max(1, Math.round(((100 - percentage) / 100) * 6)));
+  const rows = Array.from({ length: WEEKLY_PLAN_WEEKS }, (_, weekIdx) => ({
+    week: weekIdx + 1,
+    hours: baseWeeklyHours.map((h) => Math.max(1, Math.round(h * WEEKLY_PLAN_TAPER[weekIdx]))),
+  }));
+  return { subjects: subjects.map((s) => s.subject), rows };
+};
+
+const buildWeeklyPlanCaption = (analysis: AnalysisData): string => {
+  const hoursToClose = buildStudyHoursToCloseGaps(analysis);
+  if (hoursToClose.length === 0) return "";
+  const heaviest = [...hoursToClose].sort((a, b) => b.hours - a.hours)[0];
+  return `${heaviest.subject} carries the heaviest weekly load, tapering gradually across the plan as practice builds fluency in every subject.`;
+};
+
+const VerticalHoursChart = ({ data }: { data: { subject: string; hours: number }[] }) => {
+  const max = Math.max(...data.map((d) => d.hours), 1);
+  return (
+    <div className="flex h-40 items-end gap-3 border-b border-l border-border pb-1 pl-2">
+      {data.map((d) => (
+        <div key={d.subject} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+          <span className="text-xs font-semibold text-foreground">{d.hours}h</span>
+          <div
+            className={`w-full max-w-[48px] rounded-t-sm ${d.hours === max && max > 0 ? "bg-accent" : "bg-primary"}`}
+            style={{ height: `${Math.max((d.hours / max) * 100, 4)}%` }}
+          />
+          <span className="mt-1 text-center text-[10px] leading-tight text-muted-foreground">{d.subject}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Short, real-data-driven answers — no fabricated dates/weeks, only the
+// report's own duration, phase name, and risk level.
+const buildParentFAQ = (analysis: AnalysisData): { question: string; answer: string }[] => {
+  const { critical } = summarizeSubjects(analysis);
+  const duration = analysis.overallAlignment.estimatedDuration;
+  const risk = deriveRiskLevel(analysis.overallAlignment.percentage);
+  const phase1Name = analysis.bridgeTimeline.phase1.name;
+
+  const tutorAnswer =
+    critical.length > 0
+      ? `Not required, but recommended for ${critical[0].subject} specifically.`
+      : "Not required based on the current assessment — self-guided study should be sufficient.";
+
+  const lateStartAnswer = `Still workable — compress the ${phase1Name} phase and consider a tutor if the timeline shortens further.`;
+
+  const enoughTimeAnswer =
+    risk === "High"
+      ? "It will be tight — prioritizing the highest-impact gaps early is recommended."
+      : "Yes, at the pace in this plan, with room to spare.";
+
+  return [
+    { question: "Do we need a tutor?", answer: tutorAnswer },
+    { question: "What if we start late?", answer: lateStartAnswer },
+    { question: `Is ${duration} really enough?`, answer: enoughTimeAnswer },
+  ];
+};
+
+const CompletionAreaChart = ({ data }: { data: { month: number; percentage: number }[] }) => {
+  const width = 640;
+  const height = 170;
+  const paddingX = 28;
+  const paddingTop = 26;
+  const paddingBottom = 22;
+  const plotWidth = width - paddingX * 2;
+  const plotHeight = height - paddingTop - paddingBottom;
+  const n = data.length;
+  const xFor = (i: number) => paddingX + (n === 1 ? plotWidth / 2 : (i / (n - 1)) * plotWidth);
+  const yFor = (pct: number) => paddingTop + plotHeight - (pct / 100) * plotHeight;
+  const points = data.map((d, i) => ({ x: xFor(i), y: yFor(d.percentage), ...d }));
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const areaPath =
+    points.length > 0
+      ? `${linePath} L ${points[points.length - 1].x} ${paddingTop + plotHeight} L ${points[0].x} ${paddingTop + plotHeight} Z`
+      : "";
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-label="Expected preparation completion percentage by month">
+      {[0, 50, 100].map((gridPct) => (
+        <line key={gridPct} x1={paddingX} x2={width - paddingX} y1={yFor(gridPct)} y2={yFor(gridPct)} stroke="hsl(var(--border))" strokeWidth={1} />
+      ))}
+      {areaPath && <path d={areaPath} fill="hsl(var(--secondary))" fillOpacity={0.12} stroke="none" />}
+      <path d={linePath} fill="none" stroke="hsl(var(--secondary))" strokeWidth={2} />
+      {points.map((p) => (
+        <g key={p.month}>
+          <circle cx={p.x} cy={p.y} r={3.5} fill="hsl(var(--secondary))" />
+          <text x={p.x} y={p.y - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="hsl(var(--foreground))">
+            {p.percentage}%
+          </text>
+          <text x={p.x} y={height - 6} textAnchor="middle" fontSize={10} fill="hsl(var(--muted-foreground))">
+            Month {p.month}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+};
+
+const ReadinessDonut = ({ percentage }: { percentage: number }) => {
+  const size = 148;
+  const strokeWidth = 12;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const clamped = Math.max(0, Math.min(100, Number.isFinite(percentage) ? percentage : 0));
+  const offset = circumference * (1 - clamped / 100);
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth={strokeWidth} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="hsl(var(--secondary))"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={{ transition: "stroke-dashoffset 0.6s ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-bold text-foreground">{Math.round(clamped)}%</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Readiness</span>
+      </div>
+    </div>
+  );
 };
 
 // Gap items: AI returns either a plain string (legacy) or { topic, resourceUrl? }
@@ -74,10 +606,71 @@ const STORAGE_KEY_FORM = 'assessment-form-data';
 const STORAGE_KEY_ANALYSIS = 'saved-report-analysis';
 const STORAGE_KEY_REPORT_ID = 'saved-report-id';
 
+// Dev-only escape hatch for `/report-preview?dev=true`, used while the local
+// Supabase Edge Function CORS deployment is out of date and real assessment
+// submission (validate-student-data) can't complete locally. import.meta.env.DEV
+// is statically false in production builds, so this branch is compiled out —
+// it can never activate outside a local Vite dev server, and it only ever
+// fills in for MISSING real form/analysis data, never overrides it.
+const isDevPreviewRequested = (search: string): boolean => {
+  if (!import.meta.env.DEV) return false;
+  try {
+    return new URLSearchParams(search).get("dev") === "true";
+  } catch {
+    return false;
+  }
+};
+
+// Structurally identical to real formData (see AssessmentFormData / parentMapper)
+// so every section renders exactly as it would with a real submission.
+const DEV_MOCK_FORM_DATA = {
+  studentName: "Aarav",
+  studentLastName: "Menon",
+  snapshotAge: "10",
+  schoolStage: "middle",
+  snapshotGrade: "5",
+  snapshotLocation: "us",
+  usState: "texas",
+  currentCurriculum: "us-common-core",
+  targetGoal: "cbse",
+  targetGrade: "next",
+  timeline: "3-6-months",
+  selectedLanguages: ["english", "hindi"],
+  academicPath: ["Math", "Science"],
+};
+
+// Structurally identical to a real AnalysisData response from analyze-curriculum.
+const DEV_MOCK_ANALYSIS: AnalysisData = {
+  overallAlignment: {
+    percentage: 72,
+    subjectsNeedingBridge: ["Science", "Social Science"],
+    estimatedDuration: "5 Months",
+  },
+  subjectAnalysis: [
+    { subject: "Mathematics", topicsCovered: 18, totalTopics: 20, alignmentLevel: "strong", keyGaps: [] },
+    { subject: "Science", topicsCovered: 12, totalTopics: 20, alignmentLevel: "moderate", keyGaps: ["Diagram-based question practice"] },
+    { subject: "English", topicsCovered: 16, totalTopics: 20, alignmentLevel: "strong", keyGaps: [] },
+    { subject: "Social Science", topicsCovered: 7, totalTopics: 20, alignmentLevel: "high_gap", keyGaps: ["Indian History", "Civics", "Geography"] },
+  ],
+  criticalGaps: ["Indian History", "Civics & Governance"],
+  bridgeTimeline: {
+    phase1: { name: "Foundation", duration: "Month 1-2", bullets: ["Introduce Indian History timeline"] },
+    phase2: { name: "Building", duration: "Month 3-4", bullets: ["Deepen Social Science coverage"] },
+    phase3: { name: "Consolidation", duration: "Month 5", bullets: ["Practice CBSE-style assessments"] },
+  },
+  recommendations: {
+    study: ["Daily Social Science reading"],
+    skillStrategy: ["Practice diagram-based Science questions"],
+    resources: ["NCERT Class 6 Social Science"],
+    culturalLanguage: ["Watch Indian history documentaries"],
+  },
+};
+
 const ReportPreview = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+  const devPreviewActive = isDevPreviewRequested(location.search);
+
   // Try location.state first, fallback to sessionStorage, then localStorage
   const getFormData = () => {
     // Priority 1: Navigation state
@@ -123,6 +716,11 @@ const ReportPreview = () => {
       }
     }
     
+    if (devPreviewActive) {
+      console.log("[ReportPreview] No real formData found — using dev preview mock (?dev=true)");
+      return DEV_MOCK_FORM_DATA;
+    }
+
     console.warn("[ReportPreview] No formData found in any storage");
     return {};
   };
@@ -133,7 +731,7 @@ const ReportPreview = () => {
       console.log("[ReportPreview] Using savedAnalysis from navigation state");
       return location.state.savedAnalysis as AnalysisData;
     }
-    
+
     // Priority 2: Session storage
     const stored = sessionStorage.getItem(STORAGE_KEY_ANALYSIS);
     if (stored) {
@@ -149,7 +747,12 @@ const ReportPreview = () => {
         return null;
       }
     }
-    
+
+    if (devPreviewActive) {
+      console.log("[ReportPreview] No real analysis found — using dev preview mock (?dev=true)");
+      return DEV_MOCK_ANALYSIS;
+    }
+
     return null;
   };
   
@@ -554,19 +1157,6 @@ const ReportPreview = () => {
     }
   };
 
-  const getAlignmentBadge = (level: string) => {
-    switch (level) {
-      case 'strong': 
-        return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">Strong</Badge>;
-      case 'moderate': 
-        return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs">Moderate</Badge>;
-      case 'high_gap': 
-        return <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-0 text-xs">High Gap</Badge>;
-      default: 
-        return <Badge variant="secondary" className="text-xs">Unknown</Badge>;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -613,292 +1203,262 @@ const ReportPreview = () => {
             </Card>
           ) : (
             <div ref={reportRef}>
-            <Card className="border border-border">
-            {/* A. Header */}
-              <CardHeader className="text-center py-6 bg-muted/30 border-b border-border">
-                <div className="flex justify-center mb-3">
-                  <div className="p-3 bg-primary/10 rounded-full">
-                    <FileText className="h-8 w-8 text-primary" />
-                  </div>
-                </div>
-                <h1 className="text-2xl font-semibold leading-none tracking-tight">
-                  {isIndiaReadinessGoal(formData.targetGoal)
-                    ? "Your Transition Readiness Report"
-                    : "Your Curriculum Analysis Report"}
+            <Card className="border border-border overflow-hidden">
+            {/* A. Report Header */}
+              <div className="bg-primary px-5 py-6 sm:px-8 sm:py-7">
+                <img src={globiculumLogo} alt="Globiculum" className="h-7 w-auto brightness-0 invert mb-4" />
+                <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-tight text-primary-foreground">
+                  Curriculum Gap Analysis Report
                 </h1>
-                <p className="text-sm text-muted-foreground">
-                  AI-powered analysis based on your child's educational journey
+                <p className="mt-1.5 text-sm sm:text-base font-medium text-mint">
+                  {buildTransitionSummary(formData)}
                 </p>
-              </CardHeader>
-              
+              </div>
+
               <CardContent className="space-y-6 pt-6">
-                {/* B. Student Snapshot - Compact */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Student Snapshot</h3>
+                {/* B. Student & Transition Profile + Overall Readiness */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                  <div className="lg:col-span-2">
+                    <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <Target className="h-3.5 w-3.5" aria-hidden="true" />
+                      Student &amp; Transition Profile
+                    </h2>
+                    <div className="overflow-x-auto rounded-md border border-border">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-primary text-primary-foreground">
+                            <th scope="col" className="w-2/5 px-3 py-2 text-left font-semibold">Field</th>
+                            <th scope="col" className="px-3 py-2 text-left font-semibold">Detail</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {buildProfileRows(formData).map((row, i) => (
+                            <tr key={row.label} className={i % 2 === 1 ? "bg-muted/40" : undefined}>
+                              <th scope="row" className="border-t border-border px-3 py-2 text-left font-medium text-muted-foreground">
+                                {row.label}
+                              </th>
+                              <td className="border-t border-border px-3 py-2">{row.value}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {formData.schoolStage && (
-                      <div className="p-2 bg-muted/50 rounded-md">
-                        <div className="text-xs text-muted-foreground">Stage</div>
-                        <div className="font-medium text-sm capitalize">{formData.schoolStage}</div>
-                      </div>
-                    )}
-                    {formData.snapshotGrade && (
-                      <div className="p-2 bg-muted/50 rounded-md">
-                        <div className="text-xs text-muted-foreground">Grade</div>
-                        <div className="font-medium text-sm">Grade {formData.snapshotGrade}</div>
-                      </div>
-                    )}
-                    {formData.snapshotLocation && (
-                      <div className="p-2 bg-muted/50 rounded-md">
-                        <div className="text-xs text-muted-foreground">Location</div>
-                        <div className="font-medium text-sm capitalize truncate">
-                          {formData.snapshotLocation === "us" 
-                            ? `US${formData.usState ? ` - ${formData.usState}` : ""}`
-                            : formData.snapshotLocation}
-                        </div>
-                      </div>
-                    )}
-                    {formData.currentCurriculum && (
-                      <div className="p-2 bg-muted/50 rounded-md">
-                        <div className="text-xs text-muted-foreground">Curriculum</div>
-                        <div className="font-medium text-sm truncate">{formData.currentCurriculum}</div>
-                      </div>
-                    )}
-                  </div>
-                  {formData.academicPath && formData.academicPath.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {formData.academicPath.map((subject: string) => (
-                        <Badge key={subject} variant="secondary" className="px-2 py-0.5 text-xs">
-                          {subject}
-                        </Badge>
-                      ))}
+
+                  {analysis && (
+                    <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-border bg-muted/20 py-6">
+                      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Overall Readiness</h2>
+                      <ReadinessDonut percentage={analysis.overallAlignment.percentage} />
                     </div>
                   )}
                 </div>
 
-                {/* C. Quick Overview Summary - 3 Horizontal Boxes */}
+                {/* C. Readiness Summary Strip */}
                 {analysis && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 text-center">
-                      <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                      <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{analysis.overallAlignment.percentage}%</div>
-                      {isIndiaReadinessGoal(formData.targetGoal) ? (
-                        <div className="flex items-center justify-center gap-1 text-xs text-blue-600 dark:text-blue-400">
-                          <span>Transition Readiness Estimate</span>
-                          <HoverCard>
-                            <HoverCardTrigger asChild>
-                              <button className="inline-flex items-center justify-center hover:opacity-70 transition-opacity">
-                                <Info className="h-3.5 w-3.5" />
-                              </button>
-                            </HoverCardTrigger>
-                            <HoverCardContent className="w-72 text-left" side="top">
-                              <div className="space-y-2">
-                                <h4 className="text-sm font-semibold">How to read this estimate</h4>
-                                <p className="text-xs text-muted-foreground leading-relaxed">
-                                  This reflects how your child's current curriculum compares with typical Indian grade-level topics. It is meant to guide preparation for transition — not to judge academic performance or test results.
-                                </p>
-                              </div>
-                            </HoverCardContent>
-                          </HoverCard>
-                        </div>
-                      ) : (
-                        <div className="text-xs text-blue-600 dark:text-blue-400">Coverage Score</div>
-                      )}
+                  <div className="-mx-6 grid grid-cols-1 overflow-hidden border-y border-border sm:grid-cols-3">
+                    <div className="bg-secondary px-6 py-4 text-center text-secondary-foreground">
+                      <div className="text-2xl font-bold">{analysis.overallAlignment.percentage}%</div>
+                      <div className="text-xs font-semibold uppercase tracking-wide">Ready Now</div>
                     </div>
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 text-center">
-                      <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                      <div className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                        {(() => {
-                          const isHighSchool11Plus = formData.schoolStage === "high" && parseInt(formData.snapshotGrade) >= 11;
-                          const filtered = analysis.subjectAnalysis.filter(s => {
-                            if (s.alignmentLevel === 'strong') return false;
-                            // For high school 11-12, don't count social studies unless humanities stream
-                            if (isHighSchool11Plus) {
-                              const isSocialStudy = /social|history|civics|geography/i.test(s.subject);
-                              const isHumanities = formData.academicPath?.some?.((p: string) => /humanities|history|political/i.test(p));
-                              if (isSocialStudy && !isHumanities) return false;
-                            }
-                            return true;
-                          });
-                          return `${filtered.length} Subject${filtered.length !== 1 ? 's' : ''}`;
-                        })()}
-                      </div>
-                      <div className="text-xs text-blue-600 dark:text-blue-400">Need Preparation</div>
+                    <div className="bg-accent px-6 py-4 text-center text-accent-foreground sm:border-x sm:border-border/40">
+                      <div className="text-2xl font-bold">{deriveRiskLevel(analysis.overallAlignment.percentage)}</div>
+                      <div className="text-xs font-semibold uppercase tracking-wide">Risk Level</div>
                     </div>
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 text-center">
-                      <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                      <div className="text-lg font-bold text-blue-700 dark:text-blue-300">{analysis.overallAlignment.estimatedDuration}</div>
-                      <div className="text-xs text-blue-600 dark:text-blue-400">Estimated Duration</div>
+                    <div className="bg-primary px-6 py-4 text-center text-primary-foreground">
+                      <div className="text-2xl font-bold">{analysis.overallAlignment.estimatedDuration}</div>
+                      <div className="text-xs font-semibold uppercase tracking-wide">Time to Prepare</div>
                     </div>
                   </div>
                 )}
 
-                {/* D. Coverage Analysis — layered: Strong → Moderate → Critical */}
+                {/* C2. Executive Summary / Alignment by Subject / Key Takeaways */}
+                {analysis && (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-xl font-bold uppercase tracking-tight text-primary">Executive Summary</h2>
+                      <div className="mt-1.5 mb-3 h-0.5 w-16 bg-secondary" />
+                      <div className="space-y-3 text-sm leading-relaxed text-foreground/90">
+                        {buildExecutiveSummary(formData, analysis).map((paragraph, i) => (
+                          <p key={i}>{paragraph}</p>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                      <div>
+                        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Alignment by Subject
+                        </h2>
+                        <div className="space-y-2.5">
+                          {summarizeSubjects(analysis).withPercentage.map((s) => (
+                            <div key={s.subject} className="flex items-center gap-3">
+                              <div className="w-28 shrink-0 truncate text-xs font-medium text-foreground" title={s.subject}>
+                                {s.subject}
+                              </div>
+                              <div className="h-2.5 flex-1 rounded-sm bg-muted">
+                                <div
+                                  className={`h-full rounded-sm ${s.percentage >= 70 ? "bg-secondary" : "bg-accent"}`}
+                                  style={{ width: `${Math.max(s.percentage, 2)}%` }}
+                                />
+                              </div>
+                              <div className="w-9 shrink-0 text-right text-xs font-semibold text-foreground">{s.percentage}%</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Key Takeaways
+                        </h2>
+                        <ul className="space-y-2 text-sm text-foreground/90">
+                          {buildKeyTakeaways(analysis).map((bullet, i) => (
+                            <li key={i} className="flex gap-2">
+                              <span className="text-secondary" aria-hidden="true">•</span>
+                              <span>{bullet}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* D. Subject-wise Gap Analysis — one uniform card per subject */}
                 {analysis && (() => {
                   const gradeNum = parseInt(formData.snapshotGrade) || 0;
                   // For Grades 2–10 (Foundation Transition), suppress detailed social-studies
-                  // breakdown — replace with the 2–3 month refresher note (rendered below).
+                  // breakdown — replaced by the 2–3 month refresher note (D3, below).
                   const isFoundation = gradeNum >= 2 && gradeNum <= 10;
                   const isSocialStudy = (name: string) => /social|history|civics|geography/i.test(name);
-                  const ibTarget = isIBTarget(formData.targetGoal);
 
-                  // ── Filter to relevant subjects only ──
-                  // Show detailed coverage only for: subjects the user selected
-                  // (academicPath) OR subjects flagged as challenging.
-                  const selected: string[] = Array.isArray(formData.academicPath) ? formData.academicPath : [];
-                  const challenging: string[] = Array.isArray(formData.challengingSubjects) ? formData.challengingSubjects : [];
-                  const focusList = [...selected, ...challenging].map((s) => s.toLowerCase());
-                  const isRelevant = (subjectName: string) => {
-                    if (focusList.length === 0) return true; // fallback: show all
-                    const n = subjectName.toLowerCase();
-                    return focusList.some((f) => n.includes(f) || f.includes(n));
-                  };
-
-                  // Partition into three layers
-                  const allSubjects = analysis.subjectAnalysis.filter((s) => {
+                  const subjectsToRender = analysis.subjectAnalysis.filter((s) => {
                     if (isFoundation && isSocialStudy(s.subject)) return false;
                     return true;
                   });
-                  const strongSubjects = allSubjects.filter((s) => s.alignmentLevel === "strong");
-                  const moderateSubjects = allSubjects
-                    .filter((s) => s.alignmentLevel === "moderate")
-                    .filter((s) => isRelevant(s.subject));
-                  const criticalSubjects = allSubjects
-                    .filter((s) => s.alignmentLevel === "high_gap")
-                    .filter((s) => isRelevant(s.subject));
-                  const otherIrrelevant = allSubjects
-                    .filter((s) => s.alignmentLevel !== "strong" && !isRelevant(s.subject));
 
-                    const renderSubjectGapCard = (subject: SubjectAnalysis) => {
+                  const renderSubjectCard = (subject: SubjectAnalysis) => {
+                    const percentage = subject.totalTopics > 0 ? Math.round((subject.topicsCovered / subject.totalTopics) * 100) : 0;
                     const rawGaps = isFoundation
                       ? mergeWithBaseline(gradeNum, subject.subject, subject.keyGaps.map(getGapTopic), { maxTopics: 6 }).map(t => subject.keyGaps.find(g => getGapTopic(g) === t) ?? t)
                       : subject.keyGaps;
+                    const gapRows = rawGaps.slice(0, 4).map((gap) => {
+                      const topic = getGapTopic(gap);
+                      return { topic, url: getGapUrl(gap), reason: getGapReason(topic, subject.subject) };
+                    });
+                    const strengths = buildSubjectStrengths(subject);
+                    const resources = buildSubjectResources(subject);
+                    const difficulty = SUBJECT_DIFFICULTY[subject.alignmentLevel];
+
                     return (
-                      <div key={subject.subject} className="p-3 bg-muted/30 rounded-lg border border-border">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-medium text-sm">{subject.subject}</span>
-                          {getAlignmentBadge(subject.alignmentLevel)}
-                        </div>
-                        <div className="text-xs text-muted-foreground mb-2">
-                          Coverage: <span className="font-semibold text-foreground">{subject.topicsCovered}/{subject.totalTopics}</span> topics
-                        </div>
-                        {rawGaps.length > 0 && (
-                          <div className="space-y-2">
-                            <div className="text-xs font-medium text-muted-foreground">Key Missing Topics:</div>
-                            <ul className="space-y-2">
-                              {rawGaps.slice(0, 4).map((gap, i) => {
-                                const topic = getGapTopic(gap);
-                                const url   = getGapUrl(gap);
-                                const reason = getGapReason(topic, subject.subject);
-                                return (
-                                  <li key={i} className="rounded-md border border-border/60 bg-background/40 p-2">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="text-xs font-semibold text-foreground">{topic}</div>
-                                      {url && (
-                                        <a href={url} target="_blank" rel="noopener noreferrer"
-                                           className="flex-shrink-0 text-[10px] text-blue-600 dark:text-blue-400 underline hover:text-blue-800 no-print">
-                                          Study →
-                                        </a>
-                                      )}
-                                    </div>
-                                    <div className="text-[11px] text-muted-foreground italic mt-1">
-                                      Reason: {reason}
-                                    </div>
-                                  </li>
-                                );
-                              })}
-                            </ul>
+                      <div key={subject.subject} className="rounded-md bg-muted/30 p-5 sm:p-6">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                          <h4 className="text-xl font-bold text-foreground">{subject.subject}</h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className={`rounded px-2.5 py-1 text-xs font-semibold text-white ${percentage >= 70 ? "bg-secondary" : "bg-accent"}`}>
+                              {percentage}% Align
+                            </span>
+                            <span className="rounded bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
+                              {SUBJECT_CONFIDENCE_LABEL[subject.alignmentLevel]}
+                            </span>
+                            <span className="rounded bg-muted-foreground px-2.5 py-1 text-xs font-semibold text-white">
+                              {SUBJECT_PACE_LABEL[subject.alignmentLevel]}
+                            </span>
                           </div>
-                        )}
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                          <div className="space-y-4">
+                            <div>
+                              <h5 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">Strengths</h5>
+                              <ul className="space-y-1 text-sm text-foreground/90">
+                                {strengths.map((s, i) => (
+                                  <li key={i} className="flex gap-2">
+                                    <span className="text-secondary" aria-hidden="true">•</span>
+                                    <span>{s}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div>
+                              <h5 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">Missing Topics</h5>
+                              {gapRows.length > 0 ? (
+                                <div className="overflow-x-auto rounded-md border border-border bg-background">
+                                  <table className="w-full border-collapse text-xs">
+                                    <thead>
+                                      <tr className="bg-primary text-primary-foreground">
+                                        <th scope="col" className="px-2.5 py-1.5 text-left font-semibold">Topic</th>
+                                        <th scope="col" className="px-2.5 py-1.5 text-left font-semibold">Gap</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {gapRows.map((g, i) => (
+                                        <tr key={i} className={i % 2 === 1 ? "bg-muted/40" : undefined}>
+                                          <td className="border-t border-border px-2.5 py-1.5 align-top font-medium">
+                                            {g.url ? (
+                                              <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
+                                                {g.topic}
+                                              </a>
+                                            ) : (
+                                              g.topic
+                                            )}
+                                          </td>
+                                          <td className="border-t border-border px-2.5 py-1.5 align-top text-muted-foreground">{g.reason}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">No specific gap topics flagged for this subject.</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div>
+                              <h5 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">Difficulty &amp; Catch-up</h5>
+                              <p className="text-sm text-foreground/90">
+                                <span className="font-semibold">{difficulty.level} — </span>
+                                {difficulty.explanation}
+                              </p>
+                            </div>
+                            <div>
+                              <h5 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">Resources</h5>
+                              {resources.length > 0 ? (
+                                <ul className="space-y-1 text-sm text-foreground/90">
+                                  {resources.map((r, i) => (
+                                    <li key={i} className="flex gap-2">
+                                      <span className="text-secondary" aria-hidden="true">•</span>
+                                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
+                                        {r.label}
+                                      </a>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">No resources available yet for this subject.</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     );
                   };
 
                   return (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <GraduationCap className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Coverage Analysis</h3>
-                    </div>
-
-                    {/* Layer 1: Strong Areas — shown first to build confidence */}
-                    {strongSubjects.length > 0 && (
-                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Strong Areas ({strongSubjects.length})</span>
-                        </div>
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-2">
-                          The student is well-prepared in these subjects — minimal bridging needed.
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-primary">Subject-wise Gap Analysis</h3>
+                        <div className="mt-1.5 mb-3 h-0.5 w-16 bg-secondary" />
+                        <p className="text-xs italic text-muted-foreground">
+                          Each subject is assessed independently across strengths, missing topics, difficulty, and preparation resources.
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                          {strongSubjects.map((s) => (
-                            <Badge key={s.subject} className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">
-                              {s.subject} — {s.topicsCovered}/{s.totalTopics}
-                            </Badge>
-                          ))}
-                        </div>
                       </div>
-                    )}
-
-                    {/* Layer 2: Moderate Gaps */}
-                    {moderateSubjects.length > 0 && (
-                      <Collapsible defaultOpen={true}>
-                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors">
-                          <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                          <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                            Moderate Gaps · {moderateSubjects.length} subject{moderateSubjects.length !== 1 ? "s" : ""}
-                          </span>
-                          <ChevronDown className="h-4 w-4 ml-auto text-amber-600 dark:text-amber-400 transition-transform [[data-state=closed]_&]:rotate-[-90deg]" />
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                            {moderateSubjects.map(renderSubjectGapCard)}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
-
-                    {/* Layer 3: Critical Gaps — primary focus */}
-                    {criticalSubjects.length > 0 && (
-                      <Collapsible defaultOpen={true}>
-                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-rose-50 dark:bg-rose-950/20 rounded-lg border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/30 transition-colors">
-                          <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-                          <span className="text-sm font-semibold text-rose-800 dark:text-rose-300">
-                            Critical Gaps · Primary focus ({criticalSubjects.length})
-                          </span>
-                          <ChevronDown className="h-4 w-4 ml-auto text-rose-600 dark:text-rose-400 transition-transform [[data-state=closed]_&]:rotate-[-90deg]" />
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                            {criticalSubjects.map(renderSubjectGapCard)}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
-
-                    {/* Optional: minimised display for non-selected subjects */}
-                    {otherIrrelevant.length > 0 && (
-                      <Collapsible>
-                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 bg-muted/40 rounded-md border border-border text-xs text-muted-foreground hover:bg-muted/60 transition-colors">
-                          <ChevronRight className="h-3 w-3" />
-                          <span>Other subjects (optional reference)</span>
-                          <span className="ml-auto">{otherIrrelevant.length}</span>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {otherIrrelevant.map((s) => (
-                              <Badge key={s.subject} variant="outline" className="text-xs">
-                                {s.subject} — {s.topicsCovered}/{s.totalTopics}
-                              </Badge>
-                            ))}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
-                  </div>
+                      <div className="space-y-4">
+                        {subjectsToRender.map(renderSubjectCard)}
+                      </div>
+                    </div>
                   );
                 })()}
 
@@ -970,164 +1530,104 @@ const ReportPreview = () => {
                   );
                 })()}
 
-                {/* D3. Social Studies Context for below Grade 10 */}
-                {analysis && formData.schoolStage !== "high" && (() => {
-                  const socialStudy = analysis.subjectAnalysis.find(s => /social|history|civics|geography/i.test(s.subject));
-                  if (!socialStudy || socialStudy.alignmentLevel === "strong") return null;
+                {/* F. Bridge Timeline & Recommendations */}
+                {analysis && (() => {
+                  const riskMetrics = deriveRiskMetrics(analysis);
+                  const monthlyPlan = buildMonthlyBridgePlan(analysis);
+                  const whyStartNow = buildWhyStartNow(analysis);
+                  const roadmapExplanation = buildRoadmapExplanation(analysis);
+                  const immediateActions = buildImmediateActions(analysis);
+
                   return (
-                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Social Studies Transition Note</span>
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="text-xl font-bold text-primary">Bridge Timeline &amp; Recommendations</h3>
+                        <div className="mt-1.5 h-0.5 w-16 bg-secondary" />
                       </div>
-                      <p className="text-xs text-blue-700 dark:text-blue-400">
-                        Indian social science covers Indian history, civics & governance, and geography — which differs from US social studies.
-                        A 2–3 month refresher on Indian social science concepts is recommended rather than extensive gap bridging.
-                      </p>
-                    </div>
-                  );
-                })()}
 
-                {/* E. Critical Gaps - Grouped by category */}
-                {analysis && analysis.criticalGaps.length > 0 && (() => {
-                  const groupGaps = (gaps: GapItem[]) => {
-                    const groups: Record<string, GapItem[]> = {};
-                    const categoryPatterns: [string, RegExp][] = [
-                      ["Mathematical & Problem-Solving Gaps", /math|algebra|geometry|calculus|trigonometry|arithmetic|equation|number/i],
-                      ["Scientific Reasoning Gaps", /science|physics|chemistry|biology|experiment|lab|scientific/i],
-                      ["Language & Communication Gaps", /language|hindi|sanskrit|english|reading|writing|grammar|vocabulary|comprehension/i],
-                      ["Social Studies & Humanities Gaps", /history|geography|civics|social|economics|political/i],
-                    ];
-                    const ungrouped: GapItem[] = [];
-                    for (const gap of gaps) {
-                      const topic = getGapTopic(gap);
-                      let matched = false;
-                      for (const [category, pattern] of categoryPatterns) {
-                        if (pattern.test(topic)) {
-                          if (!groups[category]) groups[category] = [];
-                          groups[category].push(gap);
-                          matched = true;
-                          break;
-                        }
-                      }
-                      if (!matched) ungrouped.push(gap);
-                    }
-                    if (ungrouped.length > 0) groups["Other Transition Gaps"] = ungrouped;
-                    return groups;
-                  };
+                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div>
+                          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-secondary">Risk at a Glance</h4>
+                          <div className="space-y-2.5">
+                            {riskMetrics.map((m) => (
+                              <div key={m.label} className="flex items-center gap-3">
+                                <div className="w-28 shrink-0 text-xs font-medium text-foreground">{m.label}</div>
+                                <div className="h-2.5 flex-1 rounded-sm bg-muted">
+                                  <div
+                                    className={`h-full rounded-sm ${m.tone === "positive" ? "bg-secondary" : "bg-accent"}`}
+                                    style={{ width: `${Math.max(m.percentage, 2)}%` }}
+                                  />
+                                </div>
+                                <div className="w-9 shrink-0 text-right text-xs font-semibold text-foreground">{m.percentage}%</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
 
-                  const groupedGaps = groupGaps(analysis.criticalGaps);
+                        <div>
+                          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-secondary">Why Start Now</h4>
+                          <p className="text-sm leading-relaxed text-foreground/90">{whyStartNow}</p>
+                        </div>
+                      </div>
 
-                  return (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
-                      <h3 className="text-lg font-semibold">Critical Gaps Identified</h3>
-                    </div>
-                    <div className="space-y-3">
-                      {Object.entries(groupedGaps).map(([category, gaps]) => (
-                        <div key={category} className="p-4 bg-rose-50 dark:bg-rose-950/20 rounded-lg border border-rose-200 dark:border-rose-800">
-                          <div className="text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wide mb-2">{category}</div>
-                          <ul className="space-y-1.5">
-                            {gaps.map((gap, index) => {
-                              const topic = getGapTopic(gap);
-                              const url   = getGapUrl(gap);
-                              return (
-                                <li key={index} className="flex items-start gap-2 text-sm text-rose-800 dark:text-rose-300">
-                                  <span className="text-rose-500 mt-0.5 flex-shrink-0">•</span>
-                                  {url ? (
-                                    <a href={url} target="_blank" rel="noopener noreferrer"
-                                       className="underline hover:text-rose-600 dark:hover:text-rose-200">
-                                      {topic}
-                                    </a>
-                                  ) : topic}
-                                </li>
-                              );
-                            })}
+                      <div>
+                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-secondary">Expected Completion by Month</h4>
+                        <CompletionAreaChart data={monthlyPlan.map(({ month, percentage }) => ({ month, percentage }))} />
+                      </div>
+
+                      <div>
+                        <div className="overflow-x-auto rounded-md border border-border">
+                          <table className="w-full border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-primary text-primary-foreground">
+                                <th scope="col" className="px-3 py-2 text-left font-semibold">Phase</th>
+                                <th scope="col" className="px-3 py-2 text-left font-semibold">Month</th>
+                                <th scope="col" className="px-3 py-2 text-left font-semibold">Focus Areas</th>
+                                <th scope="col" className="px-3 py-2 text-right font-semibold">Completion</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {monthlyPlan.map((row, i) => (
+                                <tr key={row.month} className={i % 2 === 1 ? "bg-muted/40" : undefined}>
+                                  <td className="border-t border-border px-3 py-2 align-top font-medium">{row.phase}</td>
+                                  <td className="border-t border-border px-3 py-2 align-top">Month {row.month}</td>
+                                  <td className="border-t border-border px-3 py-2 align-top text-muted-foreground">{row.focusAreas}</td>
+                                  <td className="border-t border-border px-3 py-2 align-top text-right font-semibold">{row.percentage}%</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <p className="text-sm leading-relaxed text-foreground/90">{roadmapExplanation}</p>
+
+                      <div>
+                        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Immediate Actions</h4>
+                        {immediateActions.length > 0 ? (
+                          <ul className="space-y-1.5 text-sm text-foreground/90">
+                            {immediateActions.map((action, i) => (
+                              <li key={i} className="flex gap-2">
+                                <span className="text-secondary" aria-hidden="true">•</span>
+                                {action.url ? (
+                                  <a href={action.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
+                                    {action.label}
+                                  </a>
+                                ) : (
+                                  <span>{action.label}</span>
+                                )}
+                              </li>
+                            ))}
                           </ul>
-                        </div>
-                      ))}
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No immediate actions identified yet.</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
                   );
                 })()}
 
-                {/* F. Bridge Timeline - Visual step-based with resource links */}
-                {analysis && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Bridge Timeline</h3>
-                    </div>
-                    
-                    {/* Visual horizontal progress indicator */}
-                    <div className="flex items-center gap-1 px-2">
-                      {[
-                        { label: "Phase 1", color: "bg-rose-400" },
-                        { label: "Phase 2", color: "bg-amber-400" },
-                        { label: "Phase 3", color: "bg-emerald-400" },
-                      ].map((p, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                          <div className={`h-2 w-full rounded-full ${p.color}`} />
-                          <span className="text-[10px] text-muted-foreground">{p.label}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {/* Phase 1 */}
-                      <div className="p-4 rounded-lg border-2 border-rose-200 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/10">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/50 px-2 py-0.5 rounded">Phase 1</span>
-                        </div>
-                        <div className="text-sm font-semibold mb-1">{analysis.bridgeTimeline.phase1.name}</div>
-                        <div className="text-xs text-muted-foreground mb-2">{analysis.bridgeTimeline.phase1.duration}</div>
-                        <ul className="text-xs text-muted-foreground space-y-1">
-                          {analysis.bridgeTimeline.phase1.bullets.slice(0, 3).map((b, i) => (
-                            <li key={i} className="flex items-start gap-1">
-                              <span className="mt-0.5">→</span>
-                              <span>{b}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      {/* Phase 2 */}
-                      <div className="p-4 rounded-lg border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/10">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded">Phase 2</span>
-                        </div>
-                        <div className="text-sm font-semibold mb-1">{analysis.bridgeTimeline.phase2.name}</div>
-                        <div className="text-xs text-muted-foreground mb-2">{analysis.bridgeTimeline.phase2.duration}</div>
-                        <ul className="text-xs text-muted-foreground space-y-1">
-                          {analysis.bridgeTimeline.phase2.bullets.slice(0, 3).map((b, i) => (
-                            <li key={i} className="flex items-start gap-1">
-                              <span className="mt-0.5">→</span>
-                              <span>{b}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      {/* Phase 3 */}
-                      <div className="p-4 rounded-lg border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/10">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded">Phase 3</span>
-                        </div>
-                        <div className="text-sm font-semibold mb-1">{analysis.bridgeTimeline.phase3.name}</div>
-                        <div className="text-xs text-muted-foreground mb-2">{analysis.bridgeTimeline.phase3.duration}</div>
-                        <ul className="text-xs text-muted-foreground space-y-1">
-                          {analysis.bridgeTimeline.phase3.bullets.slice(0, 3).map((b, i) => (
-                            <li key={i} className="flex items-start gap-1">
-                              <span className="mt-0.5">→</span>
-                              <span>{b}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* G. Personalized Recommendations - 4 Mini-Sections + Support Strategy */}
+                {/* G. Personalized Recommendations — Student Checklist / Teacher Recommendations / Learning Resources */}
                 {analysis && (() => {
                   // Check if source and target curriculum match (e.g. IB → IB)
                   const currentCurr = (formData.currentCurriculum || "").toLowerCase();
@@ -1138,170 +1638,185 @@ const ReportPreview = () => {
                     (currentCurr.includes("cambridge") && targetGoal.includes("igcse"))
                   );
 
-                  const renderRecList = (recs: string[]) => recs.slice(0, 4).map((rec, i) => (
-                    <li key={i} className="flex items-start gap-1">
-                      <span className="mt-0.5">•</span>
-                      <span>{rec}</span>
-                    </li>
-                  ));
-
-                  const renderResourceList = (recs: ResourceItem[]) => recs.slice(0, 5).map((rec, i) => {
-                    const name = getResName(rec);
-                    const url  = getResUrl(rec);
-                    return (
-                      <li key={i} className="flex items-start gap-1">
-                        <span className="mt-0.5 flex-shrink-0">•</span>
-                        {url ? (
-                          <a href={url} target="_blank" rel="noopener noreferrer"
-                             className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300">
-                            {name}
-                          </a>
-                        ) : <span>{name}</span>}
-                      </li>
-                    );
-                  });
+                  const studentChecklist = buildStudentChecklist(analysis);
+                  const teacherRecommendations = buildTeacherRecommendations(analysis);
+                  const learningResources = buildLearningResources(analysis);
+                  const weeklyPlan = buildWeeklyStudyPlan(analysis);
+                  const hoursToClose = buildStudyHoursToCloseGaps(analysis);
+                  const weeklyPlanCaption = buildWeeklyPlanCaption(analysis);
+                  const culturalTips = analysis.recommendations.culturalLanguage;
 
                   return (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Lightbulb className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Personalized Recommendations</h3>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground italic">
-                      Recommendations are adjusted based on the student's current performance level and readiness.
-                    </p>
-
-                    {/* Same-curriculum note */}
-                    {isSameCurriculum && (
-                      <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                          <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Same Curriculum Detected</span>
-                        </div>
-                        <p className="text-xs text-blue-700 dark:text-blue-400">
-                          Your child is already studying in a {currentCurr.includes("ib") ? "IB" : "IGCSE/Cambridge"} curriculum. 
-                          Recommendations focus on continuation within the same framework rather than cross-curriculum bridging.
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="text-xl font-bold text-primary">Personalized Recommendations</h3>
+                        <div className="mt-1.5 mb-3 h-0.5 w-16 bg-secondary" />
+                        <p className="text-xs italic text-muted-foreground">
+                          Recommendations are adjusted based on the student's current performance level and readiness.
                         </p>
                       </div>
-                    )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {/* Study Recommendations */}
-                      <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                        <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          Study Recommendations
-                        </h4>
-                        <ul className="text-xs text-muted-foreground space-y-1">
-                          {renderRecList(analysis.recommendations.study)}
-                        </ul>
+                      {/* Same-curriculum note */}
+                      {isSameCurriculum && (
+                        <div className="rounded-md border border-border bg-muted/30 p-3">
+                          <div className="mb-1 text-sm font-medium text-foreground">Same Curriculum Detected</div>
+                          <p className="text-xs text-muted-foreground">
+                            Your child is already studying in a {currentCurr.includes("ib") ? "IB" : "IGCSE/Cambridge"} curriculum.
+                            Recommendations focus on continuation within the same framework rather than cross-curriculum bridging.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div>
+                          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Student Checklist</h4>
+                          {studentChecklist.length > 0 ? (
+                            <ul className="space-y-1.5 text-sm text-foreground/90">
+                              {studentChecklist.map((item, i) => (
+                                <li key={i} className="flex gap-2">
+                                  <span className="text-secondary" aria-hidden="true">•</span>
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No specific student actions identified yet.</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Teacher Recommendations</h4>
+                          {teacherRecommendations.length > 0 ? (
+                            <ul className="space-y-1.5 text-sm text-foreground/90">
+                              {teacherRecommendations.map((item, i) => (
+                                <li key={i} className="flex gap-2">
+                                  <span className="text-secondary" aria-hidden="true">•</span>
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No additional teacher recommendations identified yet.</p>
+                          )}
+                        </div>
                       </div>
-                      {/* Skill & Strategy Tips */}
-                      <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                        <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5">
-                          <Target className="h-4 w-4 text-muted-foreground" />
-                          Skill & Strategy Tips
-                        </h4>
-                        <ul className="text-xs text-muted-foreground space-y-1">
-                          {renderRecList(analysis.recommendations.skillStrategy)}
-                        </ul>
+
+                      <div>
+                        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Learning Resources</h4>
+                        {learningResources.length > 0 ? (
+                          <ul className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm text-foreground/90 sm:grid-cols-2">
+                            {learningResources.map((resource, i) => (
+                              <li key={i} className="flex gap-2">
+                                <span className="text-secondary" aria-hidden="true">•</span>
+                                {resource.url ? (
+                                  <a href={resource.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
+                                    {resource.label}
+                                  </a>
+                                ) : (
+                                  <span>{resource.label}</span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No resources available yet.</p>
+                        )}
                       </div>
-                      {/* Resource Suggestions */}
-                      <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                        <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          Resource Suggestions
-                        </h4>
-                        <ul className="text-xs text-muted-foreground space-y-1">
-                          {renderResourceList(analysis.recommendations.resources)}
-                        </ul>
+
+                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div>
+                          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">
+                            Weekly Study Plan (Hours/Subject)
+                          </h4>
+                          {weeklyPlan.subjects.length > 0 ? (
+                            <div className="overflow-x-auto rounded-md border border-border">
+                              <table className="w-full border-collapse text-xs">
+                                <thead>
+                                  <tr className="bg-primary text-primary-foreground">
+                                    <th scope="col" className="px-2.5 py-1.5 text-left font-semibold">Week</th>
+                                    {weeklyPlan.subjects.map((s) => (
+                                      <th key={s} scope="col" className="px-2.5 py-1.5 text-left font-semibold">{s}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {weeklyPlan.rows.map((row, i) => (
+                                    <tr key={row.week} className={i % 2 === 1 ? "bg-muted/40" : undefined}>
+                                      <td className="border-t border-border px-2.5 py-1.5 font-medium">Week {row.week}</td>
+                                      {row.hours.map((h, si) => (
+                                        <td key={si} className="border-t border-border px-2.5 py-1.5">{h}</td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No weekly plan available yet.</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Study Hours to Close Gaps</h4>
+                          {hoursToClose.length > 0 ? (
+                            <VerticalHoursChart data={hoursToClose} />
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No estimate available yet.</p>
+                          )}
+                        </div>
                       </div>
-                      {/* Cultural & Language Adaptation */}
-                      <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                        <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5">
-                          <Globe className="h-4 w-4 text-muted-foreground" />
-                          Cultural & Language Adaptation
-                        </h4>
-                        <ul className="text-xs text-muted-foreground space-y-1">
-                          {renderRecList(analysis.recommendations.culturalLanguage)}
-                        </ul>
+
+                      {weeklyPlanCaption && (
+                        <p className="text-xs italic leading-relaxed text-muted-foreground">{weeklyPlanCaption}</p>
+                      )}
+
+                      <div>
+                        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Cultural Adaptation</h4>
+                        {culturalTips.length > 0 ? (
+                          <ul className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm text-foreground/90 sm:grid-cols-2">
+                            {culturalTips.map((tip, i) => (
+                              <li key={i} className="flex gap-2">
+                                <span className="text-secondary" aria-hidden="true">•</span>
+                                <span>{tip}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No cultural adaptation guidance available yet.</p>
+                        )}
                       </div>
                     </div>
+                  );
+                })()}
 
-                    {/* Parent Support Strategy based on supportNeeds */}
-                    {formData.supportNeeds && formData.supportNeeds.length > 0 && (
-                      <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-                        <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-                          <Target className="h-4 w-4 text-primary" />
-                          Recommended Support Strategy
-                        </h4>
-                        <ul className="text-xs text-muted-foreground space-y-1.5">
-                          {formData.supportNeeds.includes("1-on-1 tutoring sessions") && (
-                            <li className="flex items-start gap-1">
-                              <span className="mt-0.5">•</span>
-                              <span>Consider structured one-on-one tutoring sessions to strengthen key subject fundamentals before transition.</span>
-                            </li>
-                          )}
-                          {(formData.supportNeeds.includes("Peer learning groups") ||
-                            formData.supportNeeds.includes("Peer support groups")) && (
-                            <li className="flex items-start gap-1">
-                              <span className="mt-0.5">•</span>
-                              <span>Peer learning groups can help the student adapt to collaborative learning and discussion-based assignments common in Indian schools.</span>
-                            </li>
-                          )}
-                          {formData.supportNeeds.includes("Worksheets & practice papers") && (
-                            <li className="flex items-start gap-1">
-                              <span className="mt-0.5">•</span>
-                              <span>Daily worksheets and CBSE-style practice papers will build accuracy and exam-pattern familiarity for the new curriculum.</span>
-                            </li>
-                          )}
-                          {formData.supportNeeds.includes("Mock tests") && (
-                            <li className="flex items-start gap-1">
-                              <span className="mt-0.5">•</span>
-                              <span>Regular mock tests aligned with the target Indian board will track readiness and reduce exam anxiety before transition.</span>
-                            </li>
-                          )}
-                          {formData.supportNeeds.includes("Group study programs") && (
-                            <li className="flex items-start gap-1">
-                              <span className="mt-0.5">•</span>
-                              <span>Group study programs provide structured academic support and help build social connections with peers in the new school environment.</span>
-                            </li>
-                          )}
-                          {formData.supportNeeds.includes("Parent counseling calls") && (
-                            <li className="flex items-start gap-1">
-                              <span className="mt-0.5">•</span>
-                              <span>Regular parent counseling calls can help you stay informed about progress and address concerns early in the transition.</span>
-                            </li>
-                          )}
-                          {formData.supportNeeds.includes("Cultural mentorship") && (
-                            <li className="flex items-start gap-1">
-                              <span className="mt-0.5">•</span>
-                              <span>A cultural mentor can guide the student through social norms, classroom expectations, and cultural adjustment in Indian schools.</span>
-                            </li>
-                          )}
-                          {formData.supportNeeds.includes("Regular progress tracking") && (
-                            <li className="flex items-start gap-1">
-                              <span className="mt-0.5">•</span>
-                              <span>Set up regular progress check-ins to monitor academic adaptation and adjust the bridge plan as needed.</span>
-                            </li>
-                          )}
-                          {formData.supportNeeds.includes("Emergency academic support") && (
-                            <li className="flex items-start gap-1">
-                              <span className="mt-0.5">•</span>
-                              <span>Having access to emergency academic support ensures quick help when the student encounters unexpected curriculum challenges.</span>
-                            </li>
-                          )}
-                          {formData.supportNeeds.includes("College admission guidance") && (
-                            <li className="flex items-start gap-1">
-                              <span className="mt-0.5">•</span>
-                              <span>Early college admission guidance can align the transition plan with long-term academic goals and competitive exam preparation.</span>
-                            </li>
-                          )}
-                        </ul>
+                {/* H. Quick Questions Parents Often Ask */}
+                {analysis && (() => {
+                  const faq = buildParentFAQ(analysis);
+                  return (
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="text-xl font-bold text-primary">Quick Questions Parents Often Ask</h3>
+                        <div className="mt-1.5 h-0.5 w-16 bg-secondary" />
                       </div>
-                    )}
-                  </div>
+                      <div className="overflow-x-auto rounded-md border border-border">
+                        <table className="w-full border-collapse text-sm">
+                          <thead>
+                            <tr className="bg-primary text-primary-foreground">
+                              <th scope="col" className="px-3 py-2 text-left font-semibold">Question</th>
+                              <th scope="col" className="px-3 py-2 text-left font-semibold">Short Answer</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {faq.map((item, i) => (
+                              <tr key={item.question} className={i % 2 === 1 ? "bg-muted/40" : undefined}>
+                                <td className="border-t border-border px-3 py-2 align-top font-medium">{item.question}</td>
+                                <td className="border-t border-border px-3 py-2 align-top text-muted-foreground">{item.answer}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   );
                 })()}
 
@@ -1322,10 +1837,20 @@ const ReportPreview = () => {
                   </div>
                 )}
 
+                {/* Disclaimer footnote — always shown at the bottom of the report */}
+                <div className="-mx-6 border-t border-border bg-muted/30 px-6 py-3">
+                  <p className="text-[9px] leading-relaxed text-muted-foreground sm:text-[10px]">
+                    <span className="font-semibold text-foreground">Disclaimer:</span> This report is an indicative
+                    assessment based on the information provided and curriculum comparison. It is not 100% accurate
+                    or an official equivalency/admission assessment. Actual requirements may vary by school,
+                    curriculum, grade, and academic year. Please verify with the target school where appropriate.
+                  </p>
+                </div>
+
                 {/* Download Button */}
                 <div className="flex justify-center pt-4">
-                  <Button 
-                    onClick={handleDownloadPDF} 
+                  <Button
+                    onClick={handleDownloadPDF}
                     className="w-full md:w-auto"
                     disabled={!analysis}
                   >
