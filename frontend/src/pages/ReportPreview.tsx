@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { FileText, Download, ArrowLeft, Target, AlertTriangle, Loader2, GitCompareArrows, Layers } from "lucide-react";
+import { FileText, Download, ArrowLeft, Target, AlertTriangle, Loader2, GitCompareArrows, Layers, GraduationCap, School, BookOpen, Youtube, FileQuestion, Sparkles, TrendingUp, Clock, Gauge, Globe2, MessageCircleQuestion } from "lucide-react";
 import ReportComparison from "@/components/ReportComparison";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -27,7 +27,7 @@ const isIndiaReadinessGoal = (targetGoal?: string): boolean => {
 // Turns a stored option slug (e.g. "cambridge-igcse", "within-3-months") into
 // readable display text, preserving known curriculum/country acronyms and
 // keeping number ranges like "3-6" from being split apart.
-const SLUG_ACRONYMS = new Set(["cbse", "icse", "ib", "igcse", "us", "uk", "uae", "ncert", "teks", "pyp"]);
+const SLUG_ACRONYMS = new Set(["cbse", "icse", "ib", "igcse", "us", "uk", "uae", "ncert", "teks", "pyp", "ap", "dp", "myp"]);
 const humanizeSlug = (value?: string): string => {
   if (!value) return "";
   return value
@@ -38,6 +38,27 @@ const humanizeSlug = (value?: string): string => {
       SLUG_ACRONYMS.has(word.toLowerCase()) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)
     )
     .join(" ");
+};
+
+// usState is stored as a two-letter code (e.g. "CA"); humanizeSlug alone would
+// just capitalize it to "Ca". This maps to the same full state names shown in
+// the assessment form's own dropdown (StudentProfileStep.tsx / ParentStep1.tsx).
+const US_STATE_NAMES: Record<string, string> = {
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
+  CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia",
+  HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa",
+  KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland",
+  MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri",
+  MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey",
+  NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio",
+  OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina",
+  SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont",
+  VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
+  DC: "District of Columbia",
+};
+const humanizeUSState = (code?: string): string => {
+  if (!code) return "";
+  return US_STATE_NAMES[code.toUpperCase()] || humanizeSlug(code);
 };
 
 // targetGrade is stored relative to snapshotGrade ("same" | "next") — this only
@@ -62,8 +83,8 @@ const deriveRiskLevel = (percentage?: number): string => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- formData itself is untyped raw storage (see getFormData below)
 const buildTransitionSummary = (formData: any): string => {
   const currentCountry = formData.snapshotLocation === "us" ? "US" : humanizeSlug(formData.snapshotLocation) || "Current Location";
-  const currentState = formData.snapshotLocation === "us" && formData.usState && formData.usState !== "other"
-    ? humanizeSlug(formData.usState)
+  const currentState = formData.snapshotLocation === "us" && formData.usState
+    ? (formData.usState === "other" ? (formData.usStateOther || "") : humanizeUSState(formData.usState))
     : "";
   const currentCurriculum = humanizeSlug(formData.currentCurriculum);
   const currentGrade = formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "";
@@ -80,25 +101,40 @@ const buildTransitionSummary = (formData: any): string => {
   return `${currentLabel} → ${targetLabel}`;
 };
 
-// Only surfaces fields the assessment actually captures — no fabricated
-// school name or calendar date, just honestly-labeled proxies (school stage,
-// bucketed timeline) for the two reference fields with no backing data.
+// Six-cell 2-column profile grid (Student Name / Target Board, School Stage /
+// Transition Timeline, Origin Curriculum / Language(s)). Only surfaces fields
+// the assessment actually captures — there is no school-name or specific
+// calendar-date field anywhere in the assessment data, so those two reference
+// slots use the closest real, honestly-labeled data (school stage, bucketed
+// timeline) instead of an invented school name or transition date.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- formData itself is untyped raw storage (see getFormData below)
-const buildProfileRows = (formData: any): { label: string; value: string }[] => {
+const buildProfileGrid = (formData: any): { label: string; value: string }[] => {
   const firstName = formData.childName || formData.studentName;
   const lastName = formData.childLastName || formData.studentLastName;
   const name = [firstName, lastName].filter(Boolean).join(" ") || "—";
+  const age = formData.snapshotAge ? ` (Age ${formData.snapshotAge})` : "";
+
+  const originGrade = formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "";
+  const originCurriculum = humanizeSlug(formData.currentCurriculum);
+  const originLabel = [originCurriculum, originGrade].filter(Boolean).join(" – ") || "—";
+
+  const targetGradeLabel = computeTargetGradeLabel(formData.snapshotGrade, formData.targetGrade);
+  const targetCurriculum = humanizeSlug(formData.targetGoal);
+  const targetLabel = [targetCurriculum, targetGradeLabel].filter(Boolean).join(" – ") || "—";
+
   const schoolStageLabel = formData.schoolStage ? `${humanizeSlug(formData.schoolStage)} School` : "—";
+  const timelineLabel = humanizeSlug(formData.timeline) || "—";
+
   const languages = Array.isArray(formData.selectedLanguages) && formData.selectedLanguages.length > 0
     ? formData.selectedLanguages.map((l: string) => humanizeSlug(l)).join(", ")
     : "—";
+
   return [
-    { label: "Name", value: name },
-    { label: "Age", value: formData.snapshotAge ? String(formData.snapshotAge) : "—" },
+    { label: "Student Name", value: `${name}${age}` },
+    { label: "Target Board", value: targetLabel },
     { label: "School Stage", value: schoolStageLabel },
-    { label: "Current Curriculum", value: humanizeSlug(formData.currentCurriculum) || "—" },
-    { label: "Target Curriculum", value: humanizeSlug(formData.targetGoal) || "—" },
-    { label: "Transition Timeline", value: humanizeSlug(formData.timeline) || "—" },
+    { label: "Transition Timeline", value: timelineLabel },
+    { label: "Origin Curriculum", value: originLabel },
     { label: "Language(s)", value: languages },
   ];
 };
@@ -193,6 +229,30 @@ const SUBJECT_PACE_LABEL: Record<SubjectAnalysis["alignmentLevel"], string> = {
   high_gap: "Extended Prep",
 };
 
+// Soft-tint pill styles (brand colors, not solid fills) for the subject-card
+// badges. Violet-tinted badges use navy text rather than raw violet — the
+// --violet token is too light at full saturation to meet 4.5:1 text contrast,
+// so the brand color shows via background/border instead of text color.
+const SOFT_TEAL_BADGE = "bg-secondary/10 text-secondary border border-secondary/25";
+const SOFT_AMBER_BADGE = "bg-accent/10 text-accent-contrast border border-accent/25";
+const SOFT_VIOLET_BADGE = "bg-violet/10 text-primary border border-violet/25";
+
+const SUBJECT_CONFIDENCE_BADGE_STYLE: Record<SubjectAnalysis["alignmentLevel"], string> = {
+  strong: SOFT_TEAL_BADGE,
+  moderate: SOFT_AMBER_BADGE,
+  high_gap: SOFT_AMBER_BADGE,
+};
+const SUBJECT_PACE_BADGE_STYLE: Record<SubjectAnalysis["alignmentLevel"], string> = {
+  strong: SOFT_VIOLET_BADGE,
+  moderate: SOFT_AMBER_BADGE,
+  high_gap: SOFT_AMBER_BADGE,
+};
+
+// Per-subject accent identity (index-based, same rotation the Weekly Study
+// Plan chips already use) — literal class names so Tailwind's static scanner
+// picks them up; a runtime string-replace of the chip palette would not.
+const SUBJECT_ACCENT_BORDER = ["border-secondary", "border-accent", "border-violet", "border-mint", "border-primary", "border-destructive"];
+
 const SUBJECT_DIFFICULTY: Record<SubjectAnalysis["alignmentLevel"], { level: string; explanation: string }> = {
   strong: {
     level: "Low",
@@ -237,7 +297,7 @@ const deriveRiskMetrics = (analysis: AnalysisData): { label: string; percentage:
   const academicRisk = 100 - readiness;
   const totalSubjects = analysis.subjectAnalysis.length;
   const needingBridge = analysis.overallAlignment.subjectsNeedingBridge?.length ?? 0;
-  const transitionRisk = totalSubjects > 0 ? Math.round((needingBridge / totalSubjects) * 100) : academicRisk;
+  const transitionRisk = totalSubjects > 0 ? Math.min(100, Math.round((needingBridge / totalSubjects) * 100)) : academicRisk;
   return [
     { label: "Academic Risk", percentage: academicRisk, tone: "risk" },
     { label: "Transition Risk", percentage: transitionRisk, tone: "risk" },
@@ -282,7 +342,7 @@ const distributeAcrossMonths = <T,>(items: T[], monthCount: number): T[][] => {
 // bullets are distributed across its months for the Focus Areas column.
 const buildMonthlyBridgePlan = (
   analysis: AnalysisData
-): { phase: string; month: number; focusAreas: string; percentage: number }[] => {
+): { phase: string; month: number; focusAreas: string[]; percentage: number }[] => {
   const monthCount = extractMonthCount(analysis);
   const phases = [analysis.bridgeTimeline.phase1, analysis.bridgeTimeline.phase2, analysis.bridgeTimeline.phase3];
 
@@ -324,7 +384,7 @@ const buildMonthlyBridgePlan = (
     return {
       phase: phases[phaseIndex].name,
       month,
-      focusAreas: bullets.join(" · ") || phases[phaseIndex].name,
+      focusAreas: bullets.length > 0 ? bullets : [phases[phaseIndex].name],
       percentage,
     };
   });
@@ -341,17 +401,45 @@ const buildWhyStartNow = (analysis: AnalysisData): string => {
   return `The highest-priority gap${plural ? "s" : ""} — ${gapPhrase} — carr${plural ? "y" : "ies"} the greatest academic impact and should be addressed first. Starting preparation now keeps the overall plan on track for the estimated ${duration} timeline, rather than compressing everything into the final weeks.`;
 };
 
-const buildRoadmapExplanation = (analysis: AnalysisData): string => {
-  const topGaps = analysis.criticalGaps.slice(0, 2).map(getGapTopic);
-  const duration = analysis.overallAlignment.estimatedDuration;
-  const phase1Name = analysis.bridgeTimeline.phase1.name;
-  const phase3Name = analysis.bridgeTimeline.phase3.name;
-  const gapPhrase = topGaps.length > 0 ? topGaps.join(" and ") : "The highest-priority gaps";
-  return `The roadmap is front-loaded deliberately: ${gapPhrase} carr${topGaps.length === 1 ? "ies" : "y"} the greatest academic risk, so ${topGaps.length > 0 ? "they are" : "it is"} addressed early under ${phase1Name}. The remaining months build toward ${phase3Name.toLowerCase()}, confirming readiness well ahead of the end of the estimated ${duration} preparation window.`;
-};
-
 // Prioritizes real resource links, then falls back to real study/skill tips —
 // nothing here is generated, only reused from the existing recommendations.
+// Priority tier is derived from each gap's position in the existing
+// criticalGaps array — already treated as significance-ordered elsewhere in
+// this report (buildWhyStartNow above reads the first items as "the
+// highest-priority gaps"). There is no per-gap priority or catch-up-time
+// field in the backend, so the suggested weeks is a disclosed proportional
+// share of the report's own real estimated preparation duration, weighted
+// by tier — the same "derive proportionally" approach already used (with
+// your sign-off) for the Weekly Study Plan hour estimates, not a literal
+// backend value. Description reuses the existing getGapReason() explainer
+// already used in the Subject-wise Missing Topics tables.
+const CRITICAL_GAP_PRIORITY_WEIGHT: Record<"High" | "Medium" | "Low", number> = { High: 3, Medium: 2, Low: 1 };
+
+const buildCriticalGapsTable = (
+  analysis: AnalysisData
+): { priority: "High" | "Medium" | "Low"; topic: string; url?: string; description: string; weeks: number }[] => {
+  const gaps = analysis.criticalGaps;
+  const total = gaps.length;
+  if (total === 0) return [];
+
+  const highCount = Math.max(1, Math.round(total * 0.4));
+  const mediumCount = Math.min(total - highCount, Math.round(total * 0.4));
+
+  const tiered = gaps.map((gap, i) => ({
+    gap,
+    priority: (i < highCount ? "High" : i < highCount + mediumCount ? "Medium" : "Low") as "High" | "Medium" | "Low",
+  }));
+
+  const totalWeeks = extractMonthCount(analysis) * 4;
+  const weightSum = tiered.reduce((sum, t) => sum + CRITICAL_GAP_PRIORITY_WEIGHT[t.priority], 0);
+
+  return tiered.map(({ gap, priority }) => {
+    const topic = getGapTopic(gap);
+    const weeks = Math.max(1, Math.round((CRITICAL_GAP_PRIORITY_WEIGHT[priority] / weightSum) * totalWeeks));
+    return { priority, topic, url: getGapUrl(gap), description: getGapReason(topic, ""), weeks };
+  });
+};
+
 const buildImmediateActions = (analysis: AnalysisData): { label: string; url?: string }[] => {
   const actions: { label: string; url?: string }[] = [];
   analysis.recommendations.resources.slice(0, 2).forEach((r) => {
@@ -363,36 +451,20 @@ const buildImmediateActions = (analysis: AnalysisData): { label: string; url?: s
 };
 
 // Reuses the existing student-facing study tips, plus one checklist item per
-// top real critical-gap topic — no new items are written.
+// top real critical-gap topic — no new items are written. Capped at 3 to match
+// the report's compact checklist-card layout.
 const buildStudentChecklist = (analysis: AnalysisData): string[] => {
   const items = [...analysis.recommendations.study];
   analysis.criticalGaps.slice(0, 2).forEach((gap) => items.push(`Review ${getGapTopic(gap)}.`));
-  return items.slice(0, 6);
+  return items.slice(0, 3);
 };
 
 // Reuses the existing skill-strategy and cultural/classroom-adaptation tips —
 // both are already framed as guidance for whoever is supporting the student,
-// which fits a teacher/school audience.
+// which fits a teacher/school audience. Capped at 3 to match the report's
+// compact checklist-card layout.
 const buildTeacherRecommendations = (analysis: AnalysisData): string[] =>
-  [...analysis.recommendations.skillStrategy, ...analysis.recommendations.culturalLanguage].slice(0, 6);
-
-// Combines the two real resource sources: report-level recommendations.resources
-// and per-subject keyGaps[].resourceUrl — deduped, nothing invented.
-const buildLearningResources = (analysis: AnalysisData): { label: string; url?: string }[] => {
-  const fromRecommendations = analysis.recommendations.resources.map((r) => ({ label: getResName(r), url: getResUrl(r) }));
-  const fromGaps = analysis.subjectAnalysis.flatMap((s) =>
-    s.keyGaps.map((g) => ({ label: getGapTopic(g), url: getGapUrl(g) })).filter((r) => !!r.url)
-  );
-  const seen = new Set<string>();
-  return [...fromRecommendations, ...fromGaps]
-    .filter((r) => {
-      const key = r.url || r.label;
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, 8);
-};
+  [...analysis.recommendations.skillStrategy, ...analysis.recommendations.culturalLanguage].slice(0, 3);
 
 // Every subject's alignment % is real. There is no per-subject "study hours"
 // field anywhere in the backend response, so hour figures below are an
@@ -433,29 +505,51 @@ const buildWeeklyStudyPlan = (
   return { subjects: subjects.map((s) => s.subject), rows };
 };
 
+// Cycles through the app's own brand tokens (already used throughout this
+// report) rather than introducing new colors, so each subject row gets a
+// distinct, on-brand chip color.
+// Prioritizes the brand's Academic Teal and Warm Amber, then Mint Teal,
+// before cycling through the remaining brand tokens — reusing the app's
+// existing design-system colors, not new ones.
+const SUBJECT_CHIP_PALETTE: { bg: string; fg: string }[] = [
+  { bg: "bg-secondary", fg: "text-secondary-foreground" },
+  { bg: "bg-accent", fg: "text-accent-foreground" },
+  { bg: "bg-mint", fg: "text-mint-foreground" },
+  { bg: "bg-violet", fg: "text-violet-foreground" },
+  { bg: "bg-primary", fg: "text-primary-foreground" },
+  { bg: "bg-destructive", fg: "text-destructive-foreground" },
+];
+
+// One real gap topic per week, per subject (from subject.keyGaps, the same
+// field the Subject-wise Gap Analysis cards already use), shown in full —
+// no truncation. Once a subject's real topics run out — e.g. it only had 2
+// flagged gaps — the remaining weeks show a muted generic "Review" chip
+// rather than inventing more topics. hoursPerWeek reuses buildWeeklyStudyPlan's
+// real Week-1 rate.
+const buildWeeklyStudyStream = (
+  analysis: AnalysisData
+): { subject: string; hoursPerWeek: number; chip: { bg: string; fg: string }; weeks: { label: string; muted: boolean }[] }[] => {
+  const weeklyPlan = buildWeeklyStudyPlan(analysis);
+  return analysis.subjectAnalysis.map((subject, i) => {
+    const topics = subject.keyGaps.map(getGapTopic);
+    const weeks = Array.from({ length: WEEKLY_PLAN_WEEKS }, (_, weekIdx) => {
+      const topic = topics[weekIdx];
+      return topic ? { label: topic, muted: false } : { label: "Review", muted: true };
+    });
+    return {
+      subject: subject.subject,
+      hoursPerWeek: weeklyPlan.rows[0]?.hours[i] ?? 0,
+      chip: SUBJECT_CHIP_PALETTE[i % SUBJECT_CHIP_PALETTE.length],
+      weeks,
+    };
+  });
+};
+
 const buildWeeklyPlanCaption = (analysis: AnalysisData): string => {
   const hoursToClose = buildStudyHoursToCloseGaps(analysis);
   if (hoursToClose.length === 0) return "";
   const heaviest = [...hoursToClose].sort((a, b) => b.hours - a.hours)[0];
   return `${heaviest.subject} carries the heaviest weekly load, tapering gradually across the plan as practice builds fluency in every subject.`;
-};
-
-const VerticalHoursChart = ({ data }: { data: { subject: string; hours: number }[] }) => {
-  const max = Math.max(...data.map((d) => d.hours), 1);
-  return (
-    <div className="flex h-40 items-end gap-3 border-b border-l border-border pb-1 pl-2">
-      {data.map((d) => (
-        <div key={d.subject} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
-          <span className="text-xs font-semibold text-foreground">{d.hours}h</span>
-          <div
-            className={`w-full max-w-[48px] rounded-t-sm ${d.hours === max && max > 0 ? "bg-accent" : "bg-primary"}`}
-            style={{ height: `${Math.max((d.hours / max) * 100, 4)}%` }}
-          />
-          <span className="mt-1 text-center text-[10px] leading-tight text-muted-foreground">{d.subject}</span>
-        </div>
-      ))}
-    </div>
-  );
 };
 
 // Short, real-data-driven answers — no fabricated dates/weeks, only the
@@ -485,49 +579,9 @@ const buildParentFAQ = (analysis: AnalysisData): { question: string; answer: str
   ];
 };
 
-const CompletionAreaChart = ({ data }: { data: { month: number; percentage: number }[] }) => {
-  const width = 640;
-  const height = 170;
-  const paddingX = 28;
-  const paddingTop = 26;
-  const paddingBottom = 22;
-  const plotWidth = width - paddingX * 2;
-  const plotHeight = height - paddingTop - paddingBottom;
-  const n = data.length;
-  const xFor = (i: number) => paddingX + (n === 1 ? plotWidth / 2 : (i / (n - 1)) * plotWidth);
-  const yFor = (pct: number) => paddingTop + plotHeight - (pct / 100) * plotHeight;
-  const points = data.map((d, i) => ({ x: xFor(i), y: yFor(d.percentage), ...d }));
-  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  const areaPath =
-    points.length > 0
-      ? `${linePath} L ${points[points.length - 1].x} ${paddingTop + plotHeight} L ${points[0].x} ${paddingTop + plotHeight} Z`
-      : "";
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-label="Expected preparation completion percentage by month">
-      {[0, 50, 100].map((gridPct) => (
-        <line key={gridPct} x1={paddingX} x2={width - paddingX} y1={yFor(gridPct)} y2={yFor(gridPct)} stroke="hsl(var(--border))" strokeWidth={1} />
-      ))}
-      {areaPath && <path d={areaPath} fill="hsl(var(--secondary))" fillOpacity={0.12} stroke="none" />}
-      <path d={linePath} fill="none" stroke="hsl(var(--secondary))" strokeWidth={2} />
-      {points.map((p) => (
-        <g key={p.month}>
-          <circle cx={p.x} cy={p.y} r={3.5} fill="hsl(var(--secondary))" />
-          <text x={p.x} y={p.y - 8} textAnchor="middle" fontSize={11} fontWeight={700} fill="hsl(var(--foreground))">
-            {p.percentage}%
-          </text>
-          <text x={p.x} y={height - 6} textAnchor="middle" fontSize={10} fill="hsl(var(--muted-foreground))">
-            Month {p.month}
-          </text>
-        </g>
-      ))}
-    </svg>
-  );
-};
-
 const ReadinessDonut = ({ percentage }: { percentage: number }) => {
-  const size = 148;
-  const strokeWidth = 12;
+  const size = 116;
+  const strokeWidth = 10;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(100, Number.isFinite(percentage) ? percentage : 0));
@@ -550,8 +604,8 @@ const ReadinessDonut = ({ percentage }: { percentage: number }) => {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-bold text-foreground">{Math.round(clamped)}%</span>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Readiness</span>
+        <span className="text-2xl font-bold text-foreground">{Math.round(clamped)}%</span>
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Readiness</span>
       </div>
     </div>
   );
@@ -630,7 +684,7 @@ const DEV_MOCK_FORM_DATA = {
   schoolStage: "middle",
   snapshotGrade: "5",
   snapshotLocation: "us",
-  usState: "texas",
+  usState: "TX",
   currentCurriculum: "us-common-core",
   targetGoal: "cbse",
   targetGrade: "next",
@@ -1205,49 +1259,56 @@ const ReportPreview = () => {
             <div ref={reportRef}>
             <Card className="border border-border overflow-hidden">
             {/* A. Report Header */}
-              <div className="bg-primary px-5 py-6 sm:px-8 sm:py-7">
-                <img src={globiculumLogo} alt="Globiculum" className="h-7 w-auto brightness-0 invert mb-4" />
-                <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-tight text-primary-foreground">
-                  Curriculum Gap Analysis Report
-                </h1>
-                <p className="mt-1.5 text-sm sm:text-base font-medium text-mint">
-                  {buildTransitionSummary(formData)}
-                </p>
+              <div className="relative overflow-hidden bg-[linear-gradient(120deg,hsl(var(--primary))_0%,hsl(var(--primary))_72%,hsl(var(--violet)/0.4)_130%)] px-5 py-4 sm:px-7 sm:py-5">
+                <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-mint/20 blur-2xl no-print" aria-hidden="true" />
+                <div className="relative">
+                  <img src={globiculumLogo} alt="Globiculum" className="h-8 w-auto brightness-0 invert mb-2.5" />
+                  <h1 className="text-lg font-bold uppercase tracking-tight text-primary-foreground sm:text-xl">
+                    Curriculum Gap Analysis Report
+                  </h1>
+                  <p className="mt-1 text-xs font-medium text-mint sm:text-sm">
+                    {buildTransitionSummary(formData)}
+                  </p>
+                </div>
               </div>
 
-              <CardContent className="space-y-6 pt-6">
+              <CardContent className="space-y-5 pt-5">
                 {/* B. Student & Transition Profile + Overall Readiness */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                   <div className="lg:col-span-2">
-                    <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      <Target className="h-3.5 w-3.5" aria-hidden="true" />
+                    <h2 className="mb-1.5 flex items-center gap-1.5 text-lg font-bold text-primary">
+                      <Target className="h-4 w-4 text-secondary" aria-hidden="true" />
                       Student &amp; Transition Profile
                     </h2>
-                    <div className="overflow-x-auto rounded-md border border-border">
-                      <table className="w-full border-collapse text-sm">
-                        <thead>
-                          <tr className="bg-primary text-primary-foreground">
-                            <th scope="col" className="w-2/5 px-3 py-2 text-left font-semibold">Field</th>
-                            <th scope="col" className="px-3 py-2 text-left font-semibold">Detail</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {buildProfileRows(formData).map((row, i) => (
-                            <tr key={row.label} className={i % 2 === 1 ? "bg-muted/40" : undefined}>
-                              <th scope="row" className="border-t border-border px-3 py-2 text-left font-medium text-muted-foreground">
-                                {row.label}
-                              </th>
-                              <td className="border-t border-border px-3 py-2">{row.value}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="mb-2 flex items-center gap-1.5">
+                      <div className="h-0.5 w-10 rounded-full bg-secondary" />
+                      <div className="h-1.5 w-1.5 rounded-full bg-mint" />
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/20">
+                      <div className="grid grid-cols-1 sm:grid-cols-2">
+                        {buildProfileGrid(formData).map((field, i) => {
+                          const isLastRow = i >= 4;
+                          const isLeftCol = i % 2 === 0;
+                          return (
+                            <div
+                              key={field.label}
+                              className={`px-3.5 py-2.5 border-border ${isLastRow ? "" : "border-b"} ${isLeftCol ? "sm:border-r" : ""}`}
+                            >
+                              <div className="text-[9px] font-semibold uppercase tracking-wide text-secondary">
+                                {field.label}
+                              </div>
+                              <div className="mt-0.5 text-xs font-semibold text-foreground">{field.value}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
                   {analysis && (
-                    <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-border bg-muted/20 py-6">
-                      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Overall Readiness</h2>
+                    <div className="relative flex flex-col items-center justify-center gap-1.5 overflow-hidden rounded-md border border-mint/40 bg-mint/15 py-4">
+                      <Sparkles className="pointer-events-none absolute right-3 top-3 h-3.5 w-3.5 text-secondary/50 no-print" aria-hidden="true" />
+                      <h2 className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Overall Readiness</h2>
                       <ReadinessDonut percentage={analysis.overallAlignment.percentage} />
                     </div>
                   )}
@@ -1255,66 +1316,82 @@ const ReportPreview = () => {
 
                 {/* C. Readiness Summary Strip */}
                 {analysis && (
-                  <div className="-mx-6 grid grid-cols-1 overflow-hidden border-y border-border sm:grid-cols-3">
-                    <div className="bg-secondary px-6 py-4 text-center text-secondary-foreground">
-                      <div className="text-2xl font-bold">{analysis.overallAlignment.percentage}%</div>
-                      <div className="text-xs font-semibold uppercase tracking-wide">Ready Now</div>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                    <div className="flex items-center gap-2.5 rounded-md border-t-2 border-secondary bg-secondary/10 px-4 py-2.5">
+                      <TrendingUp className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
+                      <div>
+                        <div className="text-lg font-bold leading-none text-secondary">{analysis.overallAlignment.percentage}%</div>
+                        <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Ready Now</div>
+                      </div>
                     </div>
-                    <div className="bg-accent px-6 py-4 text-center text-accent-foreground sm:border-x sm:border-border/40">
-                      <div className="text-2xl font-bold">{deriveRiskLevel(analysis.overallAlignment.percentage)}</div>
-                      <div className="text-xs font-semibold uppercase tracking-wide">Risk Level</div>
+                    <div className="flex items-center gap-2.5 rounded-md border-t-2 border-accent bg-accent/10 px-4 py-2.5">
+                      <Gauge className="h-4 w-4 shrink-0 text-accent-contrast" aria-hidden="true" />
+                      <div>
+                        <div className="text-lg font-bold leading-none text-accent-contrast">{deriveRiskLevel(analysis.overallAlignment.percentage)}</div>
+                        <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Risk Level</div>
+                      </div>
                     </div>
-                    <div className="bg-primary px-6 py-4 text-center text-primary-foreground">
-                      <div className="text-2xl font-bold">{analysis.overallAlignment.estimatedDuration}</div>
-                      <div className="text-xs font-semibold uppercase tracking-wide">Time to Prepare</div>
+                    <div className="flex items-center gap-2.5 rounded-md border-t-2 border-violet bg-violet/10 px-4 py-2.5">
+                      <Clock className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                      <div>
+                        <div className="text-lg font-bold leading-none text-primary">{analysis.overallAlignment.estimatedDuration}</div>
+                        <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Time to Prepare</div>
+                      </div>
                     </div>
                   </div>
                 )}
 
                 {/* C2. Executive Summary / Alignment by Subject / Key Takeaways */}
                 {analysis && (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div>
-                      <h2 className="text-xl font-bold uppercase tracking-tight text-primary">Executive Summary</h2>
-                      <div className="mt-1.5 mb-3 h-0.5 w-16 bg-secondary" />
-                      <div className="space-y-3 text-sm leading-relaxed text-foreground/90">
+                      <h2 className="text-lg font-bold uppercase tracking-tight text-primary">Executive Summary</h2>
+                      <div className="mt-1 mb-2.5 flex items-center gap-1.5">
+                        <div className="h-0.5 w-10 rounded-full bg-secondary" />
+                        <div className="h-1.5 w-1.5 rounded-full bg-mint" />
+                      </div>
+                      <div className="space-y-2 text-[13px] leading-relaxed text-foreground/90">
                         {buildExecutiveSummary(formData, analysis).map((paragraph, i) => (
                           <p key={i}>{paragraph}</p>
                         ))}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                       <div>
-                        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Alignment by Subject
                         </h2>
-                        <div className="space-y-2.5">
-                          {summarizeSubjects(analysis).withPercentage.map((s) => (
-                            <div key={s.subject} className="flex items-center gap-3">
-                              <div className="w-28 shrink-0 truncate text-xs font-medium text-foreground" title={s.subject}>
+                        <div className="space-y-2">
+                          {summarizeSubjects(analysis).withPercentage.map((s, i) => (
+                            <div key={s.subject} className="flex items-center gap-2.5">
+                              <span
+                                className={`h-1.5 w-1.5 shrink-0 rounded-full ${SUBJECT_CHIP_PALETTE[i % SUBJECT_CHIP_PALETTE.length].bg}`}
+                                aria-hidden="true"
+                              />
+                              <div className="w-24 shrink-0 truncate text-xs font-medium text-foreground" title={s.subject}>
                                 {s.subject}
                               </div>
-                              <div className="h-2.5 flex-1 rounded-sm bg-muted">
+                              <div className="h-2 flex-1 rounded-full bg-muted">
                                 <div
-                                  className={`h-full rounded-sm ${s.percentage >= 70 ? "bg-secondary" : "bg-accent"}`}
+                                  className={`h-full rounded-full ${s.percentage >= 70 ? "bg-secondary" : "bg-accent"}`}
                                   style={{ width: `${Math.max(s.percentage, 2)}%` }}
                                 />
                               </div>
-                              <div className="w-9 shrink-0 text-right text-xs font-semibold text-foreground">{s.percentage}%</div>
+                              <div className="w-8 shrink-0 text-right text-xs font-semibold text-foreground">{s.percentage}%</div>
                             </div>
                           ))}
                         </div>
                       </div>
 
                       <div>
-                        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Key Takeaways
                         </h2>
-                        <ul className="space-y-2 text-sm text-foreground/90">
+                        <ul className="space-y-1.5 text-xs text-foreground/90">
                           {buildKeyTakeaways(analysis).map((bullet, i) => (
-                            <li key={i} className="flex gap-2">
-                              <span className="text-secondary" aria-hidden="true">•</span>
+                            <li key={i} className="flex gap-1.5">
+                              <span className={i % 2 === 0 ? "text-secondary" : "text-violet"} aria-hidden="true">•</span>
                               <span>{bullet}</span>
                             </li>
                           ))}
@@ -1337,7 +1414,7 @@ const ReportPreview = () => {
                     return true;
                   });
 
-                  const renderSubjectCard = (subject: SubjectAnalysis) => {
+                  const renderSubjectCard = (subject: SubjectAnalysis, subjectIndex: number) => {
                     const percentage = subject.totalTopics > 0 ? Math.round((subject.topicsCovered / subject.totalTopics) * 100) : 0;
                     const rawGaps = isFoundation
                       ? mergeWithBaseline(gradeNum, subject.subject, subject.keyGaps.map(getGapTopic), { maxTopics: 6 }).map(t => subject.keyGaps.find(g => getGapTopic(g) === t) ?? t)
@@ -1349,31 +1426,32 @@ const ReportPreview = () => {
                     const strengths = buildSubjectStrengths(subject);
                     const resources = buildSubjectResources(subject);
                     const difficulty = SUBJECT_DIFFICULTY[subject.alignmentLevel];
+                    const accentBorder = SUBJECT_ACCENT_BORDER[subjectIndex % SUBJECT_ACCENT_BORDER.length];
 
                     return (
-                      <div key={subject.subject} className="rounded-md bg-muted/30 p-5 sm:p-6">
-                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                          <h4 className="text-xl font-bold text-foreground">{subject.subject}</h4>
+                      <div key={subject.subject} className={`rounded-lg border-l-4 bg-muted/50 p-4 sm:p-5 ${accentBorder}`}>
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                          <h4 className="text-base font-bold text-foreground">{subject.subject}</h4>
                           <div className="flex flex-wrap gap-1.5">
-                            <span className={`rounded px-2.5 py-1 text-xs font-semibold text-white ${percentage >= 70 ? "bg-secondary" : "bg-accent"}`}>
+                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white ${percentage >= 70 ? "bg-secondary" : "bg-accent"}`}>
                               {percentage}% Align
                             </span>
-                            <span className="rounded bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground">
+                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${SUBJECT_CONFIDENCE_BADGE_STYLE[subject.alignmentLevel]}`}>
                               {SUBJECT_CONFIDENCE_LABEL[subject.alignmentLevel]}
                             </span>
-                            <span className="rounded bg-muted-foreground px-2.5 py-1 text-xs font-semibold text-white">
+                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${SUBJECT_PACE_BADGE_STYLE[subject.alignmentLevel]}`}>
                               {SUBJECT_PACE_LABEL[subject.alignmentLevel]}
                             </span>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                          <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                          <div className="space-y-3">
                             <div>
-                              <h5 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">Strengths</h5>
-                              <ul className="space-y-1 text-sm text-foreground/90">
+                              <h5 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-secondary">Strengths</h5>
+                              <ul className="space-y-1 text-xs text-foreground/90">
                                 {strengths.map((s, i) => (
-                                  <li key={i} className="flex gap-2">
+                                  <li key={i} className="flex gap-1.5">
                                     <span className="text-secondary" aria-hidden="true">•</span>
                                     <span>{s}</span>
                                   </li>
@@ -1381,20 +1459,20 @@ const ReportPreview = () => {
                               </ul>
                             </div>
                             <div>
-                              <h5 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">Missing Topics</h5>
+                              <h5 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-secondary">Missing Topics</h5>
                               {gapRows.length > 0 ? (
                                 <div className="overflow-x-auto rounded-md border border-border bg-background">
-                                  <table className="w-full border-collapse text-xs">
+                                  <table className="w-full border-collapse text-[11px]">
                                     <thead>
                                       <tr className="bg-primary text-primary-foreground">
-                                        <th scope="col" className="px-2.5 py-1.5 text-left font-semibold">Topic</th>
-                                        <th scope="col" className="px-2.5 py-1.5 text-left font-semibold">Gap</th>
+                                        <th scope="col" className="px-2 py-1 text-left font-semibold">Topic</th>
+                                        <th scope="col" className="px-2 py-1 text-left font-semibold">Gap</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {gapRows.map((g, i) => (
                                         <tr key={i} className={i % 2 === 1 ? "bg-muted/40" : undefined}>
-                                          <td className="border-t border-border px-2.5 py-1.5 align-top font-medium">
+                                          <td className="border-t border-border px-2 py-1 align-top font-medium">
                                             {g.url ? (
                                               <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
                                                 {g.topic}
@@ -1403,7 +1481,7 @@ const ReportPreview = () => {
                                               g.topic
                                             )}
                                           </td>
-                                          <td className="border-t border-border px-2.5 py-1.5 align-top text-muted-foreground">{g.reason}</td>
+                                          <td className="border-t border-border px-2 py-1 align-top text-muted-foreground">{g.reason}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -1415,20 +1493,20 @@ const ReportPreview = () => {
                             </div>
                           </div>
 
-                          <div className="space-y-4">
+                          <div className="space-y-3">
                             <div>
-                              <h5 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">Difficulty &amp; Catch-up</h5>
-                              <p className="text-sm text-foreground/90">
+                              <h5 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-secondary">Difficulty &amp; Catch-up</h5>
+                              <p className="text-xs text-foreground/90">
                                 <span className="font-semibold">{difficulty.level} — </span>
                                 {difficulty.explanation}
                               </p>
                             </div>
                             <div>
-                              <h5 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-secondary">Resources</h5>
+                              <h5 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-secondary">Resources</h5>
                               {resources.length > 0 ? (
-                                <ul className="space-y-1 text-sm text-foreground/90">
+                                <ul className="space-y-1 text-xs text-foreground/90">
                                   {resources.map((r, i) => (
-                                    <li key={i} className="flex gap-2">
+                                    <li key={i} className="flex gap-1.5">
                                       <span className="text-secondary" aria-hidden="true">•</span>
                                       <a href={r.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
                                         {r.label}
@@ -1447,16 +1525,19 @@ const ReportPreview = () => {
                   };
 
                   return (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <div>
-                        <h3 className="text-xl font-bold text-primary">Subject-wise Gap Analysis</h3>
-                        <div className="mt-1.5 mb-3 h-0.5 w-16 bg-secondary" />
+                        <h3 className="text-lg font-bold text-primary">Subject-wise Gap Analysis</h3>
+                        <div className="mt-1 mb-2 flex items-center gap-1.5">
+                          <div className="h-0.5 w-10 rounded-full bg-secondary" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-mint" />
+                        </div>
                         <p className="text-xs italic text-muted-foreground">
                           Each subject is assessed independently across strengths, missing topics, difficulty, and preparation resources.
                         </p>
                       </div>
-                      <div className="space-y-4">
-                        {subjectsToRender.map(renderSubjectCard)}
+                      <div className="space-y-3">
+                        {subjectsToRender.map((subject, i) => renderSubjectCard(subject, i))}
                       </div>
                     </div>
                   );
@@ -1499,26 +1580,26 @@ const ReportPreview = () => {
                   const pcbReady = streamSubjects.filter(s => /math|physics|chemistry|biology/i.test(s.name) && !/computer/i.test(s.name)).some(s => /biology/i.test(s.name) && s.readiness !== "preparation");
 
                   return (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Layers className="h-5 w-5 text-primary" />
-                        <h3 className="text-lg font-semibold">Recommended Stream Readiness</h3>
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <Layers className="h-4 w-4 text-primary" />
+                        <h3 className="text-base font-semibold">Recommended Stream Readiness</h3>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Based on your US coursework, here's how your child aligns with Indian Grade 11–12 streams.
                         University Entrance Test/AP courses are treated as rigor indicators.
                       </p>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
                         {streamSubjects.map((s) => (
-                          <div key={s.name} className={`p-3 rounded-lg border text-center ${readinessColors[s.readiness]}`}>
-                            <div className="text-sm font-semibold">{s.name}</div>
-                            <div className="text-xs mt-1">{readinessLabels[s.readiness]}</div>
+                          <div key={s.name} className={`p-2.5 rounded-lg border text-center ${readinessColors[s.readiness]}`}>
+                            <div className="text-xs font-semibold">{s.name}</div>
+                            <div className="text-[11px] mt-0.5">{readinessLabels[s.readiness]}</div>
                           </div>
                         ))}
                       </div>
                       {/* Stream suggestion */}
-                      <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                        <div className="text-sm font-medium mb-1">Suggested Stream Alignment</div>
+                      <div className="p-2.5 bg-muted/30 rounded-lg border border-border">
+                        <div className="text-xs font-medium mb-1">Suggested Stream Alignment</div>
                         <div className="flex flex-wrap gap-2">
                           {pcmReady && <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">PCM (Science – Math)</Badge>}
                           {pcbReady && <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">PCB (Science – Bio)</Badge>}
@@ -1530,84 +1611,148 @@ const ReportPreview = () => {
                   );
                 })()}
 
+                {/* E2. Critical Gaps Prioritised by Academic Impact */}
+                {analysis && (() => {
+                  const criticalGapsTable = buildCriticalGapsTable(analysis);
+                  if (criticalGapsTable.length === 0) return null;
+                  const highCount = criticalGapsTable.filter((g) => g.priority === "High").length;
+                  const priorityStyle: Record<"High" | "Medium" | "Low", string> = {
+                    High: "bg-destructive/10 text-destructive",
+                    Medium: "bg-accent/10 text-accent-contrast",
+                    Low: "bg-muted text-muted-foreground",
+                  };
+                  return (
+                    <div className="rounded-xl border border-border bg-muted/20 p-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-[11px] font-bold uppercase tracking-wide text-primary">
+                          Critical Gaps Prioritised by Academic Impact
+                        </h3>
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-secondary">
+                          {criticalGapsTable.length} Gap{criticalGapsTable.length === 1 ? "" : "s"} Total · {highCount} High Priority
+                        </span>
+                      </div>
+                      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-background">
+                        {criticalGapsTable.map((g, i) => (
+                          <div key={i} className="flex flex-col gap-1 px-3 py-2.5 text-xs sm:flex-row sm:items-center sm:gap-3">
+                            <span
+                              className={`inline-block w-fit shrink-0 rounded px-1.5 py-0.5 text-center text-[10px] font-bold uppercase sm:w-16 ${priorityStyle[g.priority]}`}
+                            >
+                              {g.priority}
+                            </span>
+                            <span className="shrink-0 font-semibold text-foreground sm:w-36">
+                              {g.url ? (
+                                <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
+                                  {g.topic}
+                                </a>
+                              ) : (
+                                g.topic
+                              )}
+                            </span>
+                            <span className="text-muted-foreground sm:flex-1">{g.description}</span>
+                            <span className="shrink-0 text-xs font-semibold text-secondary sm:w-16 sm:text-right">
+                              {g.weeks} Week{g.weeks === 1 ? "" : "s"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* F. Bridge Timeline & Recommendations */}
                 {analysis && (() => {
                   const riskMetrics = deriveRiskMetrics(analysis);
                   const monthlyPlan = buildMonthlyBridgePlan(analysis);
                   const whyStartNow = buildWhyStartNow(analysis);
-                  const roadmapExplanation = buildRoadmapExplanation(analysis);
                   const immediateActions = buildImmediateActions(analysis);
 
                   return (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div>
-                        <h3 className="text-xl font-bold text-primary">Bridge Timeline &amp; Recommendations</h3>
-                        <div className="mt-1.5 h-0.5 w-16 bg-secondary" />
+                        <h3 className="text-lg font-bold text-primary">Bridge Timeline &amp; Recommendations</h3>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <div className="h-0.5 w-10 rounded-full bg-secondary" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-mint" />
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                         <div>
-                          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-secondary">Risk at a Glance</h4>
-                          <div className="space-y-2.5">
+                          <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-secondary">Risk at a Glance</h4>
+                          <div className="space-y-2">
                             {riskMetrics.map((m) => (
-                              <div key={m.label} className="flex items-center gap-3">
-                                <div className="w-28 shrink-0 text-xs font-medium text-foreground">{m.label}</div>
-                                <div className="h-2.5 flex-1 rounded-sm bg-muted">
+                              <div key={m.label} className="flex items-center gap-2.5">
+                                <div className="w-24 shrink-0 text-xs font-medium text-foreground">{m.label}</div>
+                                <div className="h-2 flex-1 rounded-sm bg-muted">
                                   <div
                                     className={`h-full rounded-sm ${m.tone === "positive" ? "bg-secondary" : "bg-accent"}`}
                                     style={{ width: `${Math.max(m.percentage, 2)}%` }}
                                   />
                                 </div>
-                                <div className="w-9 shrink-0 text-right text-xs font-semibold text-foreground">{m.percentage}%</div>
+                                <div className="w-8 shrink-0 text-right text-xs font-semibold text-foreground">{m.percentage}%</div>
                               </div>
                             ))}
                           </div>
                         </div>
 
                         <div>
-                          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-secondary">Why Start Now</h4>
-                          <p className="text-sm leading-relaxed text-foreground/90">{whyStartNow}</p>
+                          <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-secondary">Why Start Now</h4>
+                          <p className="text-[13px] leading-relaxed text-foreground/90">{whyStartNow}</p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-border bg-muted/20 p-3.5">
+                        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                          <h4 className="text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                            Readiness Stepper — Step-by-Step Transition
+                          </h4>
+                          <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-contrast">
+                            Front-Loaded Execution
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                          {monthlyPlan.map((row, i) => {
+                            const isFinalStep = i === monthlyPlan.length - 1;
+                            // Purely presentational progression tint: early steps read as the
+                            // "foundation" stage (teal), later-but-not-final steps as "building"
+                            // (violet), and the final step is highlighted as the destination.
+                            const milestoneDot = isFinalStep
+                              ? "bg-mint"
+                              : i < monthlyPlan.length / 2
+                                ? "bg-secondary"
+                                : "bg-violet";
+                            return (
+                              <div
+                                key={row.month}
+                                className={`rounded-md border p-2.5 ${
+                                  isFinalStep ? "border-secondary bg-secondary/10" : "border-border bg-background"
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide text-secondary">
+                                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${milestoneDot}`} aria-hidden="true" />
+                                  Step {i + 1} · Month {row.month}
+                                </div>
+                                <div className="mt-0.5 text-xs font-bold text-foreground">{row.phase}</div>
+                                <ul className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground">
+                                  {row.focusAreas.map((area, j) => (
+                                    <li key={j} className="flex gap-1">
+                                      <span className="text-secondary" aria-hidden="true">•</span>
+                                      <span>{area}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
                       <div>
-                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-secondary">Expected Completion by Month</h4>
-                        <CompletionAreaChart data={monthlyPlan.map(({ month, percentage }) => ({ month, percentage }))} />
-                      </div>
-
-                      <div>
-                        <div className="overflow-x-auto rounded-md border border-border">
-                          <table className="w-full border-collapse text-xs">
-                            <thead>
-                              <tr className="bg-primary text-primary-foreground">
-                                <th scope="col" className="px-3 py-2 text-left font-semibold">Phase</th>
-                                <th scope="col" className="px-3 py-2 text-left font-semibold">Month</th>
-                                <th scope="col" className="px-3 py-2 text-left font-semibold">Focus Areas</th>
-                                <th scope="col" className="px-3 py-2 text-right font-semibold">Completion</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {monthlyPlan.map((row, i) => (
-                                <tr key={row.month} className={i % 2 === 1 ? "bg-muted/40" : undefined}>
-                                  <td className="border-t border-border px-3 py-2 align-top font-medium">{row.phase}</td>
-                                  <td className="border-t border-border px-3 py-2 align-top">Month {row.month}</td>
-                                  <td className="border-t border-border px-3 py-2 align-top text-muted-foreground">{row.focusAreas}</td>
-                                  <td className="border-t border-border px-3 py-2 align-top text-right font-semibold">{row.percentage}%</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      <p className="text-sm leading-relaxed text-foreground/90">{roadmapExplanation}</p>
-
-                      <div>
-                        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Immediate Actions</h4>
+                        <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">Immediate Actions</h4>
                         {immediateActions.length > 0 ? (
-                          <ul className="space-y-1.5 text-sm text-foreground/90">
+                          <ul className="space-y-1 text-xs text-foreground/90">
                             {immediateActions.map((action, i) => (
-                              <li key={i} className="flex gap-2">
+                              <li key={i} className="flex gap-1.5">
                                 <span className="text-secondary" aria-hidden="true">•</span>
                                 {action.url ? (
                                   <a href={action.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
@@ -1640,26 +1785,24 @@ const ReportPreview = () => {
 
                   const studentChecklist = buildStudentChecklist(analysis);
                   const teacherRecommendations = buildTeacherRecommendations(analysis);
-                  const learningResources = buildLearningResources(analysis);
-                  const weeklyPlan = buildWeeklyStudyPlan(analysis);
-                  const hoursToClose = buildStudyHoursToCloseGaps(analysis);
+                  const weeklyStream = buildWeeklyStudyStream(analysis);
                   const weeklyPlanCaption = buildWeeklyPlanCaption(analysis);
                   const culturalTips = analysis.recommendations.culturalLanguage;
 
                   return (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div>
-                        <h3 className="text-xl font-bold text-primary">Personalized Recommendations</h3>
-                        <div className="mt-1.5 mb-3 h-0.5 w-16 bg-secondary" />
-                        <p className="text-xs italic text-muted-foreground">
-                          Recommendations are adjusted based on the student's current performance level and readiness.
-                        </p>
+                        <h3 className="text-lg font-bold text-primary">Personalized Recommendations</h3>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <div className="h-0.5 w-10 rounded-full bg-secondary" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-mint" />
+                        </div>
                       </div>
 
                       {/* Same-curriculum note */}
                       {isSameCurriculum && (
-                        <div className="rounded-md border border-border bg-muted/30 p-3">
-                          <div className="mb-1 text-sm font-medium text-foreground">Same Curriculum Detected</div>
+                        <div className="rounded-md border border-border bg-muted/30 p-2.5">
+                          <div className="mb-0.5 text-xs font-medium text-foreground">Same Curriculum Detected</div>
                           <p className="text-xs text-muted-foreground">
                             Your child is already studying in a {currentCurr.includes("ib") ? "IB" : "IGCSE/Cambridge"} curriculum.
                             Recommendations focus on continuation within the same framework rather than cross-curriculum bridging.
@@ -1667,14 +1810,17 @@ const ReportPreview = () => {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <div>
-                          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Student Checklist</h4>
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                        <div className="rounded-md border border-mint/40 bg-mint/10 p-2.5">
+                          <h4 className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                            <GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />
+                            Student Checklist
+                          </h4>
                           {studentChecklist.length > 0 ? (
-                            <ul className="space-y-1.5 text-sm text-foreground/90">
+                            <ul className="space-y-0.5 text-xs text-foreground/90">
                               {studentChecklist.map((item, i) => (
-                                <li key={i} className="flex gap-2">
-                                  <span className="text-secondary" aria-hidden="true">•</span>
+                                <li key={i} className="flex gap-1.5">
+                                  <span className="text-secondary" aria-hidden="true">▪</span>
                                   <span>{item}</span>
                                 </li>
                               ))}
@@ -1684,13 +1830,16 @@ const ReportPreview = () => {
                           )}
                         </div>
 
-                        <div>
-                          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Teacher Recommendations</h4>
+                        <div className="rounded-md border border-violet/30 bg-violet/10 p-2.5">
+                          <h4 className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                            <School className="h-3.5 w-3.5" aria-hidden="true" />
+                            Teacher Recommendations
+                          </h4>
                           {teacherRecommendations.length > 0 ? (
-                            <ul className="space-y-1.5 text-sm text-foreground/90">
+                            <ul className="space-y-0.5 text-xs text-foreground/90">
                               {teacherRecommendations.map((item, i) => (
-                                <li key={i} className="flex gap-2">
-                                  <span className="text-secondary" aria-hidden="true">•</span>
+                                <li key={i} className="flex gap-1.5">
+                                  <span className="text-violet" aria-hidden="true">▪</span>
                                   <span>{item}</span>
                                 </li>
                               ))}
@@ -1702,68 +1851,85 @@ const ReportPreview = () => {
                       </div>
 
                       <div>
-                        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Learning Resources</h4>
-                        {learningResources.length > 0 ? (
-                          <ul className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm text-foreground/90 sm:grid-cols-2">
-                            {learningResources.map((resource, i) => (
-                              <li key={i} className="flex gap-2">
-                                <span className="text-secondary" aria-hidden="true">•</span>
-                                {resource.url ? (
-                                  <a href={resource.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
-                                    {resource.label}
-                                  </a>
-                                ) : (
-                                  <span>{resource.label}</span>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">No resources available yet.</p>
-                        )}
+                        <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">Learning Resources</h4>
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                          <div className="rounded-md border border-border bg-muted/20 p-2.5">
+                            <h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                              <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                              eBooks
+                            </h5>
+                            <p className="text-xs text-muted-foreground">No eBooks available yet.</p>
+                          </div>
+                          <div className="rounded-md border border-border bg-muted/20 p-2.5">
+                            <h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                              <Youtube className="h-3.5 w-3.5" aria-hidden="true" />
+                              YouTube Channels
+                            </h5>
+                            <p className="text-xs text-muted-foreground">No YouTube channels available yet.</p>
+                          </div>
+                          <div className="rounded-md border border-border bg-muted/20 p-2.5">
+                            <h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                              <FileQuestion className="h-3.5 w-3.5" aria-hidden="true" />
+                              Question Banks
+                            </h5>
+                            <p className="text-xs text-muted-foreground">No question banks available yet.</p>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <div>
-                          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">
-                            Weekly Study Plan (Hours/Subject)
+                      <div>
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <h4 className="text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                            Weekly Study Plan
                           </h4>
-                          {weeklyPlan.subjects.length > 0 ? (
-                            <div className="overflow-x-auto rounded-md border border-border">
-                              <table className="w-full border-collapse text-xs">
-                                <thead>
-                                  <tr className="bg-primary text-primary-foreground">
-                                    <th scope="col" className="px-2.5 py-1.5 text-left font-semibold">Week</th>
-                                    {weeklyPlan.subjects.map((s) => (
-                                      <th key={s} scope="col" className="px-2.5 py-1.5 text-left font-semibold">{s}</th>
+                          <span className="text-[9px] font-semibold uppercase tracking-wide text-secondary">
+                            Weekly Load
+                          </span>
+                        </div>
+                        {weeklyStream.length > 0 ? (
+                          <div className="overflow-x-auto rounded-lg border border-border bg-muted/20 p-2.5">
+                            <table className="w-full min-w-[420px] border-collapse text-xs">
+                              <thead>
+                                <tr className="bg-primary text-primary-foreground">
+                                  <th scope="col" className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide">
+                                    Subject
+                                  </th>
+                                  {Array.from({ length: WEEKLY_PLAN_WEEKS }, (_, i) => (
+                                    <th
+                                      key={i}
+                                      scope="col"
+                                      className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide"
+                                    >
+                                      Week {i + 1}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {weeklyStream.map((row) => (
+                                  <tr key={row.subject}>
+                                    <td className="border-b border-border px-2 py-2 align-middle font-semibold text-foreground">
+                                      {row.subject} <span className="font-normal text-muted-foreground">({row.hoursPerWeek}h)</span>
+                                    </td>
+                                    {row.weeks.map((week, wi) => (
+                                      <td key={wi} className="border-b border-border px-2 py-2 align-middle">
+                                        <span
+                                          className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                            week.muted ? "bg-muted text-muted-foreground" : `${row.chip.bg} ${row.chip.fg}`
+                                          }`}
+                                        >
+                                          {week.label}
+                                        </span>
+                                      </td>
                                     ))}
                                   </tr>
-                                </thead>
-                                <tbody>
-                                  {weeklyPlan.rows.map((row, i) => (
-                                    <tr key={row.week} className={i % 2 === 1 ? "bg-muted/40" : undefined}>
-                                      <td className="border-t border-border px-2.5 py-1.5 font-medium">Week {row.week}</td>
-                                      {row.hours.map((h, si) => (
-                                        <td key={si} className="border-t border-border px-2.5 py-1.5">{h}</td>
-                                      ))}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">No weekly plan available yet.</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Study Hours to Close Gaps</h4>
-                          {hoursToClose.length > 0 ? (
-                            <VerticalHoursChart data={hoursToClose} />
-                          ) : (
-                            <p className="text-xs text-muted-foreground">No estimate available yet.</p>
-                          )}
-                        </div>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No weekly plan available yet.</p>
+                        )}
                       </div>
 
                       {weeklyPlanCaption && (
@@ -1771,12 +1937,15 @@ const ReportPreview = () => {
                       )}
 
                       <div>
-                        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Cultural Adaptation</h4>
+                        <h4 className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                          <Globe2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          Cultural Adaptation
+                        </h4>
                         {culturalTips.length > 0 ? (
-                          <ul className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm text-foreground/90 sm:grid-cols-2">
+                          <ul className="grid grid-cols-1 gap-x-6 gap-y-1 text-xs text-foreground/90 sm:grid-cols-2">
                             {culturalTips.map((tip, i) => (
-                              <li key={i} className="flex gap-2">
-                                <span className="text-secondary" aria-hidden="true">•</span>
+                              <li key={i} className="flex gap-1.5">
+                                <span className="text-violet" aria-hidden="true">•</span>
                                 <span>{tip}</span>
                               </li>
                             ))}
@@ -1793,17 +1962,23 @@ const ReportPreview = () => {
                 {analysis && (() => {
                   const faq = buildParentFAQ(analysis);
                   return (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       <div>
-                        <h3 className="text-xl font-bold text-primary">Quick Questions Parents Often Ask</h3>
-                        <div className="mt-1.5 h-0.5 w-16 bg-secondary" />
+                        <h3 className="flex items-center gap-1.5 text-lg font-bold text-primary">
+                          <MessageCircleQuestion className="h-4 w-4 text-secondary" aria-hidden="true" />
+                          Quick Questions Parents Often Ask
+                        </h3>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <div className="h-0.5 w-10 rounded-full bg-secondary" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-mint" />
+                        </div>
                       </div>
                       <div className="overflow-x-auto rounded-md border border-border">
-                        <table className="w-full border-collapse text-sm">
+                        <table className="w-full border-collapse text-xs">
                           <thead>
                             <tr className="bg-primary text-primary-foreground">
-                              <th scope="col" className="px-3 py-2 text-left font-semibold">Question</th>
-                              <th scope="col" className="px-3 py-2 text-left font-semibold">Short Answer</th>
+                              <th scope="col" className="px-3 py-1.5 text-left font-semibold">Question</th>
+                              <th scope="col" className="px-3 py-1.5 text-left font-semibold">Short Answer</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1830,7 +2005,7 @@ const ReportPreview = () => {
                 )}
 
                 {analysis && (
-                  <div className="p-3 bg-muted/30 rounded-lg border border-border text-center">
+                  <div className="p-2.5 bg-muted/30 rounded-lg border border-border text-center">
                     <p className="text-xs text-muted-foreground italic">
                       This report can be used by tutors or academic counselors to guide structured transition planning.
                     </p>
@@ -1838,7 +2013,7 @@ const ReportPreview = () => {
                 )}
 
                 {/* Disclaimer footnote — always shown at the bottom of the report */}
-                <div className="-mx-6 border-t border-border bg-muted/30 px-6 py-3">
+                <div className="-mx-6 border-t border-border bg-muted/30 px-6 py-2.5">
                   <p className="text-[9px] leading-relaxed text-muted-foreground sm:text-[10px]">
                     <span className="font-semibold text-foreground">Disclaimer:</span> This report is an indicative
                     assessment based on the information provided and curriculum comparison. It is not 100% accurate
@@ -1848,13 +2023,14 @@ const ReportPreview = () => {
                 </div>
 
                 {/* Download Button */}
-                <div className="flex justify-center pt-4">
+                <div className="flex justify-center pt-2">
                   <Button
                     onClick={handleDownloadPDF}
                     className="w-full md:w-auto"
+                    size="sm"
                     disabled={!analysis}
                   >
-                    <Download className="h-4 w-4 mr-2" />
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
                     Download Report
                   </Button>
                 </div>
