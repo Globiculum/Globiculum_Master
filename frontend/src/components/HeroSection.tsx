@@ -1,6 +1,8 @@
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, GraduationCap, Globe, ShieldCheck, Zap } from "lucide-react";
 import bgHeroImage from "@/assets/bg-hero-image.png";
+import bgHeroVideo from "@/assets/BG-Video.mp4";
 
 const STATS = [
   { icon: GraduationCap, value: "25+", label: "Families interviewed", color: "hsl(var(--mint))" },
@@ -10,6 +12,17 @@ const STATS = [
 ];
 
 const HeroSection = () => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Slows the loop so it reads as continuous ambient motion rather than a
+  // clip visibly restarting every few seconds — the source file's own
+  // loop point isn't seamless (no video-editing tooling here to trim/
+  // crossfade it), so this is the lever available: play it back slower,
+  // which also stretches out how often that seam is seen per minute.
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.playbackRate = 0.6;
+  }, []);
+
   return (
     <section id="main-content" tabIndex={-1} className="bg-primary relative overflow-hidden outline-none">
       {/* Hero band — the image (with its own baked-in badges) is sized only to this
@@ -24,21 +37,28 @@ const HeroSection = () => {
             too. The section's own bg-primary fills any remaining edge space, blending
             seamlessly since it matches the image's own dark palette. */}
         <div className="absolute inset-0 mx-auto max-w-[1400px]">
-          <img
-            src={bgHeroImage}
-            alt=""
-            role="presentation"
-            loading="eager"
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            poster={bgHeroImage}
             className="h-full w-full object-cover object-[80%_30%]"
-          />
+          >
+            <source src={bgHeroVideo} type="video/mp4" />
+          </video>
         </div>
         {/* Below lg, the text column (max-w-2xl) exceeds the viewport width, so the
             left-to-right desktop gradient (tuned for text confined to the left ~45%)
             leaves the right portion of wrapped text sitting over a barely-dimmed part
             of the image. A top-to-bottom scrim reads correctly once text spans the
             full width; the left-to-right treatment only takes over once there's
-            actually room for the image to read as a distinct right-hand visual. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary via-primary/90 to-primary/55 lg:bg-gradient-to-r lg:from-primary lg:via-primary/70 lg:to-primary/10" />
+            actually room for the image to read as a distinct right-hand visual.
+            The mid stop leans on Academic Teal rather than navy so the band
+            reads as branded teal, not a flat navy wash over the footage. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/85 via-secondary/35 to-primary/25 lg:bg-gradient-to-r lg:from-primary/85 lg:via-secondary/25 lg:to-transparent" />
 
         <div className="container relative mx-auto px-4 sm:px-6">
           <div className="max-w-2xl space-y-6 sm:space-y-8">
@@ -74,7 +94,7 @@ const HeroSection = () => {
               <Button
                 variant="outline"
                 size="lg"
-                className="border-accent text-accent hover:bg-accent/10 transition-colors rounded-full font-semibold w-full sm:w-auto"
+                className="border-accent bg-transparent text-accent hover:bg-accent/10 hover:text-accent transition-colors rounded-full font-semibold w-full sm:w-auto"
                 asChild
               >
                 <a href="#how-it-works">See how it works</a>

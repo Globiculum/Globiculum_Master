@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, ClipboardCheck, HeartHandshake, MapPin, User } from "lucide-react";
-import AssessmentContainer from "../shared/AssessmentContainer";
-import AssessmentHeader from "../shared/AssessmentHeader";
-import AssessmentStepper, { type AssessmentStepperStep } from "../shared/AssessmentStepper";
-import ProgressSidebar from "../shared/ProgressSidebar";
-import AssessmentFooter from "../shared/AssessmentFooter";
+import type { AssessmentStepperStep } from "../shared/AssessmentStepper";
 import { useScrollToFirstInvalidField } from "../shared/useScrollToFirstInvalidField";
+import ParentAssessmentLayout from "./ui/ParentAssessmentLayout";
 import ParentStep1 from "./ParentStep1";
 import ParentStep2 from "./ParentStep2";
 import ParentStep3 from "./ParentStep3";
@@ -68,10 +65,8 @@ const createDefaultParentFormData = (): ParentFormData => ({
   foreignLanguageName: "",
   foreignLanguageNameOther: "",
   foreignLanguageLevel: "",
-  elementaryConfidences: {},
   mathCourse: "",
   mathProgramLevel: "",
-  academicSignals: [],
 
   learningStyles: [],
   studyTime: "",
@@ -128,10 +123,8 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
     foreignLanguageName: prefillData.foreignLanguageName || defaults.foreignLanguageName,
     foreignLanguageNameOther: prefillData.foreignLanguageNameOther || defaults.foreignLanguageNameOther,
     foreignLanguageLevel: prefillData.foreignLanguageLevel || defaults.foreignLanguageLevel,
-    elementaryConfidences: prefillData.elementaryConfidences || defaults.elementaryConfidences,
     mathCourse: prefillData.mathCourse || defaults.mathCourse,
     mathProgramLevel: prefillData.mathProgramLevel || defaults.mathProgramLevel,
-    academicSignals: Array.isArray(prefillData.academicSignals) ? prefillData.academicSignals : defaults.academicSignals,
     learningStyles: Array.isArray(prefillData.learningStyles) ? prefillData.learningStyles : defaults.learningStyles,
     studyTime: prefillData.studyTime || defaults.studyTime,
     previousGrades: prefillData.previousGrades || defaults.previousGrades,
@@ -209,7 +202,7 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
   };
 
   const onRecordFieldChange = (
-    field: "languageProficiencies" | "subjectConfidences" | "elementaryConfidences",
+    field: "languageProficiencies" | "subjectConfidences",
     key: string,
     value: string
   ) => {
@@ -274,31 +267,21 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
   };
 
   return (
-    <AssessmentContainer sidebar={<ProgressSidebar steps={STEPPER_STEPS} currentIndex={currentStep} />}>
-      <AssessmentHeader
-        onChangePersona={onChangePersona}
-        title="Parent Assessment"
-        subtitle="Answer a few questions to generate your child's personalized curriculum transition report."
-        showChangePersona={showChangePersona}
-        currentIndex={currentStep}
-        totalSteps={PARENT_TOTAL_STEPS}
-      />
-      <AssessmentStepper steps={STEPPER_STEPS} currentIndex={currentStep} />
-
+    <ParentAssessmentLayout
+      onChangePersona={onChangePersona}
+      showChangePersona={showChangePersona}
+      steps={STEPPER_STEPS}
+      currentIndex={currentStep}
+      onBack={goPrev}
+      onNext={goNext}
+      saveStatus={saveStatus}
+      isFirstStep={currentStep === 0}
+      isLastStep={currentStep === PARENT_TOTAL_STEPS - 1}
+    >
       <div key={currentStep} className="animate-in fade-in-0 slide-in-from-right-2 duration-300">
         {renderStep()}
       </div>
-
-      {currentStep < PARENT_TOTAL_STEPS - 1 && (
-        <AssessmentFooter
-          onPrev={goPrev}
-          onNext={goNext}
-          saveStatus={saveStatus}
-          isFirstStep={currentStep === 0}
-          canProceed
-        />
-      )}
-    </AssessmentContainer>
+    </ParentAssessmentLayout>
   );
 };
 

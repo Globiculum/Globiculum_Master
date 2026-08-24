@@ -3,8 +3,14 @@ import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import InfoTooltip from "./InfoTooltip";
 
+// icon accepts either a Lucide component or a string src for the 3D PNG
+// icon family (frontend/src/assets/icons-3d/) — the raster set has no
+// dynamic fill to satisfy the old LucideIcon-only contract, so this widens
+// to a union rather than forcing every caller through an adapter component.
+type SectionIcon = LucideIcon | string;
+
 interface SectionCardProps {
-  icon: LucideIcon;
+  icon: SectionIcon;
   title: string;
   description: string;
   children: ReactNode;
@@ -14,7 +20,7 @@ interface SectionCardProps {
 // two tiny accent dots slowly orbiting it. Reuses the step's own icon and
 // the existing brand gradient/mint/amber tones. Shared by both the Parent
 // and Student assessments as the single outer wrapper for a step's content.
-const StepIllustration = ({ icon: Icon }: { icon: LucideIcon }) => {
+const StepIllustration = ({ icon: Icon }: { icon: SectionIcon }) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
 
   return (
@@ -24,7 +30,13 @@ const StepIllustration = ({ icon: Icon }: { icon: LucideIcon }) => {
         animate={shouldReduceMotion ? undefined : { y: [0, -4, 0] }}
         transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
       >
-        <Icon className="h-7 w-7" />
+        {typeof Icon === "string" ? (
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/95 shadow-sm">
+            <img src={Icon} className="h-7 w-7 object-contain" alt="" draggable={false} />
+          </span>
+        ) : (
+          <Icon className="h-7 w-7" />
+        )}
       </motion.div>
 
       {!shouldReduceMotion && (

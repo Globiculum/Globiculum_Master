@@ -16,6 +16,10 @@ interface InputCardProps {
   label: ReactNode;
   description?: ReactNode;
   icon?: LucideIcon;
+  /** "large" variant only — idle (unselected) icon color, e.g. "text-secondary/70".
+   * Defaults to a neutral muted-foreground grey when omitted. Selected state
+   * always uses the semantic teal regardless of this prop. */
+  iconColorClassName?: string;
   selected: boolean;
   onClick: () => void;
   /** ARIA role — "radio" for single-select groups, "checkbox" for multi-select groups. */
@@ -85,6 +89,7 @@ const InputCard = ({
   label,
   description,
   icon: Icon,
+  iconColorClassName,
   selected,
   onClick,
   mode = "checkbox",
@@ -107,11 +112,11 @@ const InputCard = ({
         disabled={disabled}
         title={disabled ? disabledHint : undefined}
         onClick={disabled ? undefined : onClick}
-        whileHover={interactive ? { y: -4, scale: 1.02 } : undefined}
+        whileHover={interactive ? { y: -3, scale: 1.02 } : undefined}
         whileTap={interactive ? { scale: 0.96 } : undefined}
         transition={{ type: "spring", stiffness: 420, damping: 18 }}
         className={cn(
-          "group relative flex flex-col items-center gap-3 rounded-xl border-2 p-4 text-center transition-colors duration-200 ease-smooth",
+          "group relative flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 text-center transition-colors duration-200 ease-smooth",
           "hover:shadow-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           selected ? "border-secondary bg-secondary/5 shadow-glow-sm" : "border-border bg-card hover:border-secondary/40",
           disabled && "cursor-not-allowed opacity-40 hover:shadow-none",
@@ -121,16 +126,16 @@ const InputCard = ({
         <SelectSparkle fire={justSelected} />
         <span
           className={cn(
-            "absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border transition-colors duration-200",
+            "absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full border transition-colors duration-200",
             selected
               ? "border-secondary bg-secondary text-secondary-foreground"
               : "border-border bg-transparent opacity-0 group-hover:opacity-40"
           )}
         >
-          <CheckBadge selected={selected} />
+          <CheckBadge selected={selected} size="h-2.5 w-2.5" />
         </span>
-        {Icon && <Icon className={cn("h-10 w-10", selected ? "text-secondary" : "text-muted-foreground")} />}
-        <span className="text-base font-semibold text-foreground">{label}</span>
+        {Icon && <Icon className={cn("h-7 w-7", selected ? "text-secondary" : iconColorClassName ?? "text-muted-foreground")} />}
+        <span className="text-sm font-semibold text-foreground">{label}</span>
         {description && <span className="text-caption text-muted-foreground">{description}</span>}
       </motion.button>
     );

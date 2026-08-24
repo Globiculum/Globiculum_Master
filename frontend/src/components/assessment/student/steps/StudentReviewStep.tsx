@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import reviewIcon from "@/assets/icons-3d/review.png";
+import profileIcon from "@/assets/icons-3d/profile.png";
+import academicPathIcon from "@/assets/icons-3d/academic-path.png";
+import wrapupIcon from "@/assets/icons-3d/wrapup.png";
 import { submitAssessment, ValidationFailedError } from "../../shared/submitAssessment";
 import ReportGenerationLoader from "../../shared/ReportGenerationLoader";
 import type { AssessmentFormData } from "../../shared/types";
@@ -71,6 +74,7 @@ const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors,
     {
       stepIndex: 0,
       title: "Student Profile",
+      icon: profileIcon,
       rows: [
         { label: "Name", value: fullName },
         { label: "School Stage", value: prettify(formData.schoolStage) },
@@ -91,6 +95,7 @@ const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors,
     {
       stepIndex: 1,
       title: "Academic Path",
+      icon: academicPathIcon,
       rows: [
         { label: "Current Subjects", value: joinList(formData.academicPath) },
         { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
@@ -108,6 +113,7 @@ const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors,
     {
       stepIndex: 2,
       title: "Almost Done",
+      icon: wrapupIcon,
       rows: [
         { label: "Learning Styles", value: joinPrettyList(formData.learningStyles) },
         { label: "What Makes You Nervous", value: joinList(formData.nervousness) },
@@ -116,9 +122,12 @@ const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors,
     },
   ];
 
+  const reviewTitle = formData.studentName.trim() ? `${formData.studentName.trim()}'s Review` : "Review";
+
   return (
     <>
-      <SectionCard icon={ClipboardCheck} title="Review" description="Check your answers, then generate your AI-powered readiness report.">
+      <SectionCard icon={reviewIcon} title={reviewTitle} description="Check your answers, then generate your AI-powered readiness report.">
+        <div className="-mt-4 text-sm text-muted-foreground">Here&rsquo;s everything you&rsquo;ve shared with us — take a look, then generate your AI-powered readiness report.</div>
         <div className="space-y-4">
           {sections.map((section) => (
             <ReviewSection key={section.title} section={section} onEditStep={onEditStep} />

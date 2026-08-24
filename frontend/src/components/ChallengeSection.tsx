@@ -71,13 +71,6 @@ const ProblemCardItem = ({ card }: { card: ProblemCard }) => {
 
   return (
     <motion.div variants={fadeUp} className="group relative">
-      {/* Ambient glow — fades in behind the card on hover */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-3 rounded-[32px] opacity-0 blur-2xl transition-opacity duration-[450ms] group-hover:opacity-40"
-        style={{ background: card.color }}
-      />
-
       <motion.div
         whileHover={shouldReduceMotion ? undefined : { y: -8, scale: 1.02 }}
         transition={{ type: "spring", stiffness: 300, damping: 22, mass: 0.6 }}
@@ -115,7 +108,7 @@ const ChallengeSection = () => {
   const shouldReduceMotion = useReducedMotion() ?? false;
 
   return (
-    <section className="relative overflow-hidden bg-white pb-20 pt-8 sm:pb-24 sm:pt-10 md:pb-28 md:pt-12">
+    <section className="relative overflow-hidden bg-muted pb-20 pt-8 sm:pb-24 sm:pt-10 md:pb-28 md:pt-12">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div
           className="absolute inset-x-0 top-0 h-full"

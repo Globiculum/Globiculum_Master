@@ -1,21 +1,25 @@
-import { useState } from "react";
-import { BookOpen, Languages } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import academicPathIcon from "@/assets/icons-3d/academic-path.png";
+import goalsAspirationsIcon from "@/assets/icons-3d/goals-aspirations.png";
 import InputCard from "../shared/InputCard";
 import MultiSelect from "../shared/MultiSelect";
 import SectionCard from "../shared/SectionCard";
 import SectionContainer from "../shared/SectionContainer";
 import QuestionCard from "../shared/QuestionCard";
-import CustomEntryList from "../shared/CustomEntryList";
 import { HighSchoolMathDeepDive } from "../HighSchoolMathDeepDive";
+import AcademicPathFlashcards from "../student/steps/AcademicPathFlashcards";
+import ParentLanguageJourneyCard from "./ParentLanguageJourneyCard";
 import type { ParentStepProps } from "./types";
 
 // Step 2: Academic Path — current subjects, per-subject confidence, AP
 // courses + math track (High School only), language exposure for Indian
 // schooling, foreign language details, extracurriculars (Middle & High).
+//
+// Phase E prep: Language Exposure for Indian Schooling + Proficiency per
+// language + Foreign Language Studied are now the same unified "Language
+// Exposure" journey Student uses (ParentLanguageJourneyCard.tsx, mirroring
+// student/steps/LanguageJourneyCard.tsx) — select everything that applies at
+// once, rate only what was selected, then a compact summary.
 
-const INDIAN_LANGUAGES = ["Hindi", "Sanskrit", "Tamil", "Telugu", "Kannada", "Malayalam", "Marathi", "Gujarati", "Bengali"];
 const EXTRACURRICULARS = [
   "Sports & Athletics", "Music & Arts", "Debate & Public Speaking", "Science Olympiad",
   "Math Competitions", "Robotics & Coding", "Community Service", "Cultural Activities",
@@ -35,8 +39,6 @@ const HIGHER_SECONDARY_SUBJECTS = [
   "Accountancy", "Economics", "Business Studies", "English",
   "History", "Political Science", "Geography", "Psychology", "Sociology",
 ];
-
-const OTHER_SUBJECT = "Other";
 
 const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string, gradeNumber: number) => {
   if (schoolStage === "elementary" && (gradeNumber === 1 || gradeNumber === 2)) {
@@ -64,134 +66,57 @@ const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string, 
   return ["Mathematics", "Science", "English / Language Arts", "Social Studies", "Foreign Language", "Elective (Art/Music/Technology)"];
 };
 
+// Nothing in Parent's subject lists is mandatory — before this redesign,
+// subjects were a plain "select all that apply" grid, so a subject simply
+// stayed unchecked if it didn't apply. Keeping requiredSubjects empty
+// preserves that exact behavior: every flashcard offers "My child doesn't
+// take this" rather than forcing an answer (see instruction to preserve
+// optional-subject behavior for Foreign Language/Elective/Other — here it
+// applies uniformly since nothing was ever required).
+const NO_REQUIRED_SUBJECTS = new Set<string>();
+
 const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors }: ParentStepProps) => {
   const gradeNumber = parseInt(formData.snapshotGrade, 10);
   const isEarlyElementary = formData.schoolStage === "elementary" && (gradeNumber === 1 || gradeNumber === 2);
-  const subjectQuestion = isEarlyElementary
-    ? "Which areas would you like to strengthen for your child?"
-    : "Which subjects does the student currently study in their school curriculum?";
-  const subjectHelp = isEarlyElementary
-    ? "Select the foundational learning areas you'd like the report to focus on."
-    : "Select all subjects the student is currently enrolled in. These reflect the student's CURRENT curriculum.";
 
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(gradeNumber);
   const subjects = getSubjectsByGradeBand(formData.schoolStage, formData.currentCurriculum, gradeNumber);
   const activeSubjectList = isHigherSecondary ? HIGHER_SECONDARY_SUBJECTS : subjects;
-  // Any academicPath entry not in the current predefined list is a custom
-  // "Other" subject the user typed in — no separate literal "Other" marker
-  // is ever stored, so every entry here is a real subject name.
-  const customSubjects = formData.academicPath.filter((subject) => !activeSubjectList.includes(subject));
-
-  const [showOtherInput, setShowOtherInput] = useState(customSubjects.length > 0);
-
-  const addCustomSubject = (subject: string) => {
-    onFieldChange("academicPath", [...formData.academicPath, subject]);
-  };
-
-  const removeCustomSubject = (subject: string) => {
-    onFieldChange(
-      "academicPath",
-      formData.academicPath.filter((s) => s !== subject)
-    );
-  };
-
-  // Any selectedLanguages entry not in the predefined list is a custom
-  // "Other" language the user typed in — same pattern as custom subjects
-  // above, folded straight into the existing array field.
-  const customLanguages = formData.selectedLanguages.filter((lang) => !INDIAN_LANGUAGES.includes(lang));
-
-  const [showOtherLanguageInput, setShowOtherLanguageInput] = useState(customLanguages.length > 0);
-
-  const addCustomLanguage = (lang: string) => {
-    onFieldChange("selectedLanguages", [...formData.selectedLanguages, lang]);
-  };
-
-  const removeCustomLanguage = (lang: string) => {
-    onFieldChange(
-      "selectedLanguages",
-      formData.selectedLanguages.filter((l) => l !== lang)
-    );
-  };
+  const childFirstName = formData.childName.trim();
+  const subtitle = isEarlyElementary
+    ? "Let's identify the foundational areas to focus on, one at a time."
+    : childFirstName
+      ? `Let's explore the best academic path for ${childFirstName}.`
+      : "Let's map out what your child is currently studying, one subject at a time.";
 
   return (
-    <SectionCard icon={BookOpen} title="Academic Path" description="Tell us what the student studies today.">
-      <SectionContainer
-        title="Current Academic Path"
-        description={isEarlyElementary ? "Help us understand your child's foundational learning" : undefined}
-      >
-        <QuestionCard
-          label={subjectQuestion}
-          tooltip={isEarlyElementary ? subjectHelp : `${subjectHelp}${isHigherSecondary ? " Grade 11-12 shows the higher-secondary subject list." : ""}`}
-          required
-          error={fieldErrors.academicPath}
-        >
-          {isHigherSecondary ? (
-            <div role="group" aria-label={subjectQuestion} className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {HIGHER_SECONDARY_SUBJECTS.map((subject) => (
-                <InputCard key={subject} variant="block" label={subject} selected={formData.academicPath.includes(subject)} onClick={() => onArrayToggle("academicPath", subject)} />
-              ))}
-              <InputCard
-                variant="block"
-                label={OTHER_SUBJECT}
-                selected={showOtherInput || customSubjects.length > 0}
-                onClick={() => setShowOtherInput((prev) => !prev)}
-              />
-            </div>
-          ) : (
-            <div role="group" aria-label={subjectQuestion} className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {subjects.map((subject) => (
-                <InputCard key={subject} variant="block" label={subject} selected={formData.academicPath.includes(subject)} onClick={() => onArrayToggle("academicPath", subject)} />
-              ))}
-              <InputCard
-                variant="block"
-                label={OTHER_SUBJECT}
-                selected={showOtherInput || customSubjects.length > 0}
-                onClick={() => setShowOtherInput((prev) => !prev)}
-              />
-            </div>
-          )}
+    <SectionCard icon={academicPathIcon} title="Academic Path" description="Tell us what the student studies today.">
+      <div className="-mt-4 text-sm text-muted-foreground">{subtitle}</div>
 
-          {(showOtherInput || customSubjects.length > 0) && (
-            <CustomEntryList
-              entries={customSubjects}
-              onAdd={addCustomSubject}
-              onRemove={removeCustomSubject}
-              placeholder="e.g. Robotics, Design Thinking"
-            />
-          )}
-        </QuestionCard>
+      <AcademicPathFlashcards
+        activeSubjectList={activeSubjectList}
+        requiredSubjects={NO_REQUIRED_SUBJECTS}
+        academicPath={formData.academicPath}
+        subjectConfidences={formData.subjectConfidences}
+        setAcademicPath={(value) => onFieldChange("academicPath", value)}
+        setConfidence={(subject, value) => onRecordFieldChange("subjectConfidences", subject, value)}
+        error={fieldErrors.academicPath}
+        navTitle="Your Child's Academic Path"
+        navSubtitle="See how your child is doing in each subject."
+        confidenceQuestion="How confident does your child seem in this subject?"
+        microcopy={{
+          strong: "Seems confident",
+          moderate: "Understands most of it",
+          "needs-help": "Could use more support",
+        }}
+        skipLabel="My child doesn't take this"
+        customCardTitle="Any other subjects?"
+        customCardSubtitle="Add any subject not listed above, then note your child's confidence."
+        customCardQuestion="How confident does your child seem in this subject?"
+        summaryTitle="Your Child's Academic Path is ready"
+      />
 
-        {formData.academicPath.length > 0 && (
-          <QuestionCard
-            label="How comfortable is the student with each subject?"
-            tooltip="This helps us prioritize gap identification in the report — it does not change the alignment score."
-          >
-            <div className="space-y-2">
-              {formData.academicPath.map((subject) => (
-                <div key={`conf-${subject}`} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-xl border border-border bg-card/50 p-3">
-                  <span className="text-sm font-medium">{subject}</span>
-                  <div role="radiogroup" aria-label={`${subject} confidence`} className="grid grid-cols-3 gap-2 md:flex md:gap-2">
-                    {[
-                      { value: "strong", label: "Strong" },
-                      { value: "moderate", label: "Moderate" },
-                      { value: "needs-help", label: "Needs Help" },
-                    ].map((opt) => (
-                      <InputCard
-                        key={opt.value}
-                        variant="compact-pill"
-                        mode="radio"
-                        label={opt.label}
-                        selected={formData.subjectConfidences[subject] === opt.value}
-                        onClick={() => onRecordFieldChange("subjectConfidences", subject, opt.value)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </QuestionCard>
-        )}
-      </SectionContainer>
+      <span id="academic-path-next-section" className="sr-only" aria-hidden="true" />
 
       {formData.schoolStage === "high" && (
         <SectionContainer title="AP Courses & University Prep" description="High School only.">
@@ -207,9 +132,21 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
             label="AP (Advanced Placement) Subjects"
             tooltip="Any Advanced Placement courses your child is currently taking or has completed."
           >
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {/* Display label drops the redundant "(Advanced Placement)" prefix
+                (already stated in the question label above) — the stored
+                value in academicPath stays the full string, unchanged. This
+                is what was making long subjects like "...Computer Science
+                Principles" wrap to two lines and look uneven next to the
+                single-line pills. */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {AP_SUBJECTS.map((ap) => (
-                <InputCard key={ap} variant="chip" label={ap} selected={formData.academicPath.includes(ap)} onClick={() => onArrayToggle("academicPath", ap)} />
+                <InputCard
+                  key={ap}
+                  variant="chip"
+                  label={ap.replace("(Advanced Placement) ", "")}
+                  selected={formData.academicPath.includes(ap)}
+                  onClick={() => onArrayToggle("academicPath", ap)}
+                />
               ))}
             </div>
           </QuestionCard>
@@ -230,131 +167,28 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
           />
         )}
 
-      <SectionContainer
-        icon={Languages}
-        title="Language Exposure for Indian Schooling"
-        description="Indian schools typically require Hindi and sometimes a regional or third language."
-      >
-        <QuestionCard
-          label="Select languages your child has exposure to"
-          tooltip="Indian schools often require Hindi or a regional language — let us know what your child already knows."
-        >
-          <div className="flex flex-wrap gap-2">
-            {INDIAN_LANGUAGES.map((lang) => (
-              <InputCard key={lang} variant="chip" label={lang} selected={formData.selectedLanguages.includes(lang)} onClick={() => onArrayToggle("selectedLanguages", lang)} />
-            ))}
-            <InputCard
-              variant="chip"
-              label="Other"
-              selected={showOtherLanguageInput || customLanguages.length > 0}
-              onClick={() => setShowOtherLanguageInput((prev) => !prev)}
-            />
-          </div>
-
-          {(showOtherLanguageInput || customLanguages.length > 0) && (
-            <CustomEntryList
-              entries={customLanguages}
-              onAdd={addCustomLanguage}
-              onRemove={removeCustomLanguage}
-              placeholder="e.g. French, Mandarin"
-            />
-          )}
-        </QuestionCard>
-
-        {formData.selectedLanguages.length > 0 && (
-          <QuestionCard
-            label="Proficiency Level for Each Language"
-            tooltip="How comfortable your child is with each language you selected above."
-          >
-            <div className="space-y-3">
-              {formData.selectedLanguages.map((lang) => (
-                <div key={lang} className="flex items-center gap-3">
-                  <span className="min-w-[100px] text-sm font-medium">{lang}</span>
-                  <Select value={formData.languageProficiencies[lang] || ""} onValueChange={(value) => onRecordFieldChange("languageProficiencies", lang, value)}>
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Select proficiency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Exposure</SelectItem>
-                      <SelectItem value="beginner">Beginner</SelectItem>
-                      <SelectItem value="intermediate">Intermediate</SelectItem>
-                      <SelectItem value="fluent">Fluent</SelectItem>
-                      <SelectItem value="native">Native</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-            </div>
-          </QuestionCard>
-        )}
-      </SectionContainer>
-
-      {formData.academicPath.includes("Foreign Language") && (
-        <SectionContainer title="Foreign Language Studied">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <QuestionCard
-              label="Which foreign language is the student studying?"
-              htmlFor="foreign-lang-name"
-              tooltip="The foreign language (e.g. Spanish, French) your child studies at their current school, if any."
-            >
-              <Select value={formData.foreignLanguageName} onValueChange={(value) => onFieldChange("foreignLanguageName", value)}>
-                <SelectTrigger id="foreign-lang-name">
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="spanish">Spanish</SelectItem>
-                  <SelectItem value="french">French</SelectItem>
-                  <SelectItem value="german">German</SelectItem>
-                  <SelectItem value="mandarin">Mandarin</SelectItem>
-                  <SelectItem value="japanese">Japanese</SelectItem>
-                  <SelectItem value="latin">Latin</SelectItem>
-                  <SelectItem value="arabic">Arabic</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              {formData.foreignLanguageName === "other" && (
-                <Input
-                  className="mt-2"
-                  type="text"
-                  placeholder="Enter language name"
-                  value={formData.foreignLanguageNameOther}
-                  onChange={(e) => onFieldChange("foreignLanguageNameOther", e.target.value)}
-                />
-              )}
-            </QuestionCard>
-            <QuestionCard
-              label="What is the student's current level?"
-              htmlFor="foreign-lang-level"
-              tooltip="Your child's proficiency level in that foreign language."
-            >
-              <Select value={formData.foreignLanguageLevel} onValueChange={(value) => onFieldChange("foreignLanguageLevel", value)}>
-                <SelectTrigger id="foreign-lang-level">
-                  <SelectValue placeholder="Select level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
-                </SelectContent>
-              </Select>
-            </QuestionCard>
-          </div>
-        </SectionContainer>
-      )}
+      <ParentLanguageJourneyCard formData={formData} onFieldChange={onFieldChange} onRecordFieldChange={onRecordFieldChange} />
 
       {formData.schoolStage !== "elementary" && (
-        <QuestionCard
-          label="Current Extracurricular Activities"
-          optional
-          tooltip="Activities outside academics that may highlight strengths or interests relevant to the transition."
-        >
-          <MultiSelect
-            idPrefix="extra"
-            options={EXTRACURRICULARS}
-            selected={formData.extracurriculars}
-            onToggle={(activity) => onArrayToggle("extracurriculars", activity)}
-          />
-        </QuestionCard>
+        <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.06] to-transparent p-5 shadow-soft">
+          <div className="mb-4 flex items-center gap-3">
+            <img src={goalsAspirationsIcon} className="h-9 w-9 shrink-0 object-contain" alt="" aria-hidden="true" draggable={false} />
+            <div className="flex-1">
+              <QuestionCard
+                label="Current Extracurricular Activities"
+                optional
+                tooltip="Activities outside academics that may highlight strengths or interests relevant to the transition."
+              >
+                <MultiSelect
+                  idPrefix="extra"
+                  options={EXTRACURRICULARS}
+                  selected={formData.extracurriculars}
+                  onToggle={(activity) => onArrayToggle("extracurriculars", activity)}
+                />
+              </QuestionCard>
+            </div>
+          </div>
+        </div>
       )}
     </SectionCard>
   );

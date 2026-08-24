@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
+import backIcon from "@/assets/icons-3d/back.png";
 
 // Page header shared by both assessments: "Change Persona" link, an
 // optional "Step X of Y" pill, an animated title, and a subtitle.
@@ -29,7 +29,7 @@ const AssessmentHeader = ({
           onClick={onChangePersona}
           className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-sm font-semibold text-accent-foreground shadow-soft transition-colors hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <img src={backIcon} className="h-4 w-4 object-contain" alt="" draggable={false} />
           Change Persona
         </button>
       ) : (

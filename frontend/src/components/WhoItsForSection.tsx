@@ -58,17 +58,10 @@ const PersonaCard = ({ persona }: { persona: Persona }) => {
 
   return (
     <motion.div variants={fadeUp} className="group relative h-full">
-      {/* Ambient glow — fades in behind the card on hover, matching the Problem section's pattern */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-3 rounded-[32px] opacity-0 blur-2xl transition-opacity duration-[450ms] group-hover:opacity-30"
-        style={{ background: persona.color }}
-      />
-
       <motion.div
         whileHover={shouldReduceMotion ? undefined : { y: -6 }}
         transition={{ type: "spring", stiffness: 300, damping: 24 }}
-        className="relative flex h-full flex-col overflow-hidden rounded-[28px] border border-[rgba(15,23,42,0.06)] bg-white p-6 shadow-sm transition-shadow duration-300 hover:shadow-xl sm:p-7"
+        className="relative flex h-full flex-col overflow-hidden rounded-[28px] border border-[rgba(15,23,42,0.06)] bg-white p-6 shadow-sm transition-[box-shadow,border-color] duration-300 hover:border-secondary hover:shadow-xl sm:p-7"
       >
         <div className="mb-5 flex items-start justify-between gap-3">
           <div
@@ -112,7 +105,7 @@ const PersonaCard = ({ persona }: { persona: Persona }) => {
 
 const WhoItsForSection = () => {
   return (
-    <section className="relative overflow-hidden bg-white py-16 sm:py-20 md:py-24">
+    <section className="relative overflow-hidden bg-muted py-16 sm:py-20 md:py-24">
       <div className="container relative mx-auto px-4 sm:px-6">
         <motion.div
           className="mx-auto mb-12 max-w-2xl text-center sm:mb-16"

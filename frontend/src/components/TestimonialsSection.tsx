@@ -84,19 +84,13 @@ const TestimonialCard = ({ testimonial }: { testimonial: Testimonial }) => {
 
   return (
     <motion.div variants={fadeUp} className="group relative h-full">
-      {/* Ambient glow — fades in behind the card on hover, consistent teal across every card */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-3 rounded-[32px] bg-secondary opacity-0 blur-2xl transition-opacity duration-[450ms] group-hover:opacity-30"
-      />
-
       <motion.div
         layout={!shouldReduceMotion}
         whileHover={shouldReduceMotion ? undefined : { y: -6 }}
         transition={{ type: "spring", stiffness: 300, damping: 24 }}
-        className="relative flex h-full flex-col rounded-2xl border border-white/10 bg-primary/30 p-6 backdrop-blur-sm transition-colors duration-300 group-hover:bg-primary/25 sm:p-7"
+        className="relative flex h-full flex-col rounded-2xl border border-white/10 bg-primary/30 p-6 backdrop-blur-sm transition-[background-color,border-color,box-shadow] duration-300 hover:border-secondary/60 hover:shadow-glow-sm group-hover:bg-primary/25 sm:p-7"
       >
-        <Quote className="mb-4 h-6 w-6 shrink-0" style={{ color: `${testimonial.color}b3` }} aria-hidden="true" />
+        <Quote className="mb-4 h-6 w-6 shrink-0 text-slate-400" aria-hidden="true" />
 
         <div className="mb-6 flex-1">
           <p

@@ -45,10 +45,8 @@ export interface ParentFormData {
   foreignLanguageName: string;
   foreignLanguageNameOther: string;
   foreignLanguageLevel: string;
-  elementaryConfidences: Record<string, string>;
   mathCourse: string;
   mathProgramLevel: string;
-  academicSignals: string[];
 
   // Step 3: Learning Profile
   learningStyles: string[];

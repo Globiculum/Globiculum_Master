@@ -41,6 +41,7 @@ const schoolProfileStepSchema = z
     childLastName: z.string().min(1, "Please enter your child's last name"),
     schoolStage: z.string().min(1, "Please select a school stage"),
     snapshotGrade: z.string().min(1, "Please select a grade"),
+    snapshotAge: z.string().min(1, "Please enter your child's age"),
     snapshotLocation: z.string().min(1, "Please select your child's current school country"),
     snapshotLocationOther: z.string().optional(),
     usState: z.string().optional(),
@@ -83,34 +84,17 @@ const academicPathStepSchema = z
     }
   });
 
-// Step 2: Learning Profile — learningStyles/overallPerformance were
-// canProceedFromStep case 2; strongestSubjects/challengingSubjects/
-// strengthenGoals are newly required (see module comment above).
-const learningProfileStepSchema = z
-  .object({
-    learningStyles: z.array(z.string()).min(1, "Pick at least one learning style"),
-    overallPerformance: z.string().min(1, "Please select overall performance"),
-    academicPath: z.array(z.string()),
-    strongestSubjects: z.array(z.string()),
-    challengingSubjects: z.array(z.string()),
-    strengthenGoals: z.array(z.string()).min(1, "Select at least one area to strengthen"),
-  })
-  .superRefine((data, ctx) => {
-    if (data.academicPath.length > 0 && data.strongestSubjects.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Select the student's strongest subject",
-        path: ["strongestSubjects"],
-      });
-    }
-    if (data.academicPath.length > 0 && data.challengingSubjects.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Select the student's most challenging subject",
-        path: ["challengingSubjects"],
-      });
-    }
-  });
+// Step 2: Learning Profile — learningStyles/overallPerformance/strengthenGoals
+// were canProceedFromStep case 2. Strongest/Challenging Subjects are no
+// longer their own question (derived from subjectConfidences instead — see
+// ParentStep3.tsx and shared/submitAssessment.ts's deriveSubjectStrengths),
+// so there is no longer a field here to require or a place to show an error
+// for it.
+const learningProfileStepSchema = z.object({
+  learningStyles: z.array(z.string()).min(1, "Pick at least one learning style"),
+  overallPerformance: z.string().min(1, "Please select overall performance"),
+  strengthenGoals: z.array(z.string()).min(1, "Select at least one area to strengthen"),
+});
 
 // Step 3: Support — was canProceedFromStep case 3.
 const supportStepSchema = z.object({

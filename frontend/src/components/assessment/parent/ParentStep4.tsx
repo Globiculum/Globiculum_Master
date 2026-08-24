@@ -1,20 +1,3 @@
-import {
-  BarChart3,
-  BookOpen,
-  ClipboardCheck,
-  ClipboardList,
-  FileText,
-  GraduationCap,
-  Globe,
-  Heart,
-  HeartHandshake,
-  LifeBuoy,
-  LineChart,
-  Phone,
-  Search,
-  Users,
-  Video,
-} from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import SectionCard from "../shared/SectionCard";
 import SectionContainer from "../shared/SectionContainer";
@@ -23,36 +6,58 @@ import ConcernCards from "../shared/ConcernCards";
 import SupportCards from "../shared/SupportCards";
 import VoiceInputButton from "../shared/VoiceInputButton";
 import type { ParentStepProps } from "./types";
+import nervousIcon from "@/assets/icons-3d/nervous.png";
+import areasToImproveIcon from "@/assets/icons-3d/areas-to-improve.png";
+import wrapupIcon from "@/assets/icons-3d/wrapup.png";
+import communicationIcon from "@/assets/icons-3d/communication.png";
+import profileIcon from "@/assets/icons-3d/profile.png";
+import curriculumIcon from "@/assets/icons-3d/curriculum.png";
+import reviewIcon from "@/assets/icons-3d/review.png";
+import emotionalWellbeingIcon from "@/assets/icons-3d/emotional-wellbeing.png";
+import learningStyleIcon from "@/assets/icons-3d/learning-style.png";
+import notesIcon from "@/assets/icons-3d/notes.png";
+import targetGradeIcon from "@/assets/icons-3d/target-grade.png";
+import childProfileIcon from "@/assets/icons-3d/child-profile.png";
+import supportAtHomeIcon from "@/assets/icons-3d/support-at-home.png";
 
 // Step 4: Concerns & Support.
 // "Additional Notes" is a frontend-only field — deliberately excluded from
 // parentMapper.ts's payload, so it cannot affect backend compatibility.
+//
+// Icons: each option maps to the closest fit among the existing 3D icon
+// family (frontend/src/assets/icons-3d/) rather than a literal 1:1 asset
+// per option — semantic accuracy took priority over per-option uniqueness,
+// per explicit instruction. Every option within each grid still gets its
+// own distinct icon (no repeats within a single grid).
 
 const TRANSITION_CONCERNS = [
-  { value: "Academic rigor gap", icon: BarChart3 },
-  { value: "Exam style shift", icon: ClipboardList },
-  { value: "Language barriers", icon: Globe },
-  { value: "Classroom culture", icon: Users },
-  { value: "Peer adjustment", icon: Heart },
-  { value: "Homework pressure", icon: BookOpen },
-  { value: "Finding a tutor", icon: Search },
-  { value: "Child confidence", icon: Heart },
+  { value: "Academic rigor gap", icon: areasToImproveIcon },
+  { value: "Exam style shift", icon: wrapupIcon },
+  { value: "Language barriers", icon: communicationIcon },
+  { value: "Classroom culture", icon: profileIcon },
+  { value: "Peer adjustment", icon: nervousIcon },
+  { value: "Homework pressure", icon: curriculumIcon },
+  { value: "Finding a tutor", icon: reviewIcon },
+  { value: "Child confidence", icon: emotionalWellbeingIcon },
 ];
 
 const SUPPORT_NEEDS = [
-  { value: "1-on-1 tutoring", icon: GraduationCap },
-  { value: "Worksheets", icon: FileText },
-  { value: "Mock Tests", icon: ClipboardCheck },
-  { value: "Peer Study", icon: Users },
-  { value: "Video Lessons", icon: Video },
-  { value: "Parent Counselling", icon: Phone },
-  { value: "Progress Tracking", icon: LineChart },
-  { value: "Emergency Support", icon: LifeBuoy },
+  { value: "1-on-1 tutoring", icon: learningStyleIcon },
+  { value: "Worksheets", icon: notesIcon },
+  { value: "Mock Tests", icon: targetGradeIcon },
+  { value: "Peer Study", icon: childProfileIcon },
+  { value: "Video Lessons", icon: curriculumIcon },
+  { value: "Parent Counselling", icon: communicationIcon },
+  { value: "Progress Tracking", icon: areasToImproveIcon },
+  { value: "Emergency Support", icon: supportAtHomeIcon },
 ];
 
 const ParentStep4 = ({ formData, onFieldChange, onArrayToggle, fieldErrors }: ParentStepProps) => {
+  const childFirstName = formData.childName.trim();
+  const title = childFirstName ? `Supporting ${childFirstName}` : "Support";
+
   return (
-    <SectionCard icon={HeartHandshake} title="Support" description="What concerns you, and how can we help?">
+    <SectionCard icon={nervousIcon} title={title} description="What concerns you, and how can we help?">
       <SectionContainer
         title="Biggest Concerns"
         description="What worries you most about the move?"
