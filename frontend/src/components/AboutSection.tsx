@@ -65,21 +65,7 @@ const TrustCard = ({ feature, index }: { feature: TrustFeature; index: number })
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       className="group relative"
     >
-      {/* Ambient glow — fades in behind the card on hover */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-3 rounded-2xl opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100"
-        style={{ background: feature.gradient }}
-      />
-
-      {/* Gradient ring — 1px border revealed on hover */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-px rounded-xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-        style={{ background: feature.gradient }}
-      />
-
-      <div className="relative flex h-full flex-col items-center gap-2 rounded-xl border border-border/70 bg-card/90 px-4 py-3 text-center shadow-soft backdrop-blur-sm transition-shadow duration-300 group-hover:shadow-glow-md">
+      <div className="relative flex h-full flex-col items-center gap-2 rounded-xl border border-border/70 bg-card/90 px-4 py-3 text-center shadow-soft backdrop-blur-sm transition-[box-shadow,border-color] duration-300 hover:border-secondary group-hover:shadow-glow-md">
         <motion.div
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-glow-sm"
           style={{ background: feature.gradient }}
@@ -105,7 +91,7 @@ const AboutSection = () => {
   const shouldReduceMotion = useReducedMotion() ?? false;
 
   return (
-    <section id="about" className="relative overflow-hidden bg-background py-8 sm:py-10 md:py-12">
+    <section id="about" className="relative overflow-hidden bg-muted py-8 sm:py-10 md:py-12">
       {/* Decorative backdrop — soft brand-toned orbs, purely presentational */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div

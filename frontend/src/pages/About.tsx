@@ -4,6 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Users, Target, Heart, Globe, Brain, Route, BookOpen, MessageCircle, Trophy, User, type LucideIcon } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import bgAboutImage from "@/assets/BG-ABOUT.png";
+import preranaOswalPhoto from "@/assets/Prerana Photo - Prerana Oswal.jpg";
+import swarupaPhoto from "@/assets/Swarupa-Photo.png";
+import sushmaPhoto from "@/assets/SUSHMA-Photo.png";
 
 interface AboutValue {
   icon: typeof Heart;
@@ -99,14 +102,19 @@ const staggerContainer: Variants = {
 // Temporarily hidden per request — kept in code (not deleted) so they can be
 // switched back on later without rebuilding them.
 const SHOW_CORE_TEAM = false;
-const SHOW_TECH_SUPPORT = false;
+const SHOW_TECH_SUPPORT = true;
 const SHOW_GENERAL_ADVISORS = false;
 
-const ADVISORY_BOARD: { name: string; role: string }[] = [
+const ADVISORY_BOARD: { name: string; role: string; photo?: string; bio?: string }[] = [
   { name: "Usha Chaitanya", role: "Academic Advisor" },
   { name: "Srivatsala", role: "Academic Advisor" },
   { name: "Sowmyasree Sumadhar", role: "Academic Advisor" },
-  { name: "Prerana Oswal", role: "Academic Advisor" },
+  {
+    name: "Prerana Oswal",
+    role: "Academic Advisor",
+    photo: preranaOswalPhoto,
+    bio: "Founder - Learners Gateway",
+  },
 ];
 
 const AboutValueCard = ({ value }: { value: AboutValue }) => {
@@ -115,15 +123,10 @@ const AboutValueCard = ({ value }: { value: AboutValue }) => {
 
   return (
     <motion.div variants={fadeUp} className="group relative h-full">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-2 rounded-2xl opacity-0 blur-xl transition-opacity duration-[450ms] group-hover:opacity-25"
-        style={{ background: value.color }}
-      />
       <motion.div
         whileHover={shouldReduceMotion ? undefined : { y: -3 }}
         transition={{ type: "spring", stiffness: 300, damping: 24 }}
-        className="relative flex h-full min-h-[168px] flex-col items-start gap-3 rounded-xl border border-white/12 bg-primary/25 p-4 backdrop-blur-md transition-colors duration-300 group-hover:bg-primary/20 sm:p-5"
+        className="relative flex h-full min-h-[168px] flex-col items-start gap-3 rounded-xl border border-white/12 bg-primary/25 p-4 backdrop-blur-md transition-colors duration-300 hover:border-mint/60 group-hover:bg-primary/20 sm:p-5"
       >
         <div
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
@@ -146,11 +149,6 @@ const AdvantageFeatureCard = ({ feature }: { feature: AdvantageFeature }) => {
 
   return (
     <motion.div variants={fadeUp} className="group relative h-full">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-3 rounded-[32px] opacity-0 blur-2xl transition-opacity duration-[450ms] group-hover:opacity-20"
-        style={{ background: feature.color }}
-      />
       <motion.div
         whileHover={shouldReduceMotion ? undefined : { y: -8 }}
         transition={{ type: "spring", stiffness: 300, damping: 22, mass: 0.6 }}
@@ -180,7 +178,7 @@ const AdvantageFeatureCard = ({ feature }: { feature: AdvantageFeature }) => {
 
 const About = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-muted">
       <Header />
 
       <section id="main-content" tabIndex={-1} className="relative overflow-hidden bg-primary outline-none">
@@ -197,7 +195,7 @@ const About = () => {
             over-zoomed part of the image. A strong, near-uniform scrim reads correctly
             once content spans the full width; the lighter left-to-right treatment only
             takes over once there's room for the image to read as a distinct visual. */}
-        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-primary via-primary/90 to-primary/70 lg:bg-gradient-to-r lg:from-primary lg:via-primary/55 lg:to-primary/15" />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-primary/85 via-primary/60 to-primary/25 lg:bg-gradient-to-r lg:from-primary/80 lg:via-primary/20 lg:to-transparent" />
 
         <div className="container relative mx-auto flex min-h-[600px] flex-col justify-center px-4 py-12 sm:min-h-[680px] sm:px-6 sm:py-14 lg:min-h-[760px] lg:py-16">
           <motion.div
@@ -261,7 +259,7 @@ const About = () => {
       </section>
 
       {/* Our Advantage Section */}
-      <section className="relative overflow-hidden bg-muted/30 py-12 sm:py-16 md:py-20">
+      <section className="relative overflow-hidden bg-muted py-12 sm:py-16 md:py-20">
         <div className="container relative mx-auto px-4 sm:px-6">
           <motion.div
             className="mx-auto mb-10 max-w-3xl text-center sm:mb-16"
@@ -365,41 +363,48 @@ const About = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-5xl mx-auto">
               {ADVISORY_BOARD.map((advisor) => (
                 <motion.div key={advisor.name} variants={fadeUp} className="group relative h-full">
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute -inset-2 rounded-2xl bg-secondary opacity-0 blur-xl transition-opacity duration-[450ms] group-hover:opacity-25"
-                  />
-                  <div className="relative flex h-full min-h-[220px] flex-col items-center justify-center rounded-2xl border border-white/15 bg-primary/25 p-6 text-center backdrop-blur-md transition-colors duration-300 group-hover:bg-primary/20">
-                    <div className="w-20 h-20 bg-white/10 rounded-full mb-4 flex shrink-0 items-center justify-center">
-                      <User className="h-8 w-8 text-white/70" aria-hidden="true" />
+                  <div className="relative flex h-full min-h-[220px] flex-col items-center justify-center rounded-2xl border border-white/15 bg-primary/25 p-6 text-center backdrop-blur-md transition-colors duration-300 hover:border-mint/60 group-hover:bg-primary/20">
+                    <div className="w-28 h-28 bg-white/10 rounded-full mb-4 flex shrink-0 items-center justify-center overflow-hidden">
+                      {advisor.photo ? (
+                        <img
+                          src={advisor.photo}
+                          alt={advisor.name}
+                          className="h-full w-full object-contain object-center"
+                        />
+                      ) : (
+                        <User className="h-10 w-10 text-white/70" aria-hidden="true" />
+                      )}
                     </div>
                     <p className="font-bold text-white">{advisor.name}</p>
                     <p className="italic text-white/70 text-sm">{advisor.role}</p>
+                    {advisor.bio && <p className="text-white/60 text-xs mt-1.5">{advisor.bio}</p>}
                   </div>
                 </motion.div>
               ))}
             </div>
           </motion.div>
 
-          {/* Tech Support / Technical Gurus — hidden for now, kept in code via SHOW_TECH_SUPPORT */}
+          {/* Tech Team — hidden for now, kept in code via SHOW_TECH_SUPPORT */}
           {SHOW_TECH_SUPPORT && (
             <div className="mt-16">
-              <h3 className="text-2xl font-semibold mb-8 text-center text-white">
-                Our Tech Support / Technical Guru(s)
+              <h3 className="text-2xl font-semibold mb-8 text-center text-mint">
+                Our Tech Team
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-2xl mx-auto">
                 {[
-                  { role: "Technical Lead", tagline: "Platform architecture & scalability" },
-                  { role: "Platform Architect", tagline: "System design & integration" },
-                  { role: "AI/ML Engineer", tagline: "Curriculum gap analysis algorithms" },
-                ].map((tech, i) => (
-                  <Card key={i} className="border border-white/15 bg-primary/25 text-center p-6 backdrop-blur-md">
-                    <div className="w-20 h-20 bg-white/10 rounded-full mx-auto mb-4 flex items-center justify-center">
-                      <Users className="h-8 w-8 text-white/70" />
+                  { name: "Swarupa Kumari", role: "AI System and Operation Intern", photo: swarupaPhoto },
+                  { name: "Sushma Karnati", role: "AI Native Middleware Engineer", photo: sushmaPhoto },
+                ].map((tech) => (
+                  <Card key={tech.name} className="border border-white/15 bg-primary/25 text-center p-6 backdrop-blur-md">
+                    <div className="w-20 h-20 bg-white/10 rounded-full mx-auto mb-4 flex shrink-0 items-center justify-center overflow-hidden">
+                      {tech.photo ? (
+                        <img src={tech.photo} alt={tech.name} className="h-full w-full object-cover object-center" />
+                      ) : (
+                        <Users className="h-8 w-8 text-white/70" />
+                      )}
                     </div>
-                    <p className="font-bold text-white">Name Surname</p>
+                    <p className="font-bold text-white">{tech.name}</p>
                     <p className="italic text-white/70 text-sm">{tech.role}</p>
-                    <p className="text-white/60 text-sm mt-2">{tech.tagline}</p>
                   </Card>
                 ))}
               </div>

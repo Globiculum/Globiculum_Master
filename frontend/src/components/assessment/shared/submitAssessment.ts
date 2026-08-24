@@ -32,7 +32,30 @@ export interface SubmittableFormData {
   strongestSubjects: string[];
   challengingSubjects: string[];
   selectedLanguages: string[];
+  subjectConfidences: Record<string, string>;
 }
+
+/**
+ * Single source of truth for "strongest"/"challenging" subjects: both are
+ * derived from subjectConfidences (Strong/Moderate/Needs Help) rather than
+ * collected as their own separate question. Used by both this file's
+ * analyze-curriculum call and ReportPreview.tsx's own analyze-curriculum
+ * call, so there is exactly one place this logic lives.
+ *
+ * "Moderate" maps to neither list — it isn't a strength or a gap, just a
+ * subject with no strong signal either way.
+ */
+export const deriveSubjectStrengths = (
+  subjectConfidences: Record<string, string> | undefined | null
+): { strongest: string[]; challenging: string[] } => {
+  const strongest: string[] = [];
+  const challenging: string[] = [];
+  for (const [subject, confidence] of Object.entries(subjectConfidences ?? {})) {
+    if (confidence === "strong") strongest.push(subject);
+    else if (confidence === "needs-help") challenging.push(subject);
+  }
+  return { strongest, challenging };
+};
 
 export interface SubmitAssessmentFieldError {
   field: string;
@@ -151,7 +174,12 @@ export async function submitAssessment<T extends SubmittableFormData>({
     newData: { student_profile_id: studentProfile.id, status: "completed" },
   });
 
-  // Fire-and-forget: same analyze-curriculum payload shape as the existing flow
+  // Fire-and-forget: same analyze-curriculum payload shape as the existing flow.
+  // strongestSubjects/challengingAreas are derived from subjectConfidences —
+  // see deriveSubjectStrengths above — rather than read from a separately
+  // collected field, so this stays correct whether or not either flow's UI
+  // still asks a standalone "strongest/challenging subjects" question.
+  const { strongest, challenging } = deriveSubjectStrengths(formData.subjectConfidences);
   supabase.functions
     .invoke("analyze-curriculum", {
       body: {
@@ -165,8 +193,8 @@ export async function submitAssessment<T extends SubmittableFormData>({
           targetCurriculum: formData.targetGoal || formData.curriculumType || undefined,
           targetGoal: formData.targetGoal || undefined,
           academicPath: formData.academicPath.length > 0 ? formData.academicPath : undefined,
-          strongestSubjects: formData.strongestSubjects.length > 0 ? formData.strongestSubjects : undefined,
-          challengingAreas: formData.challengingSubjects.length > 0 ? formData.challengingSubjects : undefined,
+          strongestSubjects: strongest.length > 0 ? strongest : undefined,
+          challengingAreas: challenging.length > 0 ? challenging : undefined,
           languagesSpoken: formData.selectedLanguages.length > 0 ? formData.selectedLanguages : undefined,
           transitionTimeline: formData.timeline || undefined,
         },

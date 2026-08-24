@@ -3,15 +3,17 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { FileText, Download, ArrowLeft, Target, AlertTriangle, Loader2, GitCompareArrows, Layers, GraduationCap, School, BookOpen, Youtube, FileQuestion, Sparkles, TrendingUp, Clock, Gauge, Globe2, MessageCircleQuestion } from "lucide-react";
+import { FileText, Download, ArrowLeft, Target, AlertTriangle, Loader2, GitCompareArrows, Layers, GraduationCap, School, BookOpen, Youtube, FileQuestion, Sparkles, TrendingUp, Clock, Gauge, Globe2, MessageCircleQuestion, ChevronDown } from "lucide-react";
 import ReportComparison from "@/components/ReportComparison";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { generateReportPDF } from "@/lib/generateReportPDF";
 import { mergeWithBaseline } from "@/lib/gradeBaselineTopics";
 import { getGapReason } from "@/lib/gapExplanations";
+import { deriveSubjectStrengths } from "@/components/assessment/shared/submitAssessment";
 import ReportGenerationLoader, { type LoaderPersona } from "@/components/assessment/shared/ReportGenerationLoader";
 import globiculumLogo from "@/assets/globiculum-logo.png";
 
@@ -155,41 +157,25 @@ const summarizeSubjects = (analysis: AnalysisData) => {
 
 const joinNames = (items: { subject: string }[]): string => items.map((s) => s.subject).join(", ");
 
+// Condensed to a single 2-3 line summary — the per-subject strong/moderate/
+// critical breakdown this used to spell out in prose is already shown right
+// next to it via the Alignment by Subject bars and Key Takeaways bullets, so
+// trimming it here removes duplication, not information.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- formData itself is untyped raw storage (see getFormData below)
 const buildExecutiveSummary = (formData: any, analysis: AnalysisData): string[] => {
-  const { strong, moderate, critical, weakest } = summarizeSubjects(analysis);
+  const { weakest } = summarizeSubjects(analysis);
   const percentage = analysis.overallAlignment.percentage;
   const risk = deriveRiskLevel(percentage);
   const duration = analysis.overallAlignment.estimatedDuration;
-  const currentCurriculum = humanizeSlug(formData.currentCurriculum) || "the current curriculum";
-  const currentGrade = formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "the current grade level";
   const targetCurriculum = humanizeSlug(formData.targetGoal) || "the target curriculum";
   const targetGradeLabel = computeTargetGradeLabel(formData.snapshotGrade, formData.targetGrade) || "the target grade";
 
-  const paragraphs: string[] = [];
-
-  let p1 = `This transition assessment indicates a ${risk} overall risk with a ${percentage}% readiness score — reflecting how much of ${targetCurriculum} ${targetGradeLabel} expectations are already in place from the student's ${currentCurriculum} ${currentGrade} record.`;
-  if (strong.length > 0) {
-    p1 += ` ${joinNames(strong)} ${strong.length === 1 ? "is" : "are"} strong, directly transferable foundation${strong.length === 1 ? "" : "s"} that need${strong.length === 1 ? "s" : ""} only light bridging.`;
-  }
-  paragraphs.push(p1);
-
-  const p2parts: string[] = [];
-  if (moderate.length > 0) {
-    p2parts.push(`${joinNames(moderate)} need${moderate.length === 1 ? "s" : ""} moderate reinforcement.`);
-  }
-  if (critical.length > 0) {
-    p2parts.push(`${joinNames(critical)} ${critical.length === 1 ? "is" : "are"} the clear priorit${critical.length === 1 ? "y" : "ies"} and should receive the majority of the preparation window.`);
-  }
-  if (p2parts.length > 0) paragraphs.push(p2parts.join(" "));
-
-  let p3 = `With a structured, front-loaded bridge plan, the student is well-positioned to enter ${targetCurriculum} ${targetGradeLabel} on schedule within the estimated ${duration} preparation window.`;
+  let summary = `This assessment shows a ${percentage}% readiness score (${risk} risk) for the transition to ${targetCurriculum} ${targetGradeLabel}, achievable within the estimated ${duration} preparation window.`;
   if (weakest) {
-    p3 += ` ${weakest.subject}, currently at ${weakest.percentage}% alignment, should be the first focus area.`;
+    summary += ` ${weakest.subject}, currently at ${weakest.percentage}% alignment, should be the first focus area.`;
   }
-  paragraphs.push(p3);
 
-  return paragraphs;
+  return [summary];
 };
 
 const buildKeyTakeaways = (analysis: AnalysisData): string[] => {
@@ -217,10 +203,15 @@ const buildKeyTakeaways = (analysis: AnalysisData): string[] => {
 // scoring system. There is no per-subject numeric week estimate in the
 // analysis data, so catch-up speed is shown qualitatively rather than a
 // fabricated week count.
-const SUBJECT_CONFIDENCE_LABEL: Record<SubjectAnalysis["alignmentLevel"], string> = {
-  strong: "High Confidence",
-  moderate: "Medium Confidence",
-  high_gap: "Low Confidence",
+//
+// Labeled "Coverage" (not "Confidence") because alignmentLevel is computed
+// from topicsCovered/totalTopics — curriculum coverage — not the user's
+// self-reported subject confidence collected during the assessment. Using
+// "Confidence" here would collide with that unrelated field.
+const SUBJECT_COVERAGE_LABEL: Record<SubjectAnalysis["alignmentLevel"], string> = {
+  strong: "High Coverage",
+  moderate: "Medium Coverage",
+  high_gap: "Low Coverage",
 };
 
 const SUBJECT_PACE_LABEL: Record<SubjectAnalysis["alignmentLevel"], string> = {
@@ -237,7 +228,7 @@ const SOFT_TEAL_BADGE = "bg-secondary/10 text-secondary border border-secondary/
 const SOFT_AMBER_BADGE = "bg-accent/10 text-accent-contrast border border-accent/25";
 const SOFT_VIOLET_BADGE = "bg-violet/10 text-primary border border-violet/25";
 
-const SUBJECT_CONFIDENCE_BADGE_STYLE: Record<SubjectAnalysis["alignmentLevel"], string> = {
+const SUBJECT_COVERAGE_BADGE_STYLE: Record<SubjectAnalysis["alignmentLevel"], string> = {
   strong: SOFT_TEAL_BADGE,
   moderate: SOFT_AMBER_BADGE,
   high_gap: SOFT_AMBER_BADGE,
@@ -927,12 +918,22 @@ const ReportPreview = () => {
         targetCurriculum,
         targetGoal,
         academicPath: Array.isArray(raw?.academicPath) ? raw.academicPath : undefined,
-        strongestSubjects: Array.isArray(raw?.strongestSubjects) ? raw.strongestSubjects : undefined,
-        challengingAreas: Array.isArray(raw?.challengingAreas)
-          ? raw.challengingAreas
-          : Array.isArray(raw?.challengingSubjects)
-            ? raw.challengingSubjects
-            : undefined,
+        // strongestSubjects/challengingAreas are derived from subjectConfidences
+        // (single source of truth — see deriveSubjectStrengths), falling back to
+        // any raw array already on formData only for pre-existing saved reports
+        // submitted before this derivation existed.
+        ...(() => {
+          const { strongest, challenging } = deriveSubjectStrengths(raw?.subjectConfidences);
+          const rawChallenging = Array.isArray(raw?.challengingAreas)
+            ? raw.challengingAreas
+            : Array.isArray(raw?.challengingSubjects)
+              ? raw.challengingSubjects
+              : undefined;
+          return {
+            strongestSubjects: strongest.length > 0 ? strongest : (Array.isArray(raw?.strongestSubjects) ? raw.strongestSubjects : undefined),
+            challengingAreas: challenging.length > 0 ? challenging : rawChallenging,
+          };
+        })(),
         languagesSpoken: uniqueLanguages.length ? uniqueLanguages : undefined,
         transitionTimeline:
           typeof raw?.transitionTimeline === "string"
@@ -1429,22 +1430,29 @@ const ReportPreview = () => {
                     const accentBorder = SUBJECT_ACCENT_BORDER[subjectIndex % SUBJECT_ACCENT_BORDER.length];
 
                     return (
-                      <div key={subject.subject} className={`rounded-lg border-l-4 bg-muted/50 p-4 sm:p-5 ${accentBorder}`}>
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <Collapsible
+                        key={subject.subject}
+                        className={`overflow-hidden rounded-lg border-l-4 bg-muted/50 ${accentBorder}`}
+                      >
+                        <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 p-4 text-left sm:p-5">
                           <h4 className="text-base font-bold text-foreground">{subject.subject}</h4>
-                          <div className="flex flex-wrap gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white ${percentage >= 70 ? "bg-secondary" : "bg-accent"}`}>
                               {percentage}% Align
                             </span>
-                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${SUBJECT_CONFIDENCE_BADGE_STYLE[subject.alignmentLevel]}`}>
-                              {SUBJECT_CONFIDENCE_LABEL[subject.alignmentLevel]}
+                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${SUBJECT_COVERAGE_BADGE_STYLE[subject.alignmentLevel]}`}>
+                              {SUBJECT_COVERAGE_LABEL[subject.alignmentLevel]}
                             </span>
-                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${SUBJECT_PACE_BADGE_STYLE[subject.alignmentLevel]}`}>
+                            <span className={`hidden rounded-full px-2.5 py-0.5 text-[11px] font-semibold sm:inline-block ${SUBJECT_PACE_BADGE_STYLE[subject.alignmentLevel]}`}>
                               {SUBJECT_PACE_LABEL[subject.alignmentLevel]}
                             </span>
+                            <ChevronDown
+                              className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
+                              aria-hidden="true"
+                            />
                           </div>
-                        </div>
-
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="px-4 pb-4 sm:px-5 sm:pb-5">
                         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                           <div className="space-y-3">
                             <div>
@@ -1520,7 +1528,8 @@ const ReportPreview = () => {
                             </div>
                           </div>
                         </div>
-                      </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     );
                   };
 
@@ -1533,7 +1542,7 @@ const ReportPreview = () => {
                           <div className="h-1.5 w-1.5 rounded-full bg-mint" />
                         </div>
                         <p className="text-xs italic text-muted-foreground">
-                          Each subject is assessed independently across strengths, missing topics, difficulty, and preparation resources.
+                          Click on a subject to view detailed analysis.
                         </p>
                       </div>
                       <div className="space-y-3">

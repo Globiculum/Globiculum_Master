@@ -1,6 +1,7 @@
-import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PremiumButton from "./PremiumButton";
+import backIcon from "@/assets/icons-3d/back.png";
 
 interface AssessmentFooterProps {
   onPrev: () => void;
@@ -18,7 +19,7 @@ const AssessmentFooter = ({ onPrev, onNext, saveStatus = "idle", isFirstStep, ca
   <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-border bg-background/90 px-4 py-4 backdrop-blur-sm sm:mx-0 sm:rounded-2xl sm:border sm:shadow-soft">
     <div className="flex items-center justify-between gap-3">
       <PremiumButton variant="secondary" size="lg" onClick={onPrev} disabled={isFirstStep} className="gap-2">
-        <ArrowLeft className="h-4 w-4" />
+        <img src={backIcon} className="h-4 w-4 object-contain" alt="" draggable={false} />
         Previous
       </PremiumButton>
 

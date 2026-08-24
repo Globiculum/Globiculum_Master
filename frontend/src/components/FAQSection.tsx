@@ -42,7 +42,7 @@ const faqs = [
 
 const FAQSection = () => {
   return (
-    <section className="py-12 sm:py-16 md:py-20 bg-background" id="faq">
+    <section className="py-12 sm:py-16 md:py-20 bg-muted" id="faq">
       <div className="container mx-auto px-4 sm:px-6 max-w-3xl">
         <p className="text-secondary font-semibold text-sm uppercase tracking-wider mb-3 text-center">
           Questions parents ask us

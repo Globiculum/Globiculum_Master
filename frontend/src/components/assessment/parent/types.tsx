@@ -8,7 +8,7 @@ export interface ParentStepProps {
   onFieldChange: <K extends keyof ParentFormData>(field: K, value: ParentFormData[K]) => void;
   onArrayToggle: (field: keyof ParentFormData, value: string) => void;
   onRecordFieldChange: (
-    field: "languageProficiencies" | "subjectConfidences" | "elementaryConfidences",
+    field: "languageProficiencies" | "subjectConfidences",
     key: string,
     value: string
   ) => void;

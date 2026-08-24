@@ -1,10 +1,9 @@
-import type { LucideIcon } from "lucide-react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ConcernOption {
   value: string;
-  icon: LucideIcon;
+  icon: string;
 }
 
 interface ConcernCardsProps {
@@ -18,7 +17,7 @@ interface ConcernCardsProps {
 // (ParentStep4.tsx); this component only supplies the icon + card chrome.
 const ConcernCards = ({ options, selected, onToggle }: ConcernCardsProps) => (
   <div role="group" aria-label="Primary Transition Concerns" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-    {options.map(({ value, icon: Icon }) => {
+    {options.map(({ value, icon }) => {
       const isSelected = selected.includes(value);
       return (
         <button
@@ -39,7 +38,7 @@ const ConcernCards = ({ options, selected, onToggle }: ConcernCardsProps) => (
               isSelected ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"
             )}
           >
-            <Icon className="h-4 w-4" />
+            <img src={icon} className="h-4 w-4 object-contain" alt="" draggable={false} />
           </span>
           <span className="text-sm font-medium text-foreground">{value}</span>
           <span

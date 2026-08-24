@@ -74,7 +74,7 @@ const FreeStartSection = () => {
   const shouldReduceMotion = useReducedMotion() ?? false;
 
   return (
-    <section className="relative bg-background py-16 sm:py-20 md:py-24">
+    <section className="relative bg-muted py-16 sm:py-20 md:py-24">
       <div className="container mx-auto px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 32 }}

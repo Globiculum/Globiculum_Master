@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardCheck } from "lucide-react";
+import reviewIcon from "@/assets/icons-3d/review.png";
+import locationIcon from "@/assets/icons-3d/location.png";
+import academicPathIcon from "@/assets/icons-3d/academic-path.png";
+import learningStyleIcon from "@/assets/icons-3d/learning-style.png";
+import nervousIcon from "@/assets/icons-3d/nervous.png";
 import { toast } from "@/hooks/use-toast";
-import { submitAssessment, ValidationFailedError } from "../shared/submitAssessment";
+import { submitAssessment, ValidationFailedError, deriveSubjectStrengths } from "../shared/submitAssessment";
 import ReportGenerationLoader from "../shared/ReportGenerationLoader";
 import SectionCard from "../shared/SectionCard";
 import ReviewActionBar from "../shared/ReviewActionBar";
@@ -66,10 +70,16 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
     }
   };
 
+  // Strongest/Challenging Subjects are read-only here — derived from
+  // subjectConfidences, the same single source of truth used at submission
+  // time (deriveSubjectStrengths), not a separate question the parent answers.
+  const { strongest, challenging } = deriveSubjectStrengths(formData.subjectConfidences);
+
   const sections = [
     {
       stepIndex: 0,
       title: "School Profile",
+      icon: locationIcon,
       rows: [
         { label: "Child's Name", value: formData.childName || "—" },
         { label: "School Stage", value: prettify(formData.schoolStage) },
@@ -90,6 +100,7 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
     {
       stepIndex: 1,
       title: "Academic Path",
+      icon: academicPathIcon,
       rows: [
         { label: "Current Subjects", value: joinList(formData.academicPath) },
         { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
@@ -101,11 +112,12 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
     {
       stepIndex: 2,
       title: "Learning Profile",
+      icon: learningStyleIcon,
       rows: [
         { label: "Learning Styles", value: joinPrettyList(formData.learningStyles) },
         { label: "Overall Performance", value: prettify(formData.overallPerformance) },
-        { label: "Strongest Subjects", value: joinList(formData.strongestSubjects) },
-        { label: "Challenging Subjects", value: joinList(formData.challengingSubjects) },
+        { label: "Strongest Subjects", value: joinList(strongest) },
+        { label: "Challenging Subjects", value: joinList(challenging) },
         { label: "Subject Confidences", value: joinRecord(formData.subjectConfidences) },
         { label: "Areas to Strengthen", value: joinList(formData.strengthenGoals) },
       ],
@@ -113,6 +125,7 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
     {
       stepIndex: 3,
       title: "Support",
+      icon: nervousIcon,
       rows: [
         { label: "Biggest Concerns", value: joinList(formData.transitionConcerns) },
         { label: "Preferred Support", value: joinList(formData.supportNeeds) },
@@ -121,9 +134,12 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
     },
   ];
 
+  const reviewTitle = formData.childName.trim() ? `${formData.childName.trim()}'s Review` : "Review";
+
   return (
     <>
-      <SectionCard icon={ClipboardCheck} title="Review" description="Check your answers, then generate the AI-powered readiness report.">
+      <SectionCard icon={reviewIcon} title={reviewTitle} description="Check your answers, then generate the AI-powered readiness report.">
+        <div className="-mt-4 text-sm text-muted-foreground">Here&rsquo;s everything you&rsquo;ve shared with us — take a look, then generate the AI-powered readiness report.</div>
         <div className="space-y-4">
           {sections.map((section) => (
             <ReviewSection key={section.title} section={section} onEditStep={onEditStep} />

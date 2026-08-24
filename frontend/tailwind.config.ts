@@ -114,8 +114,8 @@ export default {
         'soft': 'var(--shadow-soft)',
         'medium': 'var(--shadow-medium)',
         'strong': 'var(--shadow-strong)',
-        'glow-sm': '0 0 0 1px hsl(var(--secondary) / 0.16), 0 8px 24px -8px hsl(var(--violet) / 0.28)',
-        'glow-md': '0 0 0 1.5px hsl(var(--secondary) / 0.3), 0 16px 40px -12px hsl(var(--violet) / 0.35)',
+        'glow-sm': '0 0 0 1px hsl(var(--secondary) / 0.16), 0 8px 24px -8px hsl(var(--secondary) / 0.28)',
+        'glow-md': '0 0 0 1.5px hsl(var(--secondary) / 0.3), 0 16px 40px -12px hsl(var(--secondary) / 0.35)',
       },
       transitionTimingFunction: {
         'smooth': 'var(--transition-smooth)',

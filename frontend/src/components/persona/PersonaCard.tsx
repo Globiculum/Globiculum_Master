@@ -21,20 +21,24 @@ export interface PersonaCardProps {
 
 const ACCENT_STYLES = {
   primary: {
-    iconWrap: "bg-gradient-to-br from-primary/12 to-primary/[0.04] border-primary/15",
-    icon: "text-primary",
-    border: "from-primary via-secondary to-primary",
-    // Selected state: solid dark-teal fill instead of the subtle resting tint.
+    // Idle badge is a teal-tinted glass tile (not a navy tint, which would
+    // vanish against the card's own dark-glass surface) — reads as Parent's
+    // teal identity even before selection.
+    iconWrap: "bg-secondary/20 border-secondary/30",
+    icon: "text-mint",
+    border: "from-secondary via-mint to-secondary",
     selectedIconWrap: "bg-gradient-to-br from-secondary to-primary border-transparent",
     selectedIcon: "text-white",
+    chipIcon: "text-mint",
   },
   violet: {
-    iconWrap: "bg-gradient-to-br from-violet/15 to-violet/[0.04] border-violet/15",
+    iconWrap: "bg-violet/20 border-violet/30",
     icon: "text-violet",
     border: "from-violet via-secondary to-violet",
     // Selected state: solid dark blue-violet fill, mirroring Parent's treatment.
     selectedIconWrap: "bg-gradient-to-br from-violet to-primary border-transparent",
     selectedIcon: "text-white",
+    chipIcon: "text-violet",
   },
 } as const;
 
@@ -57,16 +61,18 @@ const PersonaCard = ({ icon: Icon, title, description, chips, accent, selected, 
     <motion.div
       className={cn(
         "group relative rounded-[1.35rem] p-[1.5px] transition-colors duration-200",
-        selected ? cn("bg-gradient-to-br", styles.border) : "bg-border"
+        selected ? cn("bg-gradient-to-br", styles.border) : "bg-white/15"
       )}
       whileHover={{ y: -6, scale: 1.015 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
     >
-      {/* hover-only gradient border, fades in over the neutral border above (selected uses its own gradient border instead) */}
+      {/* hover-only gradient tint — kept low-opacity since the card face itself
+          is translucent glass; at full opacity this fully repaints the card a
+          solid color instead of reading as a subtle ring/glow. */}
       {!selected && (
         <div
           className={cn(
-            "pointer-events-none absolute inset-0 rounded-[1.35rem] bg-gradient-to-br opacity-0 transition-opacity duration-200 group-hover:opacity-100",
+            "pointer-events-none absolute inset-0 rounded-[1.35rem] bg-gradient-to-br opacity-0 transition-opacity duration-200 group-hover:opacity-25",
             styles.border
           )}
         />
@@ -79,9 +85,13 @@ const PersonaCard = ({ icon: Icon, title, description, chips, accent, selected, 
         onClick={onSelect}
         onKeyDown={handleKeyDown}
         className={cn(
-          "relative flex h-full cursor-pointer select-none items-start gap-4 rounded-[calc(1.35rem-1.5px)] bg-card p-6 text-left",
-          "shadow-soft transition-shadow duration-200 ease-out group-hover:shadow-glow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          selected && "shadow-glow-md"
+          "relative flex h-full cursor-pointer select-none items-start gap-4 rounded-[calc(1.35rem-1.5px)] p-6 text-left backdrop-blur-xl",
+          "shadow-soft transition-[background-color,box-shadow] duration-200 ease-out group-hover:shadow-glow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          // Selected stays at a fixed opaque navy glass — no hover variant —
+          // otherwise hovering an already-selected card would fall back to
+          // the near-transparent idle fill and let the bright gradient ring
+          // behind it (see wrapper above) bleed through the whole face again.
+          selected ? "bg-primary/40 shadow-glow-md" : "bg-white/10 hover:bg-white/[0.14]"
         )}
       >
         {selected && (
@@ -119,16 +129,16 @@ const PersonaCard = ({ icon: Icon, title, description, chips, accent, selected, 
         </motion.div>
 
         <div className="min-w-0 flex-1 pr-6">
-          <h3 className="text-h3 text-foreground">{title}</h3>
-          <p className="mt-1 text-caption text-muted-foreground">{description}</p>
+          <h3 className="text-h3 text-white">{title}</h3>
+          <p className="mt-1 text-caption text-white/70">{description}</p>
 
           <div className="mt-3.5 flex flex-wrap gap-1.5">
             {chips.map((chip) => (
               <span
                 key={chip.label}
-                className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+                className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/80"
               >
-                <chip.icon className="h-3 w-3 text-secondary" />
+                <chip.icon className={cn("h-3 w-3", styles.chipIcon)} />
                 {chip.label}
               </span>
             ))}

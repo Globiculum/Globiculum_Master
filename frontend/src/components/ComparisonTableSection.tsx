@@ -34,7 +34,7 @@ const rowStagger: Variants = {
 
 const ComparisonTableSection = () => {
   return (
-    <section className="relative bg-white py-16 sm:py-20 md:py-24">
+    <section className="relative bg-muted py-16 sm:py-20 md:py-24">
       <div className="container mx-auto px-4 sm:px-6">
         <motion.div
           className="mx-auto mb-12 max-w-2xl text-center sm:mb-16"
