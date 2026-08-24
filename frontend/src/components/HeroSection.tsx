@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, GraduationCap, Globe, ShieldCheck, Zap } from "lucide-react";
-import bgHeroImage from "@/assets/bg-hero-image.png";
 import bgHeroVideo from "@/assets/BG-Video.mp4";
 
 const STATS = [
@@ -28,15 +27,15 @@ const HeroSection = () => {
       {/* Hero band — the image (with its own baked-in badges) is sized only to this
           band, not the whole section, so it never has to stretch/crop to also cover
           the stats strip below. That's what was pushing the badges into collision
-          with the real stats row. */}
-      <div className="relative overflow-hidden py-12 sm:py-16 md:py-28 xl:min-h-[640px] 2xl:min-h-[720px]">
-        {/* Capped at 1400px (matching the site's own container max-width) so ultra-wide
-            viewports don't force object-cover into an increasingly aggressive crop —
-            that was pushing the image's baked-in badges out of frame past ~1920px. The
-            extra min-height at xl/2xl gives the crop more vertical room to work with
-            too. The section's own bg-primary fills any remaining edge space, blending
-            seamlessly since it matches the image's own dark palette. */}
-        <div className="absolute inset-0 mx-auto max-w-[1400px]">
+          with the real stats row. Height is viewport-relative (clamped, not a fixed
+          px value) so the band adapts to laptop/desktop/large-monitor heights instead
+          of over- or under-filling the screen; content is centered within it so the
+          adaptive height doesn't just pad out empty space below the text. */}
+      <div className="relative flex min-h-[clamp(480px,78vh,760px)] flex-col justify-center overflow-hidden py-12 sm:py-16 md:py-20">
+        {/* Full-bleed — spans the whole section width (no max-width cap) so the
+            footage reaches the viewport edges on wide screens instead of leaving
+            bg-primary strips on either side. */}
+        <div className="absolute inset-0">
           <video
             ref={videoRef}
             autoPlay
@@ -44,8 +43,7 @@ const HeroSection = () => {
             loop
             playsInline
             preload="auto"
-            poster={bgHeroImage}
-            className="h-full w-full object-cover object-[80%_30%]"
+            className="h-full w-full bg-primary object-cover object-[80%_30%]"
           >
             <source src={bgHeroVideo} type="video/mp4" />
           </video>
@@ -60,7 +58,14 @@ const HeroSection = () => {
             reads as branded teal, not a flat navy wash over the footage. */}
         <div className="absolute inset-0 bg-gradient-to-b from-primary/85 via-secondary/35 to-primary/25 lg:bg-gradient-to-r lg:from-primary/85 lg:via-secondary/25 lg:to-transparent" />
 
-        <div className="container relative mx-auto px-4 sm:px-6">
+        {/* Bottom fade — dissolves the footage into solid bg-primary right before
+            the band ends, so it blends into the stats section below instead of
+            cutting off hard against it (the seam became far more visible once the
+            video went full-bleed edge-to-edge instead of sitting in a 1400px column
+            with navy on either side to soften it). */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-primary to-transparent sm:h-36" aria-hidden="true" />
+
+        <div className="relative mx-auto w-full max-w-[1920px] px-[clamp(1rem,4vw,5rem)]">
           <div className="max-w-2xl space-y-6 sm:space-y-8">
             <div className="space-y-4 sm:space-y-6">
               <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-[1.08] text-primary-foreground text-left">
@@ -106,7 +111,7 @@ const HeroSection = () => {
 
       {/* Trust stats — separate band on plain background, below the image entirely
           so it can never overlap the badges baked into the hero art above. */}
-      <div className="container relative mx-auto px-4 sm:px-6">
+      <div className="relative mx-auto w-full max-w-[1920px] px-[clamp(1rem,4vw,5rem)]">
         <div className="border-t border-white/10 py-8 sm:py-10">
           <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 sm:gap-y-0">
             {STATS.map((stat) => (

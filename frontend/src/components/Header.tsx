@@ -169,7 +169,7 @@ const Header = ({ children }: HeaderProps = {}) => {
       >
         Skip to main content
       </a>
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <div className="mx-auto flex h-16 w-full max-w-[1920px] items-center justify-between px-[clamp(1rem,3vw,4rem)]">
         <a
           href="/"
           className="flex items-center space-x-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
