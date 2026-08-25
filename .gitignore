@@ -67,3 +67,6 @@ backend/rag-pipeline/*.pyc
 Thumbs.db
 
 .claude/
+
+# Local curriculum/RAG data
+backend/data/

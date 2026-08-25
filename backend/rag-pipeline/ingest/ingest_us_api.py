@@ -59,7 +59,7 @@ from config import (
     CURRICULUM_US_CC,
     INSERT_BATCH_SIZE,
 )
-from db.supabase_client import get_client, batch_insert, get_existing_source_ids, delete_edges_for_curriculum
+from db.supabase_client import get_client, batch_insert, get_existing_source_ids, delete_edges_for_curriculum, _should_reconnect
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -506,8 +506,9 @@ def _delete_nodes_batched(db_client, curriculum_system: str, batch_size: int = 5
                 if attempt == 2:
                     raise
                 print(f"  [WARN] Fetch error (attempt {attempt + 1}), retrying in 3s: {exc}")
+                if _should_reconnect(exc, attempt):
+                    db_client = get_client()
                 time.sleep(3)
-                db_client = get_client()  # reconnect
 
         rows = resp.data or []
         if not rows:
@@ -524,8 +525,9 @@ def _delete_nodes_batched(db_client, curriculum_system: str, batch_size: int = 5
                 if attempt == 2:
                     raise
                 print(f"  [WARN] Delete error (attempt {attempt + 1}), retrying in 3s: {exc}")
+                if _should_reconnect(exc, attempt):
+                    db_client = get_client()
                 time.sleep(3)
-                db_client = get_client()  # reconnect
 
         total += len(ids)
         print(f"  Deleted {total} nodes...")
