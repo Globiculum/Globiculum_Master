@@ -31,22 +31,48 @@ const ResetPassword = () => {
   const [confirmPasswordError, setConfirmPasswordError] = useState<string | undefined>();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    let active = true;
+    let settled = false;
 
-      if (session) {
-        setIsValidSession(true);
-      } else {
+    // The recovery link carries a PKCE code that the SDK exchanges for a session
+    // ASYNCHRONOUSLY (detectSessionInUrl). Calling getSession() once, immediately,
+    // raced that exchange and reported "Link Expired" on a perfectly valid link
+    // whenever the exchange hadn't finished yet. Listen for the session instead,
+    // and only declare failure after the exchange has had time to complete.
+    const settle = (valid: boolean) => {
+      if (!active || settled) return;
+      settled = true;
+      setIsValidSession(valid);
+      setVerifying(false);
+      if (!valid) {
         toast({
           variant: "destructive",
           title: "Invalid or expired link",
           description: "Please request a new password reset link.",
         });
       }
-      setVerifying(false);
     };
 
-    checkSession();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) settle(true);
+    });
+
+    // Covers the case where the session already exists (exchange finished before
+    // this effect ran, or the user reloaded the page).
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) settle(true);
+    });
+
+    // Nothing arrived in time — the link really is invalid/expired/already used.
+    const timer = setTimeout(() => settle(false), 3000);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      subscription.unsubscribe();
+    };
   }, [toast]);
 
   const handleResetPassword = async (e: React.FormEvent) => {

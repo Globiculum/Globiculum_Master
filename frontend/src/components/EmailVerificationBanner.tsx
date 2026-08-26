@@ -15,7 +15,11 @@ const EmailVerificationBanner = ({ user }: EmailVerificationBannerProps) => {
   const [sending, setSending] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  const isEmailConfirmed = user.email_confirmed_at !== null;
+  // email_confirmed_at is absent (undefined) on an unconfirmed user, not null —
+  // so the previous `!== null` check evaluated to true for EVERY user and made
+  // the banner report "Email Verified" even when the address was unconfirmed,
+  // hiding the exact problem that blocks sign-in.
+  const isEmailConfirmed = Boolean(user.email_confirmed_at);
 
   const handleResendVerification = async () => {
     if (!user.email) return;
@@ -26,7 +30,10 @@ const EmailVerificationBanner = ({ user }: EmailVerificationBannerProps) => {
         type: 'signup',
         email: user.email,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          // Must match the signup redirect: /auth/callback is the only route
+          // that exchanges the PKCE code and surfaces link errors. Sending the
+          // user straight to /dashboard skips that and leaves them unconfirmed.
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
@@ -36,11 +43,11 @@ const EmailVerificationBanner = ({ user }: EmailVerificationBannerProps) => {
         title: "Verification email sent!",
         description: "Please check your inbox and click the verification link.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Failed to send email",
-        description: error.message || "Please try again later.",
+        description: error instanceof Error ? error.message : "Please try again later.",
       });
     } finally {
       setSending(false);

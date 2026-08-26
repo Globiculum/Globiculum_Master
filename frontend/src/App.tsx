@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import ResetPassword from "./pages/ResetPassword";
 import DashboardPage from "./pages/DashboardPage";
 import NotFound from "./pages/NotFound";
@@ -90,6 +91,10 @@ const App = () => (
             } 
           />
           <Route path="/auth" element={<Auth />} />
+          {/* Landing target for every emailed auth link (signup confirmation,
+              email change, magic link). Must stay public — the user is by
+              definition not signed in yet when they arrive here. */}
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             path="/onboarding"

@@ -10,6 +10,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { z, ZodError } from "zod";
 import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
+import { MailCheck, Loader2 } from "lucide-react";
+
+// Every emailed auth link must land on the dedicated callback route, which is
+// the only page that knows how to exchange a PKCE code / read link errors.
+// Pointing this at "/" (as it previously did) meant a successful confirmation
+// dumped the user on the landing page without a session.
+const emailRedirectUrl = () => `${window.location.origin}/auth/callback`;
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof ZodError) {
@@ -94,6 +101,39 @@ const Auth = () => {
   const [signUpErrors, setSignUpErrors] = useState<SignUpErrors>({});
   const [resetError, setResetError] = useState<string | undefined>();
 
+  // Set once a signup succeeds but still needs email confirmation, so the UI can
+  // stop claiming the user "can now log in" (they cannot — signInWithPassword
+  // rejects unconfirmed accounts with email_not_confirmed).
+  const [pendingConfirmEmail, setPendingConfirmEmail] = useState<string | null>(null);
+  // Set when a sign-in attempt is rejected specifically because the address is
+  // unconfirmed, so we can offer a resend instead of a dead-end toast.
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+
+  const handleResendConfirmation = async (targetEmail: string) => {
+    setResendLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: targetEmail,
+        options: { emailRedirectTo: emailRedirectUrl() },
+      });
+      if (error) throw error;
+      toast({
+        title: "Confirmation email sent",
+        description: `We've sent a new confirmation link to ${targetEmail}. Please check your inbox and spam folder.`,
+      });
+    } catch (error: unknown) {
+      toast({
+        variant: "destructive",
+        title: "Couldn't resend email",
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignUpErrors({});
@@ -102,11 +142,13 @@ const Auth = () => {
       const validated = authSchema.parse({ email, password, fullName });
       setLoading(true);
 
-      const { error } = await supabase.auth.signUp({
+      // `data` matters as much as `error` here — signUp resolves successfully in
+      // three materially different situations, and they need different UX.
+      const { data, error } = await supabase.auth.signUp({
         email: validated.email,
         password: validated.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: emailRedirectUrl(),
           data: {
             full_name: validated.fullName || "User",
           },
@@ -115,10 +157,35 @@ const Auth = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Success!",
-        description: "Account created successfully. You can now log in.",
-      });
+      // Case 1 — the address is ALREADY registered. Supabase deliberately does
+      // not return an error for this (it would let anyone enumerate registered
+      // emails); it returns an obfuscated user with an EMPTY identities array
+      // and no session. Treating that as success is what previously told people
+      // their account was created and then left them unable to log in, because
+      // the password they just typed was never applied to the existing account.
+      const alreadyRegistered = !!data.user && (data.user.identities?.length ?? 0) === 0;
+      if (alreadyRegistered) {
+        setSignUpErrors({
+          email: "An account with this email already exists. Please sign in instead, or use “Forgot password?” to reset it.",
+        });
+        return;
+      }
+
+      // Case 2 — email confirmation is DISABLED on the project, so Supabase
+      // returns a live session and the user is already signed in.
+      if (data.session) {
+        toast({
+          title: "Welcome!",
+          description: "Your account is ready.",
+        });
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+
+      // Case 3 — email confirmation is ENABLED (the Supabase default). The
+      // account exists but cannot sign in until the emailed link is opened.
+      setPendingConfirmEmail(validated.email);
+      setPassword("");
     } catch (error: unknown) {
       if (error instanceof ZodError) {
         // Field-level messages do the job here — the inputs themselves show
@@ -139,6 +206,7 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignInErrors({});
+    setUnconfirmedEmail(null);
 
     try {
       const validated = signInSchema.parse({ email, password });
@@ -151,19 +219,44 @@ const Auth = () => {
 
       if (error) throw error;
 
-      navigate("/");
+      navigate("/dashboard", { replace: true });
     } catch (error: unknown) {
       if (error instanceof ZodError) {
         setSignInErrors(zodErrorsByField(error));
-      } else {
-        // Not a field-level issue (e.g. wrong credentials, network failure) —
-        // the toast remains the right place for this.
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: getErrorMessage(error),
-        });
+        return;
       }
+
+      // An unconfirmed address is the single most common reason a freshly
+      // created account can't sign in. Surface it as a recoverable state with a
+      // resend button rather than an opaque toast the user can't act on.
+      const code = (error as { code?: string })?.code;
+      const message = getErrorMessage(error);
+      const isUnconfirmed =
+        code === "email_not_confirmed" || /email not confirmed|not confirmed/i.test(message);
+
+      if (isUnconfirmed) {
+        // Re-derive from state rather than the try-scoped `validated`: by this
+        // point we know the address parsed, and the raw state value is the same
+        // one that was submitted.
+        setUnconfirmedEmail(email.trim());
+        setSignInErrors({
+          email: "This email hasn't been confirmed yet. Check your inbox for the confirmation link.",
+        });
+        return;
+      }
+
+      if (code === "invalid_credentials" || /invalid login credentials/i.test(message)) {
+        setSignInErrors({ password: "Incorrect email or password. Please try again." });
+        return;
+      }
+
+      // Anything else (network failure, rate limit, server error) genuinely
+      // belongs in a toast.
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: message,
+      });
     } finally {
       setLoading(false);
     }
@@ -205,6 +298,57 @@ const Auth = () => {
       setResetLoading(false);
     }
   };
+
+  // Signup succeeded but the account is unusable until the emailed link is
+  // opened. This replaces the old "Account created successfully. You can now log
+  // in." toast, which was actively wrong in this state.
+  if (pendingConfirmEmail) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="text-center space-y-2">
+            <MailCheck className="h-10 w-10 text-primary mx-auto" aria-hidden="true" />
+            <h1 className="text-2xl font-bold leading-none tracking-tight">Confirm your email</h1>
+            <CardDescription>
+              Your account has been created. We've sent a confirmation link to{" "}
+              <span className="font-medium text-foreground">{pendingConfirmEmail}</span>. You need to open
+              that link before you can sign in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Can't find it? Check your spam or junk folder — confirmation emails are often filtered.
+            </p>
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={resendLoading}
+              onClick={() => handleResendConfirmation(pendingConfirmEmail)}
+            >
+              {resendLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                  Sending...
+                </>
+              ) : (
+                "Resend confirmation email"
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => {
+                setPendingConfirmEmail(null);
+                setPassword("");
+              }}
+            >
+              Back to Sign In
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
@@ -320,6 +464,28 @@ const Auth = () => {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Signing in..." : "Sign In"}
                 </Button>
+
+                {/* Sign-in was rejected purely because the address is
+                    unconfirmed — offer the fix inline instead of leaving the
+                    user stuck on an error they can't act on. */}
+                {unconfirmedEmail && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={resendLoading}
+                    onClick={() => handleResendConfirmation(unconfirmedEmail)}
+                  >
+                    {resendLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                        Sending...
+                      </>
+                    ) : (
+                      "Resend confirmation email"
+                    )}
+                  </Button>
+                )}
               </form>
             </TabsContent>
 
