@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Trash2, Eye, Loader2, Clock, Target, BookOpen, AlertTriangle, Calendar, Lightbulb, Download, GraduationCap, TrendingUp, Share2, RotateCcw } from "lucide-react";
+import { FileText, Trash2, Eye, Loader2, Clock, Target, GraduationCap, TrendingUp, RotateCcw, Share2 } from "lucide-react";
 import { toast } from "sonner";
-import { generateReportPDF } from "@/lib/generateReportPDF";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,48 +20,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
-type GapItem = string | { topic: string; resourceUrl?: string };
-const getGapTopic = (g: GapItem): string => (typeof g === "string" ? g : g.topic);
-
-interface SubjectAnalysis {
-  subject: string;
-  topicsCovered: number;
-  totalTopics: number;
-  alignmentLevel: "strong" | "moderate" | "high_gap";
-  keyGaps: GapItem[];
-}
-
-interface TimelinePhase {
-  name: string;
-  duration: string;
-  bullets: string[];
-}
-
-interface AnalysisData {
-  overallAlignment: {
-    percentage: number;
-    subjectsNeedingBridge: string[];
-    estimatedDuration: string;
-  };
-  subjectAnalysis: SubjectAnalysis[];
-  criticalGaps: GapItem[];
-  bridgeTimeline: {
-    phase1: TimelinePhase;
-    phase2: TimelinePhase;
-    phase3: TimelinePhase;
-  };
-  recommendations: {
-    study: string[];
-    skillStrategy: string[];
-    resources: string[];
-    culturalLanguage: string[];
+// Only the slice of the saved analysis this list view actually reads (the
+// alignment badge). "View Full Report" hands the whole blob off to
+// ReportPreview.tsx via navigation state, which has its own full AnalysisData
+// type — this file doesn't need to duplicate that shape.
+interface SavedReportAnalysis {
+  overallAlignment?: {
+    percentage?: number;
   };
 }
 
@@ -70,7 +35,7 @@ interface SavedReport {
   id: string;
   title: string;
   form_data: Record<string, unknown>;
-  analysis_data: AnalysisData;
+  analysis_data: SavedReportAnalysis;
   created_at: string;
 }
 
@@ -92,7 +57,6 @@ const ReportsHistory = () => {
   const [assessments, setAssessments] = useState<AssessmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [selectedReport, setSelectedReport] = useState<SavedReport | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -201,25 +165,12 @@ const ReportsHistory = () => {
   const getReportSummary = (report: SavedReport) => {
     const formData = report.form_data as Record<string, unknown>;
     const analysis = report.analysis_data;
-    
+
     return {
       grade: formData.snapshotGrade as string | undefined,
       stage: formData.schoolStage as string | undefined,
       alignment: analysis?.overallAlignment?.percentage,
     };
-  };
-
-  const getAlignmentBadge = (level: string) => {
-    switch (level) {
-      case 'strong': 
-        return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">Strong</Badge>;
-      case 'moderate': 
-        return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs">Moderate</Badge>;
-      case 'high_gap': 
-        return <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-0 text-xs">High Gap</Badge>;
-      default: 
-        return <Badge variant="secondary" className="text-xs">Unknown</Badge>;
-    }
   };
 
   return (
@@ -391,6 +342,7 @@ const ReportsHistory = () => {
                                 state: {
                                   formData: report.form_data,
                                   savedAnalysis: report.analysis_data,
+                                  savedReportId: report.id,
                                 },
                               })
                             }
@@ -464,250 +416,6 @@ const ReportsHistory = () => {
           ) : null}
         </div>
       </section>
-
-      {/* Full Report Modal */}
-      <Dialog open={!!selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden w-full h-full md:h-auto md:w-auto fixed inset-0 md:inset-auto md:max-h-[90vh] rounded-none md:rounded-lg">
-          <DialogHeader className="px-4 md:px-6 py-4 border-b bg-muted/30">
-            <div className="flex items-start md:items-center justify-between gap-2 flex-col md:flex-row">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-full">
-                  <FileText className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <DialogTitle className="text-xl">{selectedReport?.title}</DialogTitle>
-                  {selectedReport && (
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      Generated {formatDate(selectedReport.created_at)}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mr-0 md:mr-8">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={sharingId === selectedReport?.id}
-                  onClick={() => {
-                    if (selectedReport) handleShare(selectedReport.id);
-                  }}
-                >
-                  {sharingId === selectedReport?.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                  ) : (
-                    <Share2 className="h-4 w-4 mr-1.5" />
-                  )}
-                  Share Report
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    if (selectedReport) {
-                      await generateReportPDF();
-                      toast.success("PDF downloaded successfully!");
-                    }
-                  }}
-                >
-                  <Download className="h-4 w-4 mr-1.5" />
-                  Download PDF
-                </Button>
-              </div>
-            </div>
-          </DialogHeader>
-          
-          <div className="overflow-y-auto max-h-[calc(100vh-120px)] md:max-h-[calc(90vh-120px)]">
-            {selectedReport?.analysis_data && (
-              <div className="p-4 md:p-6 space-y-6">
-                {/* Quick Overview */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Card className="bg-primary/5 border-primary/20">
-                    <CardContent className="p-4 text-center">
-                      <div className="text-3xl font-bold text-primary">
-                        {selectedReport.analysis_data.overallAlignment?.percentage || 0}%
-                      </div>
-                      <div className="text-sm text-muted-foreground">Overall Alignment</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
-                    <CardContent className="p-4 text-center">
-                      <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-                        {selectedReport.analysis_data.overallAlignment?.subjectsNeedingBridge?.length || 0}
-                      </div>
-                      <div className="text-sm text-muted-foreground">Subjects Need Bridge</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-                    <CardContent className="p-4 text-center">
-                      <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                        {selectedReport.analysis_data.overallAlignment?.estimatedDuration || "N/A"}
-                      </div>
-                      <div className="text-sm text-muted-foreground">Est. Duration</div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Coverage Analysis */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Coverage Analysis</h3>
-                  </div>
-                  <div className="grid gap-3">
-                    {selectedReport.analysis_data.subjectAnalysis?.map((subject, idx) => (
-                      <Card key={idx} className="border">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">{subject.subject}</span>
-                            {getAlignmentBadge(subject.alignmentLevel)}
-                          </div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
-                              <div 
-                                className={`h-full transition-all ${
-                                  subject.alignmentLevel === 'strong' ? 'bg-emerald-500' :
-                                  subject.alignmentLevel === 'moderate' ? 'bg-amber-500' : 'bg-rose-500'
-                                }`}
-                                style={{ width: `${(subject.topicsCovered / subject.totalTopics) * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-sm text-muted-foreground">
-                              {subject.topicsCovered}/{subject.totalTopics}
-                            </span>
-                          </div>
-                          {subject.keyGaps?.length > 0 && (
-                            <div className="text-sm text-muted-foreground">
-                              <span className="font-medium">Gaps: </span>
-                              {subject.keyGaps.map(getGapTopic).join(", ")}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Critical Gaps */}
-                {selectedReport.analysis_data.criticalGaps?.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-rose-500" />
-                      <h3 className="text-lg font-semibold">Critical Gaps</h3>
-                    </div>
-                    <Card className="bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800">
-                      <CardContent className="p-4">
-                        <ul className="space-y-1.5">
-                          {selectedReport.analysis_data.criticalGaps.map((gap, idx) => (
-                            <li key={idx} className="text-sm flex items-start gap-2">
-                              <span className="text-rose-500 mt-1">•</span>
-                              <span>{getGapTopic(gap)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-
-                {/* Bridge Timeline */}
-                {selectedReport.analysis_data.bridgeTimeline && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Bridge Timeline</h3>
-                    </div>
-                    <div className="space-y-3">
-                      {['phase1', 'phase2', 'phase3'].map((phaseKey, idx) => {
-                        const phase = selectedReport.analysis_data.bridgeTimeline[phaseKey as keyof typeof selectedReport.analysis_data.bridgeTimeline];
-                        if (!phase) return null;
-                        return (
-                          <Card key={phaseKey} className="border">
-                            <CardContent className="p-4">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline" className="text-xs">Phase {idx + 1}</Badge>
-                                <span className="font-medium">{phase.name}</span>
-                                <span className="text-sm text-muted-foreground ml-auto">{phase.duration}</span>
-                              </div>
-                              <ul className="space-y-1">
-                                {phase.bullets?.map((bullet, bIdx) => (
-                                  <li key={bIdx} className="text-sm text-muted-foreground flex items-start gap-2">
-                                    <span className="text-primary mt-1">•</span>
-                                    <span>{bullet}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Recommendations */}
-                {selectedReport.analysis_data.recommendations && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Lightbulb className="h-5 w-5 text-amber-500" />
-                      <h3 className="text-lg font-semibold">Recommendations</h3>
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-3">
-                      {selectedReport.analysis_data.recommendations.study?.length > 0 && (
-                        <Card className="border">
-                          <CardContent className="p-4">
-                            <h4 className="font-medium text-sm mb-2">Study Tips</h4>
-                            <ul className="space-y-1">
-                              {selectedReport.analysis_data.recommendations.study.map((rec, idx) => (
-                                <li key={idx} className="text-sm text-muted-foreground">• {rec}</li>
-                              ))}
-                            </ul>
-                          </CardContent>
-                        </Card>
-                      )}
-                      {selectedReport.analysis_data.recommendations.skillStrategy?.length > 0 && (
-                        <Card className="border">
-                          <CardContent className="p-4">
-                            <h4 className="font-medium text-sm mb-2">Skill Strategy</h4>
-                            <ul className="space-y-1">
-                              {selectedReport.analysis_data.recommendations.skillStrategy.map((rec, idx) => (
-                                <li key={idx} className="text-sm text-muted-foreground">• {rec}</li>
-                              ))}
-                            </ul>
-                          </CardContent>
-                        </Card>
-                      )}
-                      {selectedReport.analysis_data.recommendations.resources?.length > 0 && (
-                        <Card className="border">
-                          <CardContent className="p-4">
-                            <h4 className="font-medium text-sm mb-2">Resources</h4>
-                            <ul className="space-y-1">
-                              {selectedReport.analysis_data.recommendations.resources.map((rec, idx) => (
-                                <li key={idx} className="text-sm text-muted-foreground">• {rec}</li>
-                              ))}
-                            </ul>
-                          </CardContent>
-                        </Card>
-                      )}
-                      {selectedReport.analysis_data.recommendations.culturalLanguage?.length > 0 && (
-                        <Card className="border">
-                          <CardContent className="p-4">
-                            <h4 className="font-medium text-sm mb-2">Cultural & Language</h4>
-                            <ul className="space-y-1">
-                              {selectedReport.analysis_data.recommendations.culturalLanguage.map((rec, idx) => (
-                                <li key={idx} className="text-sm text-muted-foreground">• {rec}</li>
-                              ))}
-                            </ul>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Footer />
     </div>

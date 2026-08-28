@@ -9,7 +9,7 @@ import {
 
 interface HighSchoolMathDeepDiveProps {
   usState: string;
-  curriculum: string;
+  curriculum: string[];
   selectedCourse: string;
   programLevel: string;
   onCourseChange: (course: string) => void;

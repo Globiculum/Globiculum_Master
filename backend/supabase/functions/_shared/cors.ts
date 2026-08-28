@@ -10,7 +10,12 @@ const ALLOWED_ORIGINS = [
   'https://lovable.dev',
 ];
 
-// Development origins (automatically allowed in non-production)
+// Local dev origins — always allowed, regardless of how ENVIRONMENT is set on
+// the deployed function. CORS only gates whether a browser can read the
+// response; it isn't the auth boundary (every function still requires a
+// valid Bearer token), so permitting these doesn't widen real access, and it
+// stops a server-side ENVIRONMENT=production setting from silently breaking
+// a local frontend that's pointed at the shared/production Supabase project.
 const DEV_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -28,13 +33,8 @@ const DEV_ORIGINS = [
  */
 export function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') || '';
-  const isProduction = Deno.env.get('ENVIRONMENT') === 'production';
-  
-  // Build list of allowed origins based on environment
-  const allowedOrigins = isProduction 
-    ? ALLOWED_ORIGINS 
-    : [...ALLOWED_ORIGINS, ...DEV_ORIGINS];
-  
+  const allowedOrigins = [...ALLOWED_ORIGINS, ...DEV_ORIGINS];
+
   // Determine if origin should be allowed
   const isAllowed = allowedOrigins.includes(origin);
   

@@ -30,6 +30,16 @@ const AP_SUBJECTS = [
   "AP (Advanced Placement) English", "AP (Advanced Placement) US History",
 ];
 
+// Moved here from the Learning Profile step, where it sat alongside a
+// near-duplicate "Typical Grade Range" question asking essentially the same
+// thing — see parentValidation.ts and ParentLearningProfileWizard.tsx.
+const OVERALL_PERFORMANCE_OPTIONS = [
+  { value: "excelling", label: "Excelling" },
+  { value: "above-average", label: "Above Average" },
+  { value: "on-track", label: "On Track" },
+  { value: "needs-support", label: "Needs Support" },
+];
+
 // Grades 11-12 see one unified higher-secondary subject list instead of the
 // curriculum-based list below — same academicPath array field either way.
 const HIGHER_SECONDARY_GRADES = [11, 12];
@@ -40,7 +50,7 @@ const HIGHER_SECONDARY_SUBJECTS = [
   "History", "Political Science", "Geography", "Psychology", "Sociology",
 ];
 
-const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string, gradeNumber: number) => {
+const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string[], gradeNumber: number) => {
   if (schoolStage === "elementary" && (gradeNumber === 1 || gradeNumber === 2)) {
     return ["Reading & Comprehension", "Foundational Math", "Writing Skills", "General Awareness / Environmental Learning"];
   }
@@ -48,12 +58,12 @@ const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string, 
     return ["Mathematics", "English / Language Arts", "Basic Science", "Social Studies", "Foreign Language"];
   }
 
-  const cur = (currentCurriculum || "").toLowerCase();
+  const cur = (currentCurriculum || []).map((c) => c.toLowerCase());
 
-  if (cur.includes("ib")) {
+  if (cur.some((c) => c.includes("ib"))) {
     return ["Mathematics", "Sciences", "Language and Literature", "Language Acquisition", "Individuals and Societies"];
   }
-  if (cur.includes("cambridge") || cur.includes("igcse") || cur.includes("a-levels")) {
+  if (cur.some((c) => c.includes("cambridge") || c.includes("igcse") || c.includes("a-levels"))) {
     return ["Mathematics", "Sciences", "English Language", "Humanities", "Foreign Language"];
   }
   if (schoolStage === "high") {
@@ -77,21 +87,32 @@ const NO_REQUIRED_SUBJECTS = new Set<string>();
 
 const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors }: ParentStepProps) => {
   const gradeNumber = parseInt(formData.snapshotGrade, 10);
-  const isEarlyElementary = formData.schoolStage === "elementary" && (gradeNumber === 1 || gradeNumber === 2);
-
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(gradeNumber);
   const subjects = getSubjectsByGradeBand(formData.schoolStage, formData.currentCurriculum, gradeNumber);
   const activeSubjectList = isHigherSecondary ? HIGHER_SECONDARY_SUBJECTS : subjects;
-  const childFirstName = formData.childName.trim();
-  const subtitle = isEarlyElementary
-    ? "Let's identify the foundational areas to focus on, one at a time."
-    : childFirstName
-      ? `Let's explore the best academic path for ${childFirstName}.`
-      : "Let's map out what your child is currently studying, one subject at a time.";
 
   return (
-    <SectionCard icon={academicPathIcon} title="Academic Path" description="Tell us what the student studies today.">
-      <div className="-mt-4 text-sm text-muted-foreground">{subtitle}</div>
+    <SectionCard icon={academicPathIcon} title="Academic Path">
+      <div className="-mt-4 text-sm text-muted-foreground">Tell us what the student studies today.</div>
+
+      <QuestionCard
+        label="Overall Performance"
+        tooltip="A general sense of how your child is performing academically overall."
+        error={fieldErrors.overallPerformance}
+      >
+        <div role="radiogroup" aria-label="Overall Performance" className="flex flex-wrap gap-2">
+          {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
+            <InputCard
+              key={opt.value}
+              variant="chip"
+              mode="radio"
+              label={opt.label}
+              selected={formData.overallPerformance === opt.value}
+              onClick={() => onFieldChange("overallPerformance", opt.value)}
+            />
+          ))}
+        </div>
+      </QuestionCard>
 
       <AcademicPathFlashcards
         activeSubjectList={activeSubjectList}
@@ -119,37 +140,34 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
       <span id="academic-path-next-section" className="sr-only" aria-hidden="true" />
 
       {formData.schoolStage === "high" && (
-        <SectionContainer title="AP Courses & University Prep" description="High School only.">
-          <InputCard
-            variant="block"
-            className="w-full"
-            label="University Entrance Test Prep"
-            selected={formData.academicPath.includes("University Entrance Test Prep")}
-            onClick={() => onArrayToggle("academicPath", "University Entrance Test Prep")}
-          />
-
-          <QuestionCard
-            label="AP (Advanced Placement) Subjects"
-            tooltip="Any Advanced Placement courses your child is currently taking or has completed."
-          >
-            {/* Display label drops the redundant "(Advanced Placement)" prefix
-                (already stated in the question label above) — the stored
-                value in academicPath stays the full string, unchanged. This
-                is what was making long subjects like "...Computer Science
-                Principles" wrap to two lines and look uneven next to the
-                single-line pills. */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {AP_SUBJECTS.map((ap) => (
-                <InputCard
-                  key={ap}
-                  variant="chip"
-                  label={ap.replace("(Advanced Placement) ", "")}
-                  selected={formData.academicPath.includes(ap)}
-                  onClick={() => onArrayToggle("academicPath", ap)}
-                />
-              ))}
-            </div>
-          </QuestionCard>
+        <SectionContainer title="AP Courses & University Prep">
+          {/* One unified chip grid — University Entrance Test Prep sits
+              alongside the AP subjects rather than as its own separate
+              full-width block, so every option in this section reads the
+              same way (a tappable chip) instead of mixing a block-style
+              row with a grid of pills below it.
+              Display label drops the redundant "(Advanced Placement)" prefix
+              (already stated in the section title above) — the stored value
+              in academicPath stays the full string, unchanged. This is what
+              was making long subjects like "...Computer Science Principles"
+              wrap to two lines and look uneven next to the single-line pills. */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <InputCard
+              variant="chip"
+              label="University Entrance Test Prep"
+              selected={formData.academicPath.includes("University Entrance Test Prep")}
+              onClick={() => onArrayToggle("academicPath", "University Entrance Test Prep")}
+            />
+            {AP_SUBJECTS.map((ap) => (
+              <InputCard
+                key={ap}
+                variant="chip"
+                label={ap.replace("(Advanced Placement) ", "")}
+                selected={formData.academicPath.includes(ap)}
+                onClick={() => onArrayToggle("academicPath", ap)}
+              />
+            ))}
+          </div>
         </SectionContainer>
       )}
 

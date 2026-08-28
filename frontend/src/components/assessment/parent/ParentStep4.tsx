@@ -54,7 +54,7 @@ const SUPPORT_NEEDS = [
 
 const ParentStep4 = ({ formData, onFieldChange, onArrayToggle, fieldErrors }: ParentStepProps) => {
   const childFirstName = formData.childName.trim();
-  const title = childFirstName ? `Supporting ${childFirstName}` : "Support";
+  const title = childFirstName ? `Support for ${childFirstName}` : "Support";
 
   return (
     <SectionCard icon={nervousIcon} title={title} description="What concerns you, and how can we help?">

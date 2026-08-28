@@ -12,22 +12,33 @@ type SectionIcon = LucideIcon | string;
 interface SectionCardProps {
   icon: SectionIcon;
   title: string;
-  description: string;
+  /** Shown as a hover/tap info tooltip next to the title. Omit when the step
+   * already has its own always-visible description text below the title. */
+  description?: string;
+  /** Bobbing + orbiting-dot motion on the icon badge. Default true; set
+   * false for a static badge, e.g. when an `illustration` is present and the
+   * motion would compete with it. */
+  animated?: boolean;
+  /** Optional decorative image shown to the right of the icon badge, filling
+   * the otherwise-empty space next to it on wider screens. Hidden on small
+   * screens to avoid crowding the title. */
+  illustration?: string;
   children: ReactNode;
 }
 
-// Small animated scene above the title — a gently bobbing icon badge with
-// two tiny accent dots slowly orbiting it. Reuses the step's own icon and
+// Small scene above the title — an icon badge, optionally with a gentle bob
+// and two tiny accent dots slowly orbiting it. Reuses the step's own icon and
 // the existing brand gradient/mint/amber tones. Shared by both the Parent
 // and Student assessments as the single outer wrapper for a step's content.
-const StepIllustration = ({ icon: Icon }: { icon: SectionIcon }) => {
+const StepIllustration = ({ icon: Icon, animated }: { icon: SectionIcon; animated: boolean }) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
+  const motionEnabled = animated && !shouldReduceMotion;
 
   return (
-    <div className="relative mb-3 h-16 w-16" aria-hidden="true">
+    <div className="relative h-16 w-16 shrink-0" aria-hidden="true">
       <motion.div
         className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-cta text-white shadow-glow-sm"
-        animate={shouldReduceMotion ? undefined : { y: [0, -4, 0] }}
+        animate={motionEnabled ? { y: [0, -4, 0] } : undefined}
         transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
       >
         {typeof Icon === "string" ? (
@@ -39,7 +50,7 @@ const StepIllustration = ({ icon: Icon }: { icon: SectionIcon }) => {
         )}
       </motion.div>
 
-      {!shouldReduceMotion && (
+      {motionEnabled && (
         <motion.div
           className="absolute inset-0"
           animate={{ rotate: 360 }}
@@ -53,18 +64,39 @@ const StepIllustration = ({ icon: Icon }: { icon: SectionIcon }) => {
   );
 };
 
-const SectionCard = ({ icon: Icon, title, description, children }: SectionCardProps) => (
+const SectionCard = ({ icon: Icon, title, description, animated = true, illustration, children }: SectionCardProps) => (
   <motion.div
     className="rounded-2xl border border-border bg-card p-6 shadow-soft md:p-8"
     initial={{ opacity: 0, y: 16 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
   >
-    <StepIllustration icon={Icon} />
-
-    <div className="mb-6 flex items-center gap-1.5">
-      <h2 className="text-h3 text-foreground">{title}</h2>
-      {description && <InfoTooltip description={description} />}
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <StepIllustration icon={Icon} animated={animated} />
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-h3 text-foreground">{title}</h2>
+          {description && <InfoTooltip description={description} />}
+        </div>
+      </div>
+      {illustration && (
+        <div
+          className="hidden h-20 flex-1 overflow-hidden rounded-2xl sm:block sm:h-24 md:h-28"
+          style={{
+            WebkitMaskImage: "linear-gradient(to right, transparent, black 4%, black 96%, transparent)",
+            maskImage: "linear-gradient(to right, transparent, black 4%, black 96%, transparent)",
+          }}
+        >
+          <img
+            src={illustration}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="h-full w-full object-cover"
+            style={{ objectPosition: "32% 72%" }}
+          />
+        </div>
+      )}
     </div>
     <div className="space-y-6">{children}</div>
   </motion.div>

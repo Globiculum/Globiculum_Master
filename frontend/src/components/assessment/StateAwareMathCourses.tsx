@@ -77,12 +77,12 @@ export const programLevels = [
 ];
 
 // Get math courses based on state and curriculum
-export function getMathCourses(state: string, curriculum: string): MathCourse[] {
+export function getMathCourses(state: string, curriculum: string[]): MathCourse[] {
   // State-specific standards take priority
-  if (curriculum.includes('texas') || state === 'TX') {
+  if (curriculum.some((c) => c.includes('texas')) || state === 'TX') {
     return texasMathCourses;
   }
-  if (curriculum.includes('florida') || state === 'FL') {
+  if (curriculum.some((c) => c.includes('florida')) || state === 'FL') {
     return floridaMathCourses;
   }
   // Default to common core for all other cases
@@ -93,21 +93,21 @@ export function getMathCourses(state: string, curriculum: string): MathCourse[] 
 export function shouldApplyStateLogic(
   schoolStage: string,
   previousLocation: string,
-  curriculum: string,
+  curriculum: string[],
   usState: string
 ): boolean {
   // State-aware logic only for High School
   if (schoolStage !== 'high') return false;
-  
+
   // Only for US-educated students
   if (previousLocation !== 'us') return false;
-  
+
   // Only for state-specific or common core curricula
   const stateSpecificCurricula = [
     'texas-teks', 'florida-best', 'virginia-sol', 'ny-nextgen',
     'us-common-core', 'state-specific'
   ];
-  if (!stateSpecificCurricula.some(c => curriculum.includes(c) || curriculum === c)) return false;
+  if (!curriculum.some((cur) => stateSpecificCurricula.some(c => cur.includes(c) || cur === c))) return false;
   
   // State must be selected
   if (!usState || usState === 'other') return false;

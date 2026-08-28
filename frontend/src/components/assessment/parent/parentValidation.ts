@@ -41,12 +41,11 @@ const schoolProfileStepSchema = z
     childLastName: z.string().min(1, "Please enter your child's last name"),
     schoolStage: z.string().min(1, "Please select a school stage"),
     snapshotGrade: z.string().min(1, "Please select a grade"),
-    snapshotAge: z.string().min(1, "Please enter your child's age"),
     snapshotLocation: z.string().min(1, "Please select your child's current school country"),
     snapshotLocationOther: z.string().optional(),
     usState: z.string().optional(),
     usStateOther: z.string().optional(),
-    currentCurriculum: z.string().min(1, "Please select a curriculum"),
+    currentCurriculum: z.array(z.string()).min(1, "Please select at least one curriculum"),
     currentCurriculumOther: z.string().optional(),
     targetGoal: z.string().min(1, "Please select a target Indian board"),
     targetGrade: z.string().min(1, "Please select a target grade"),
@@ -62,17 +61,24 @@ const schoolProfileStepSchema = z
     if (data.usState === "other" && !data.usStateOther) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please specify your state", path: ["usStateOther"] });
     }
-    if (data.currentCurriculum === "other" && !data.currentCurriculumOther) {
+    if (data.currentCurriculum.includes("other") && !data.currentCurriculumOther) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please specify the curriculum", path: ["currentCurriculumOther"] });
     }
   });
 
 // Step 1: Academic Path — was canProceedFromStep case 1 (either subjects OR
-// languages is enough; flagged on academicPath since that section renders first).
+// languages is enough; flagged on academicPath since that section renders
+// first). overallPerformance used to be its own question in the Learning
+// Profile step, alongside a near-duplicate "Typical Grade Range" question —
+// both asked essentially the same thing in different wording. Kept the
+// required, more-used one (overallPerformance) and moved it here, next to
+// the per-subject picker it's a natural lead-in to; dropped the other
+// (previousGrades, never required) entirely. See ParentLearningProfileWizard.tsx.
 const academicPathStepSchema = z
   .object({
     academicPath: z.array(z.string()),
     selectedLanguages: z.array(z.string()),
+    overallPerformance: z.string().min(1, "Please select overall performance"),
   })
   .superRefine((data, ctx) => {
     if (data.academicPath.length === 0 && data.selectedLanguages.length === 0) {
@@ -84,16 +90,15 @@ const academicPathStepSchema = z
     }
   });
 
-// Step 2: Learning Profile — learningStyles/overallPerformance/strengthenGoals
-// were canProceedFromStep case 2. Strongest/Challenging Subjects are no
-// longer their own question (derived from subjectConfidences instead — see
-// ParentStep3.tsx and shared/submitAssessment.ts's deriveSubjectStrengths),
-// so there is no longer a field here to require or a place to show an error
-// for it.
+// Step 2: Learning Profile — learningStyles was canProceedFromStep case 2.
+// Strongest/Challenging Subjects are no longer their own question (derived
+// from subjectConfidences instead — see ParentStep3.tsx and
+// shared/submitAssessment.ts's deriveSubjectStrengths). strengthenGoals was
+// a separate "which subjects to strengthen" question that re-asked the same
+// ground as those derived subjects in different wording — removed as
+// redundant. overallPerformance moved to the Academic Path step (see above).
 const learningProfileStepSchema = z.object({
   learningStyles: z.array(z.string()).min(1, "Pick at least one learning style"),
-  overallPerformance: z.string().min(1, "Please select overall performance"),
-  strengthenGoals: z.array(z.string()).min(1, "Select at least one area to strengthen"),
 });
 
 // Step 3: Support — was canProceedFromStep case 3.

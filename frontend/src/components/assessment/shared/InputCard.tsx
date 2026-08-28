@@ -20,6 +20,11 @@ interface InputCardProps {
    * Defaults to a neutral muted-foreground grey when omitted. Selected state
    * always uses the semantic teal regardless of this prop. */
   iconColorClassName?: string;
+  /** "large" variant only — a flag graphic shown instead of `icon` (e.g.
+   * country flags — pass an inline SVG component, not a Unicode flag emoji,
+   * since Windows renders flag emoji as plain two-letter codes rather than
+   * pictures in most browsers). Takes priority over `icon` when both are given. */
+  emoji?: ReactNode;
   selected: boolean;
   onClick: () => void;
   /** ARIA role — "radio" for single-select groups, "checkbox" for multi-select groups. */
@@ -90,6 +95,7 @@ const InputCard = ({
   description,
   icon: Icon,
   iconColorClassName,
+  emoji,
   selected,
   onClick,
   mode = "checkbox",
@@ -134,7 +140,13 @@ const InputCard = ({
         >
           <CheckBadge selected={selected} size="h-2.5 w-2.5" />
         </span>
-        {Icon && <Icon className={cn("h-7 w-7", selected ? "text-secondary" : iconColorClassName ?? "text-muted-foreground")} />}
+        {emoji ? (
+          <span className="block h-6 w-8 overflow-hidden rounded-[3px] shadow-[0_0_0_1px_rgba(15,23,42,0.12)]" aria-hidden="true">
+            {emoji}
+          </span>
+        ) : (
+          Icon && <Icon className={cn("h-7 w-7", selected ? "text-secondary" : iconColorClassName ?? "text-muted-foreground")} />
+        )}
         <span className="text-sm font-semibold text-foreground">{label}</span>
         {description && <span className="text-caption text-muted-foreground">{description}</span>}
       </motion.button>

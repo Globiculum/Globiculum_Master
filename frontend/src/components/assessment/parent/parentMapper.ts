@@ -20,7 +20,7 @@ export interface ParentFormData {
   usState: string;
   usStateOther: string;
   snapshotAge: string;
-  currentCurriculum: string;
+  currentCurriculum: string[];
   currentCurriculumOther: string;
   curriculumType: string;
   reportCard: File | null;

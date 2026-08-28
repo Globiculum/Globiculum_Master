@@ -24,7 +24,7 @@ export interface AssessmentFormData {
   educationHistory: EducationHistoryEntry[];
 
   // ---- Academic Profile ----
-  currentCurriculum: string;
+  currentCurriculum: string[];
   currentCurriculumOther: string;
   curriculumType: string;
   // Custom "Other" subjects/languages live directly in academicPath /
@@ -76,7 +76,7 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   previouslyStudiedInIndia: "no",
   educationHistory: [],
 
-  currentCurriculum: "",
+  currentCurriculum: [],
   currentCurriculumOther: "",
   curriculumType: "",
   academicPath: [],

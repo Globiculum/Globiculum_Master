@@ -91,7 +91,12 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
               ? `United States${formData.usState ? ` (${formData.usState})` : ""}`
               : formData.snapshotLocationOther || prettify(formData.snapshotLocation),
         },
-        { label: "Current Curriculum", value: prettify(formData.currentCurriculumOther || formData.currentCurriculum) },
+        {
+          label: "Current Curriculum",
+          value: joinPrettyList(
+            formData.currentCurriculum.map((c) => (c === "other" ? formData.currentCurriculumOther || "other" : c))
+          ),
+        },
         { label: "Target Indian Board", value: prettify(formData.targetGoal) },
         { label: "Target Grade", value: targetGradeLabel(formData.targetGrade, formData.snapshotGrade) },
         { label: "Transition Timeline", value: prettify(formData.timeline) },
@@ -103,6 +108,7 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
       icon: academicPathIcon,
       rows: [
         { label: "Current Subjects", value: joinList(formData.academicPath) },
+        { label: "Overall Performance", value: prettify(formData.overallPerformance) },
         { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
         { label: "Language Proficiencies", value: joinRecord(formData.languageProficiencies) },
         { label: "Extracurriculars", value: joinList(formData.extracurriculars) },
@@ -115,11 +121,9 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
       icon: learningStyleIcon,
       rows: [
         { label: "Learning Styles", value: joinPrettyList(formData.learningStyles) },
-        { label: "Overall Performance", value: prettify(formData.overallPerformance) },
         { label: "Strongest Subjects", value: joinList(strongest) },
         { label: "Challenging Subjects", value: joinList(challenging) },
         { label: "Subject Confidences", value: joinRecord(formData.subjectConfidences) },
-        { label: "Areas to Strengthen", value: joinList(formData.strengthenGoals) },
       ],
     },
     {
