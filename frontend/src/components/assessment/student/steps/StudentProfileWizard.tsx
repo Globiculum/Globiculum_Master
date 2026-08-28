@@ -272,7 +272,7 @@ const buildCardSequence = (formData: AssessmentFormData): ProfileCard[] => {
     errorField: "currentCurriculum",
   });
 
-  if (formData.currentCurriculum === "other") {
+  if (formData.currentCurriculum.includes("other")) {
     cards.push({
       id: "curriculumOther",
       icon: GlobiculumPencilIcon,
@@ -322,7 +322,7 @@ const buildCardSequence = (formData: AssessmentFormData): ProfileCard[] => {
 // formData hasn't re-rendered yet at the moment a selection is made. This
 // sidesteps the race that array-index-based "next" would hit when a
 // selection itself changes which conditional card comes next.
-const nextCardId = (id: ProfileFieldId, snapshotLocation: string, currentCurriculum: string): ProfileFieldId | null => {
+const nextCardId = (id: ProfileFieldId, snapshotLocation: string, currentCurriculum: string[]): ProfileFieldId | null => {
   if (id === "country") {
     if (snapshotLocation === "us") return "usState";
     if (snapshotLocation === "other") return "countryOther";
@@ -330,7 +330,7 @@ const nextCardId = (id: ProfileFieldId, snapshotLocation: string, currentCurricu
   }
   if (id === "usState" || id === "countryOther") return "curriculum";
   if (id === "curriculum") {
-    return currentCurriculum === "other" ? "curriculumOther" : "targetBoard";
+    return currentCurriculum.includes("other") ? "curriculumOther" : "targetBoard";
   }
   if (id === "curriculumOther") return "targetBoard";
 
@@ -358,7 +358,7 @@ const isCardAnswered = (card: ProfileCard, formData: AssessmentFormData): boolea
     case "countryOther":
       return !!formData.snapshotLocationOther;
     case "curriculum":
-      return !!formData.currentCurriculum;
+      return formData.currentCurriculum.length > 0;
     case "curriculumOther":
       return !!formData.currentCurriculumOther;
     case "targetBoard":
@@ -388,8 +388,13 @@ const displayValue = (id: ProfileFieldId, formData: AssessmentFormData): string 
       return US_STATES.find((s) => s.value === formData.usState)?.label;
     case "countryOther":
       return formData.snapshotLocationOther || undefined;
-    case "curriculum":
-      return (CURRICULUM_BY_STAGE[formData.schoolStage] || []).find((c) => c.value === formData.currentCurriculum)?.label;
+    case "curriculum": {
+      const options = CURRICULUM_BY_STAGE[formData.schoolStage] || [];
+      const labels = formData.currentCurriculum
+        .map((v) => options.find((c) => c.value === v)?.label)
+        .filter((l): l is string => !!l);
+      return labels.length > 0 ? labels.join(", ") : undefined;
+    }
     case "curriculumOther":
       return formData.currentCurriculumOther || undefined;
     case "targetBoard":
@@ -423,7 +428,15 @@ const buildSummarySections = (formData: AssessmentFormData): SummarySection[] =>
       ? displayValue("countryOther", formData)
       : [displayValue("country", formData), stateLabel].filter(Boolean).join(" · ") || undefined;
 
-  const curriculumValue = formData.currentCurriculum === "other" ? displayValue("curriculumOther", formData) : displayValue("curriculum", formData);
+  const curriculumOptions = CURRICULUM_BY_STAGE[formData.schoolStage] || [];
+  const curriculumLabels = formData.currentCurriculum
+    .filter((v) => v !== "other")
+    .map((v) => curriculumOptions.find((c) => c.value === v)?.label)
+    .filter((l): l is string => !!l);
+  if (formData.currentCurriculum.includes("other") && formData.currentCurriculumOther) {
+    curriculumLabels.push(formData.currentCurriculumOther);
+  }
+  const curriculumValue = curriculumLabels.length > 0 ? curriculumLabels.join(", ") : undefined;
 
   const goalValue = formData.targetGrade
     ? [displayValue("targetBoard", formData), targetGradeLabel(formData.targetGrade, formData.snapshotGrade)].filter(Boolean).join(" · ") || undefined
@@ -528,6 +541,7 @@ const NavRow = ({ item, isLast }: { item: NavItem; isLast: boolean }) => {
 type NavRenderEntry = { type: "header"; key: string; label: Milestone } | { type: "item"; item: NavItem };
 
 const buildNavRenderEntries = (navItems: NavItem[]): NavRenderEntry[] => {
+  const currentMilestone = navItems.find((i) => i.status === "current")?.milestone;
   const entries: NavRenderEntry[] = [];
   let lastMilestone: Milestone | null = null;
   for (const item of navItems) {
@@ -535,7 +549,14 @@ const buildNavRenderEntries = (navItems: NavItem[]): NavRenderEntry[] => {
       entries.push({ type: "header", key: `header-${item.milestone}`, label: item.milestone });
       lastMilestone = item.milestone;
     }
-    entries.push({ type: "item", item });
+    // Keep the nav uncluttered: a not-yet-reached step only shows once its
+    // own milestone group is the one currently being worked on — future
+    // groups still show their header (so the roadmap stays visible) but not
+    // every individual field inside them yet. Anything already answered (or
+    // already passed) stays visible regardless of milestone.
+    if (item.status !== "upcoming" || item.milestone === currentMilestone) {
+      entries.push({ type: "item", item });
+    }
   }
   return entries;
 };
@@ -695,7 +716,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
     const nextId = nextCardId(
       currentCard.id,
       currentCard.id === "country" ? (value as string) : formData.snapshotLocation,
-      currentCard.id === "curriculum" ? (value as string) : formData.currentCurriculum
+      formData.currentCurriculum
     );
     advanceTo(nextId);
   };
@@ -703,6 +724,16 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
   const continueFromText = () => {
     if (isTransitioning) return;
     advanceTo(nextCardId(currentCard.id, formData.snapshotLocation, formData.currentCurriculum));
+  };
+
+  const continueFromCurriculum = () => {
+    if (isTransitioning || formData.currentCurriculum.length === 0) return;
+    advanceTo(nextCardId("curriculum", formData.snapshotLocation, formData.currentCurriculum));
+  };
+
+  const toggleCurriculum = (value: string) => {
+    const current = formData.currentCurriculum;
+    setField("currentCurriculum", current.includes(value) ? current.filter((v) => v !== value) : [...current, value]);
   };
 
   const continueFromName = () => {
@@ -889,7 +920,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
                       onClick={() =>
                         selectChoice("schoolStage", stage.value, () => {
                           setField("snapshotGrade", "");
-                          setField("currentCurriculum", "");
+                          setField("currentCurriculum", []);
                         })
                       }
                     />
@@ -979,17 +1010,33 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
 
             {currentCard.id === "curriculum" && (
               <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.currentCurriculum}>
-                <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div role="group" aria-label={currentCard.title} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {(CURRICULUM_BY_STAGE[formData.schoolStage] || []).map((c) => (
                     <InputCard
                       key={c.value}
                       variant="large"
-                      mode="radio"
+                      mode="checkbox"
                       label={c.label}
-                      selected={formData.currentCurriculum === c.value}
-                      onClick={() => selectChoice("currentCurriculum", c.value)}
+                      selected={formData.currentCurriculum.includes(c.value)}
+                      onClick={() => toggleCurriculum(c.value)}
                     />
                   ))}
+                </div>
+                <p className="mt-4 text-center text-xs font-medium text-muted-foreground">
+                  {formData.currentCurriculum.length} selected
+                </p>
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={continueFromCurriculum}
+                    disabled={formData.currentCurriculum.length === 0}
+                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                  >
+                    Next
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </span>
+                  </button>
                 </div>
               </CardFrame>
             )}

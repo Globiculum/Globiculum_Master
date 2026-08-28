@@ -21,7 +21,7 @@ export interface SubmittableFormData {
   schoolStage: string;
   snapshotGrade: string;
   snapshotAge: string;
-  currentCurriculum: string;
+  currentCurriculum: string[];
   timeline: string;
   snapshotLocation: string;
   usState: string;
@@ -118,7 +118,7 @@ export async function submitAssessment<T extends SubmittableFormData>({
     schoolStage: formData.schoolStage,
     snapshotGrade: parseInt(formData.snapshotGrade, 10) || 0,
     snapshotAge: formData.snapshotAge ? parseInt(formData.snapshotAge, 10) : undefined,
-    currentCurriculum: formData.currentCurriculum,
+    currentCurriculum: formData.currentCurriculum.join(", "),
     timeline: formData.timeline || undefined,
     snapshotLocation: formData.snapshotLocation || undefined,
     usState: formData.usState || undefined,
@@ -189,7 +189,7 @@ export async function submitAssessment<T extends SubmittableFormData>({
           snapshotLocation: formData.snapshotLocation || undefined,
           usState: formData.usState || undefined,
           previousCountry: formData.previousLocation || undefined,
-          currentCurriculum: formData.currentCurriculum || undefined,
+          currentCurriculum: formData.currentCurriculum.length > 0 ? formData.currentCurriculum.join(", ") : undefined,
           targetCurriculum: formData.targetGoal || formData.curriculumType || undefined,
           targetGoal: formData.targetGoal || undefined,
           academicPath: formData.academicPath.length > 0 ? formData.academicPath : undefined,

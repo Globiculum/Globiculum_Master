@@ -332,7 +332,6 @@ const AcademicPathFlashcards = ({
   const isOnCustomCard = cardIndex >= activeSubjectList.length;
   const currentSubject = isOnCustomCard ? null : activeSubjectList[cardIndex];
   const currentSubjectSelected = currentSubject ? subjectConfidences[currentSubject] : undefined;
-  const isRequired = currentSubject ? requiredSubjects.has(currentSubject) : false;
   const position = Math.min(cardIndex, totalCards - 1) + 1;
 
   const advance = () => {
@@ -676,16 +675,14 @@ const AcademicPathFlashcards = ({
                   ))}
                 </div>
 
-                {!isRequired && (
-                  <button
-                    type="button"
-                    onClick={() => skipSubject(currentSubject)}
-                    disabled={isTransitioning}
-                    className="mt-4 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-40"
-                  >
-                    {skipLabel}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => skipSubject(currentSubject)}
+                  disabled={isTransitioning}
+                  className="mt-4 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-40"
+                >
+                  {skipLabel}
+                </button>
                 </FlashcardShell>
               </motion.div>
             )

@@ -1,7 +1,6 @@
-import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, GraduationCap, Globe, ShieldCheck, Zap } from "lucide-react";
-import bgHeroVideo from "@/assets/BG-Video.mp4";
+import bgHeroImage from "@/assets/bg-hero-image.png";
 
 const STATS = [
   { icon: GraduationCap, value: "25+", label: "Families interviewed", color: "hsl(var(--mint))" },
@@ -11,17 +10,6 @@ const STATS = [
 ];
 
 const HeroSection = () => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Slows the loop so it reads as continuous ambient motion rather than a
-  // clip visibly restarting every few seconds — the source file's own
-  // loop point isn't seamless (no video-editing tooling here to trim/
-  // crossfade it), so this is the lever available: play it back slower,
-  // which also stretches out how often that seam is seen per minute.
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.playbackRate = 0.6;
-  }, []);
-
   return (
     <section id="main-content" tabIndex={-1} className="bg-primary relative overflow-hidden outline-none">
       {/* Hero band — the image (with its own baked-in badges) is sized only to this
@@ -31,22 +19,23 @@ const HeroSection = () => {
           px value) so the band adapts to laptop/desktop/large-monitor heights instead
           of over- or under-filling the screen; content is centered within it so the
           adaptive height doesn't just pad out empty space below the text. */}
-      <div className="relative flex min-h-[clamp(480px,78vh,760px)] flex-col justify-center overflow-hidden py-12 sm:py-16 md:py-20">
+      <div className="relative flex min-h-[clamp(560px,85vh,860px)] flex-col justify-center overflow-hidden py-12 sm:py-16 md:py-20">
         {/* Full-bleed — spans the whole section width (no max-width cap) so the
-            footage reaches the viewport edges on wide screens instead of leaving
-            bg-primary strips on either side. */}
+            image reaches the viewport edges on wide screens instead of leaving
+            bg-primary strips on either side. Going full-bleed makes the band's
+            aspect ratio much wider relative to its height than the image's own
+            source ratio, so object-cover has to crop more vertically to still
+            fill the width — that crop was eating the badges baked into the
+            bottom of the image. The taller min-height above (and the object-
+            position Y nudged down here) both exist to give it enough vertical
+            room that the crop doesn't reach that far down. */}
         <div className="absolute inset-0">
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            className="h-full w-full bg-primary object-cover object-[80%_30%]"
-          >
-            <source src={bgHeroVideo} type="video/mp4" />
-          </video>
+          <img
+            src={bgHeroImage}
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full bg-primary object-cover object-[80%_38%]"
+          />
         </div>
         {/* Below lg, the text column (max-w-2xl) exceeds the viewport width, so the
             left-to-right desktop gradient (tuned for text confined to the left ~45%)
@@ -56,14 +45,14 @@ const HeroSection = () => {
             actually room for the image to read as a distinct right-hand visual.
             The mid stop leans on Academic Teal rather than navy so the band
             reads as branded teal, not a flat navy wash over the footage. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/85 via-secondary/35 to-primary/25 lg:bg-gradient-to-r lg:from-primary/85 lg:via-secondary/25 lg:to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/85 via-secondary/25 to-primary/10 lg:bg-gradient-to-r lg:from-primary/85 lg:via-secondary/15 lg:to-transparent" />
 
         {/* Bottom fade — dissolves the footage into solid bg-primary right before
             the band ends, so it blends into the stats section below instead of
             cutting off hard against it (the seam became far more visible once the
             video went full-bleed edge-to-edge instead of sitting in a 1400px column
             with navy on either side to soften it). */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-primary to-transparent sm:h-36" aria-hidden="true" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-primary to-transparent sm:h-14" aria-hidden="true" />
 
         <div className="relative mx-auto w-full max-w-[1920px] px-[clamp(1rem,4vw,5rem)]">
           <div className="max-w-2xl space-y-6 sm:space-y-8">

@@ -30,7 +30,7 @@ const studentProfileStepSchema = z
     snapshotGrade: z.string().min(1, "Please select a grade"),
     snapshotLocation: z.string().min(1, "Please select your school's country"),
     usState: z.string().optional(),
-    currentCurriculum: z.string().min(1, "Please select your current curriculum"),
+    currentCurriculum: z.array(z.string()).min(1, "Please select at least one curriculum"),
     targetGoal: z.string().min(1, "Please select a target Indian board"),
     targetGrade: z.string().min(1, "Please select a target grade"),
     timeline: z.string().min(1, "Please select a transition timeline"),

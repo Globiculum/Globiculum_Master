@@ -43,7 +43,7 @@ const createDefaultParentFormData = (): ParentFormData => ({
   usState: "",
   usStateOther: "",
   snapshotAge: "",
-  currentCurriculum: "",
+  currentCurriculum: [],
   currentCurriculumOther: "",
   curriculumType: "",
   reportCard: null,
@@ -104,7 +104,13 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
     usState: prefillData.usState || defaults.usState,
     usStateOther: prefillData.usStateOther || defaults.usStateOther,
     snapshotAge: prefillData.snapshotAge ? String(prefillData.snapshotAge) : defaults.snapshotAge,
-    currentCurriculum: prefillData.currentCurriculum || defaults.currentCurriculum,
+    // Older saved reports stored currentCurriculum as a single string —
+    // normalize into the list shape this field now uses.
+    currentCurriculum: Array.isArray(prefillData.currentCurriculum)
+      ? prefillData.currentCurriculum
+      : prefillData.currentCurriculum
+        ? [prefillData.currentCurriculum]
+        : defaults.currentCurriculum,
     currentCurriculumOther: prefillData.currentCurriculumOther || defaults.currentCurriculumOther,
     curriculumType: prefillData.curriculumType || defaults.curriculumType,
     previousLocation: prefillData.previousLocation || defaults.previousLocation,

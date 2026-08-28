@@ -40,7 +40,7 @@ const HIGHER_SECONDARY_SUBJECTS = [
   "History", "Political Science", "Geography", "Psychology", "Sociology",
 ];
 
-const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string, gradeNumber: number) => {
+const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string[], gradeNumber: number) => {
   if (schoolStage === "elementary" && (gradeNumber === 1 || gradeNumber === 2)) {
     return ["Reading & Comprehension", "Foundational Math", "Writing Skills", "General Awareness / Environmental Learning"];
   }
@@ -48,12 +48,12 @@ const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string, 
     return ["Mathematics", "English / Language Arts", "Basic Science", "Social Studies", "Foreign Language"];
   }
 
-  const cur = (currentCurriculum || "").toLowerCase();
+  const cur = (currentCurriculum || []).map((c) => c.toLowerCase());
 
-  if (cur.includes("ib")) {
+  if (cur.some((c) => c.includes("ib"))) {
     return ["Mathematics", "Sciences", "Language and Literature", "Language Acquisition", "Individuals and Societies"];
   }
-  if (cur.includes("cambridge") || cur.includes("igcse") || cur.includes("a-levels")) {
+  if (cur.some((c) => c.includes("cambridge") || c.includes("igcse") || c.includes("a-levels"))) {
     return ["Mathematics", "Sciences", "English Language", "Humanities", "Foreign Language"];
   }
   if (schoolStage === "high") {

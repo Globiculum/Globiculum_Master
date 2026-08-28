@@ -91,7 +91,12 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
               ? `United States${formData.usState ? ` (${formData.usState})` : ""}`
               : formData.snapshotLocationOther || prettify(formData.snapshotLocation),
         },
-        { label: "Current Curriculum", value: prettify(formData.currentCurriculumOther || formData.currentCurriculum) },
+        {
+          label: "Current Curriculum",
+          value: joinPrettyList(
+            formData.currentCurriculum.map((c) => (c === "other" ? formData.currentCurriculumOther || "other" : c))
+          ),
+        },
         { label: "Target Indian Board", value: prettify(formData.targetGoal) },
         { label: "Target Grade", value: targetGradeLabel(formData.targetGrade, formData.snapshotGrade) },
         { label: "Transition Timeline", value: prettify(formData.timeline) },

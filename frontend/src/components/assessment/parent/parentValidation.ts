@@ -41,12 +41,11 @@ const schoolProfileStepSchema = z
     childLastName: z.string().min(1, "Please enter your child's last name"),
     schoolStage: z.string().min(1, "Please select a school stage"),
     snapshotGrade: z.string().min(1, "Please select a grade"),
-    snapshotAge: z.string().min(1, "Please enter your child's age"),
     snapshotLocation: z.string().min(1, "Please select your child's current school country"),
     snapshotLocationOther: z.string().optional(),
     usState: z.string().optional(),
     usStateOther: z.string().optional(),
-    currentCurriculum: z.string().min(1, "Please select a curriculum"),
+    currentCurriculum: z.array(z.string()).min(1, "Please select at least one curriculum"),
     currentCurriculumOther: z.string().optional(),
     targetGoal: z.string().min(1, "Please select a target Indian board"),
     targetGrade: z.string().min(1, "Please select a target grade"),
@@ -62,7 +61,7 @@ const schoolProfileStepSchema = z
     if (data.usState === "other" && !data.usStateOther) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please specify your state", path: ["usStateOther"] });
     }
-    if (data.currentCurriculum === "other" && !data.currentCurriculumOther) {
+    if (data.currentCurriculum.includes("other") && !data.currentCurriculumOther) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please specify the curriculum", path: ["currentCurriculumOther"] });
     }
   });

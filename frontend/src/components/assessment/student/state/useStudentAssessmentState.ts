@@ -19,10 +19,19 @@ export interface UseStudentAssessmentStateResult {
 export function useStudentAssessmentState(
   prefillData?: Partial<AssessmentFormData>
 ): UseStudentAssessmentStateResult {
-  const [formData, setFormData] = useState<AssessmentFormData>(() => ({
-    ...createDefaultAssessmentFormData(),
-    ...prefillData,
-  }));
+  const [formData, setFormData] = useState<AssessmentFormData>(() => {
+    const defaults = createDefaultAssessmentFormData();
+    const merged: AssessmentFormData = { ...defaults, ...prefillData };
+    // Older saved reports stored currentCurriculum as a single string —
+    // normalize into the list shape this field now uses.
+    const rawCurriculum = prefillData?.currentCurriculum as unknown;
+    merged.currentCurriculum = Array.isArray(rawCurriculum)
+      ? rawCurriculum
+      : typeof rawCurriculum === "string" && rawCurriculum
+        ? [rawCurriculum]
+        : defaults.currentCurriculum;
+    return merged;
+  });
 
   const setField = <K extends keyof AssessmentFormData>(field: K, value: AssessmentFormData[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

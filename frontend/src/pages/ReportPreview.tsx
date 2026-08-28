@@ -63,6 +63,14 @@ const humanizeUSState = (code?: string): string => {
   return US_STATE_NAMES[code.toUpperCase()] || humanizeSlug(code);
 };
 
+// currentCurriculum moved from a single string to a list; older saved
+// reports (pre-migration assessment_data) may still store it as a plain
+// string, so this accepts either shape.
+const humanizeCurriculumList = (value: unknown): string => {
+  const list = Array.isArray(value) ? value : typeof value === "string" && value ? [value] : [];
+  return list.map((v) => humanizeSlug(v)).filter(Boolean).join(", ");
+};
+
 // targetGrade is stored relative to snapshotGrade ("same" | "next") — this only
 // derives a display label for the already-captured value, it doesn't change how
 // the assessment stores or scores the grade.
@@ -88,7 +96,7 @@ const buildTransitionSummary = (formData: any): string => {
   const currentState = formData.snapshotLocation === "us" && formData.usState
     ? (formData.usState === "other" ? (formData.usStateOther || "") : humanizeUSState(formData.usState))
     : "";
-  const currentCurriculum = humanizeSlug(formData.currentCurriculum);
+  const currentCurriculum = humanizeCurriculumList(formData.currentCurriculum);
   const currentGrade = formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "";
   const currentDetail = [currentState, currentCurriculum, currentGrade].filter(Boolean).join(", ");
   const currentLabel = currentDetail ? `${currentCountry} (${currentDetail})` : currentCountry;
@@ -117,7 +125,7 @@ const buildProfileGrid = (formData: any): { label: string; value: string }[] => 
   const age = formData.snapshotAge ? ` (Age ${formData.snapshotAge})` : "";
 
   const originGrade = formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "";
-  const originCurriculum = humanizeSlug(formData.currentCurriculum);
+  const originCurriculum = humanizeCurriculumList(formData.currentCurriculum);
   const originLabel = [originCurriculum, originGrade].filter(Boolean).join(" – ") || "—";
 
   const targetGradeLabel = computeTargetGradeLabel(formData.snapshotGrade, formData.targetGrade);
@@ -676,7 +684,7 @@ const DEV_MOCK_FORM_DATA = {
   snapshotGrade: "5",
   snapshotLocation: "us",
   usState: "TX",
-  currentCurriculum: "us-common-core",
+  currentCurriculum: ["us-common-core"],
   targetGoal: "cbse",
   targetGrade: "next",
   timeline: "3-6-months",
@@ -867,6 +875,19 @@ const ReportPreview = () => {
       return value || undefined;
     };
 
+    // currentCurriculum moved from a single string to a list; older saved
+    // reports may still have it as a plain string, so this accepts either
+    // shape and resolves any "other" entry to the free-text value.
+    const resolveCurriculumList = (value: unknown, otherValue: unknown): string | undefined => {
+      const list = Array.isArray(value) ? value : typeof value === "string" && value ? [value] : [];
+      if (list.length === 0) return undefined;
+      const other = typeof otherValue === "string" ? otherValue.trim() : "";
+      const resolved = list
+        .filter((c): c is string => typeof c === "string" && c.length > 0)
+        .map((c) => (c === "other" ? other || "Other" : c));
+      return resolved.length > 0 ? resolved.join(", ") : undefined;
+    };
+
     const buildCurriculumFormData = (raw: any) => {
       const gradeRaw = raw?.snapshotGrade;
       const gradeNum =
@@ -884,7 +905,7 @@ const ReportPreview = () => {
           : raw?.snapshotLocation;
 
       const usState = normalizeOther(raw?.usState, raw?.usStateOther);
-      const currentCurriculum = normalizeOther(raw?.currentCurriculum, raw?.currentCurriculumOther);
+      const currentCurriculum = resolveCurriculumList(raw?.currentCurriculum, raw?.currentCurriculumOther);
       const targetGoal = normalizeOther(raw?.targetGoal, raw?.targetGoalOther);
       const targetCurriculum = normalizeOther(raw?.targetCurriculum, raw?.targetCurriculumOther) || targetGoal;
 
@@ -1603,7 +1624,10 @@ const ReportPreview = () => {
                   );
                 })()}
 
-                {/* E2. Critical Gaps Prioritised by Academic Impact */}
+                {/* E2. Critical Gaps Prioritised by Academic Impact — grouped by
+                    priority into collapsible sections (High expanded by default,
+                    Medium/Low collapsed) so a long gap list doesn't force one
+                    long scroll, mirroring the Subject-wise Gap Analysis pattern. */}
                 {analysis && (() => {
                   const criticalGapsTable = buildCriticalGapsTable(analysis);
                   if (criticalGapsTable.length === 0) return null;
@@ -1613,6 +1637,10 @@ const ReportPreview = () => {
                     Medium: "bg-accent/10 text-accent-contrast",
                     Low: "bg-muted text-muted-foreground",
                   };
+                  const priorityGroups = (["High", "Medium", "Low"] as const)
+                    .map((priority) => ({ priority, gaps: criticalGapsTable.filter((g) => g.priority === priority) }))
+                    .filter((group) => group.gaps.length > 0);
+
                   return (
                     <div className="rounded-xl border border-border bg-muted/20 p-4">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -1623,28 +1651,47 @@ const ReportPreview = () => {
                           {criticalGapsTable.length} Gap{criticalGapsTable.length === 1 ? "" : "s"} Total · {highCount} High Priority
                         </span>
                       </div>
-                      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-background">
-                        {criticalGapsTable.map((g, i) => (
-                          <div key={i} className="flex flex-col gap-1 px-3 py-2.5 text-xs sm:flex-row sm:items-center sm:gap-3">
-                            <span
-                              className={`inline-block w-fit shrink-0 rounded px-1.5 py-0.5 text-center text-[10px] font-bold uppercase sm:w-16 ${priorityStyle[g.priority]}`}
-                            >
-                              {g.priority}
-                            </span>
-                            <span className="shrink-0 font-semibold text-foreground sm:w-36">
-                              {g.url ? (
-                                <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
-                                  {g.topic}
-                                </a>
-                              ) : (
-                                g.topic
-                              )}
-                            </span>
-                            <span className="text-muted-foreground sm:flex-1">{g.description}</span>
-                            <span className="shrink-0 text-xs font-semibold text-secondary sm:w-16 sm:text-right">
-                              {g.weeks} Week{g.weeks === 1 ? "" : "s"}
-                            </span>
-                          </div>
+                      <div className="space-y-2.5">
+                        {priorityGroups.map(({ priority, gaps }) => (
+                          <Collapsible
+                            key={priority}
+                            defaultOpen={priority === "High"}
+                            className="overflow-hidden rounded-lg border border-border bg-background"
+                          >
+                            <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-left">
+                              <div className="flex items-center gap-2">
+                                <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${priorityStyle[priority]}`}>
+                                  {priority}
+                                </span>
+                                <span className="text-xs font-semibold text-foreground">
+                                  {gaps.length} Gap{gaps.length === 1 ? "" : "s"}
+                                </span>
+                              </div>
+                              <ChevronDown
+                                className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
+                                aria-hidden="true"
+                              />
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="divide-y divide-border border-t border-border">
+                              {gaps.map((g, i) => (
+                                <div key={i} className="flex flex-col gap-1 px-3 py-2.5 text-xs sm:flex-row sm:items-center sm:gap-3">
+                                  <span className="shrink-0 font-semibold text-foreground sm:w-36">
+                                    {g.url ? (
+                                      <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
+                                        {g.topic}
+                                      </a>
+                                    ) : (
+                                      g.topic
+                                    )}
+                                  </span>
+                                  <span className="text-muted-foreground sm:flex-1">{g.description}</span>
+                                  <span className="shrink-0 text-xs font-semibold text-secondary sm:w-16 sm:text-right">
+                                    {g.weeks} Week{g.weeks === 1 ? "" : "s"}
+                                  </span>
+                                </div>
+                              ))}
+                            </CollapsibleContent>
+                          </Collapsible>
                         ))}
                       </div>
                     </div>
@@ -1766,14 +1813,21 @@ const ReportPreview = () => {
 
                 {/* G. Personalized Recommendations — Student Checklist / Teacher Recommendations / Learning Resources */}
                 {analysis && (() => {
-                  // Check if source and target curriculum match (e.g. IB → IB)
-                  const currentCurr = (formData.currentCurriculum || "").toLowerCase();
+                  // Check if source and target curriculum match (e.g. IB → IB).
+                  // currentCurriculum may still be a legacy string on older saved reports.
+                  const currentCurrList: string[] = Array.isArray(formData.currentCurriculum)
+                    ? formData.currentCurriculum
+                    : typeof formData.currentCurriculum === "string" && formData.currentCurriculum
+                      ? [formData.currentCurriculum]
+                      : [];
+                  const currentCurrLower = currentCurrList.map((c) => c.toLowerCase());
                   const targetGoal = (formData.targetGoal || "").toLowerCase();
-                  const isSameCurriculum = (
-                    (currentCurr.includes("ib") && targetGoal.includes("ib")) ||
-                    (currentCurr.includes("igcse") && targetGoal.includes("igcse")) ||
-                    (currentCurr.includes("cambridge") && targetGoal.includes("igcse"))
+                  const matchedCurriculum = currentCurrLower.find((c) =>
+                    (c.includes("ib") && targetGoal.includes("ib")) ||
+                    (c.includes("igcse") && targetGoal.includes("igcse")) ||
+                    (c.includes("cambridge") && targetGoal.includes("igcse"))
                   );
+                  const isSameCurriculum = !!matchedCurriculum;
 
                   const studentChecklist = buildStudentChecklist(analysis);
                   const teacherRecommendations = buildTeacherRecommendations(analysis);
@@ -1796,7 +1850,7 @@ const ReportPreview = () => {
                         <div className="rounded-md border border-border bg-muted/30 p-2.5">
                           <div className="mb-0.5 text-xs font-medium text-foreground">Same Curriculum Detected</div>
                           <p className="text-xs text-muted-foreground">
-                            Your child is already studying in a {currentCurr.includes("ib") ? "IB" : "IGCSE/Cambridge"} curriculum.
+                            Your child is already studying in a {matchedCurriculum?.includes("ib") ? "IB" : "IGCSE/Cambridge"} curriculum.
                             Recommendations focus on continuation within the same framework rather than cross-curriculum bridging.
                           </p>
                         </div>
