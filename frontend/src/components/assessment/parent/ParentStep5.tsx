@@ -108,6 +108,7 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
       icon: academicPathIcon,
       rows: [
         { label: "Current Subjects", value: joinList(formData.academicPath) },
+        { label: "Overall Performance", value: prettify(formData.overallPerformance) },
         { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
         { label: "Language Proficiencies", value: joinRecord(formData.languageProficiencies) },
         { label: "Extracurriculars", value: joinList(formData.extracurriculars) },
@@ -120,11 +121,9 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
       icon: learningStyleIcon,
       rows: [
         { label: "Learning Styles", value: joinPrettyList(formData.learningStyles) },
-        { label: "Overall Performance", value: prettify(formData.overallPerformance) },
         { label: "Strongest Subjects", value: joinList(strongest) },
         { label: "Challenging Subjects", value: joinList(challenging) },
         { label: "Subject Confidences", value: joinRecord(formData.subjectConfidences) },
-        { label: "Areas to Strengthen", value: joinList(formData.strengthenGoals) },
       ],
     },
     {

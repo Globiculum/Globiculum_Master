@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import {
   GlobiculumChecklistIcon,
-  GlobiculumCurriculumIcon,
   GlobiculumGlobeIcon,
   GlobiculumGradeIcon,
   GlobiculumIconTile,
@@ -19,6 +18,13 @@ import {
   GlobiculumStudentIcon,
   GlobiculumTargetIcon,
   GlobiculumTimelineIcon,
+  UsFlag,
+  CaFlag,
+  GbFlag,
+  AuFlag,
+  AeFlag,
+  SgFlag,
+  MyFlag,
   type GlobiculumIconProps,
 } from "@/components/icons";
 import InputCard from "../shared/InputCard";
@@ -65,14 +71,14 @@ const getGradeOptions = (schoolStage: string) => {
 // product decision to preview upcoming coverage) but are disabled. Verbatim
 // from ParentStep1.tsx.
 const COUNTRIES = [
-  { value: "us", label: "United States", enabled: true },
-  { value: "canada", label: "Canada", enabled: false },
-  { value: "uk", label: "United Kingdom", enabled: false },
-  { value: "australia", label: "Australia", enabled: false },
-  { value: "uae", label: "UAE / Gulf", enabled: false },
-  { value: "singapore", label: "Singapore", enabled: false },
-  { value: "malaysia", label: "Malaysia", enabled: false },
-  { value: "other", label: "Other", enabled: false },
+  { value: "us", label: "United States", enabled: true, Flag: UsFlag },
+  { value: "canada", label: "Canada", enabled: false, Flag: CaFlag },
+  { value: "uk", label: "United Kingdom", enabled: false, Flag: GbFlag },
+  { value: "australia", label: "Australia", enabled: false, Flag: AuFlag },
+  { value: "uae", label: "UAE / Gulf", enabled: false, Flag: AeFlag },
+  { value: "singapore", label: "Singapore", enabled: false, Flag: SgFlag },
+  { value: "malaysia", label: "Malaysia", enabled: false, Flag: MyFlag },
+  { value: "other", label: "Other", enabled: false, Flag: undefined },
 ];
 
 const TARGET_BOARDS = [
@@ -247,7 +253,7 @@ const buildCardSequence = (formData: ParentFormData): ProfileCard[] => {
 
   cards.push({
     id: "curriculum",
-    icon: GlobiculumCurriculumIcon,
+    icon: BookOpen,
     tileColor: "violet",
     milestone: "School Details",
     navLabel: "Curriculum",
@@ -426,7 +432,7 @@ const buildSummarySections = (formData: ParentFormData): SummarySection[] => {
     { key: "school", icon: GlobiculumSchoolIcon, tileColor: "teal", label: "School Stage", value: displayValue("schoolStage", formData), editCardId: "schoolStage" },
     { key: "grade", icon: GlobiculumGradeIcon, tileColor: "violet", label: "Grade", value: displayValue("grade", formData), editCardId: "grade" },
     { key: "location", icon: GlobiculumGlobeIcon, tileColor: "teal", label: "Location", value: locationValue, editCardId: "country" },
-    { key: "curriculum", icon: GlobiculumCurriculumIcon, tileColor: "violet", label: "Curriculum", value: curriculumValue, editCardId: "curriculum" },
+    { key: "curriculum", icon: BookOpen, tileColor: "violet", label: "Curriculum", value: curriculumValue, editCardId: "curriculum" },
     { key: "goal", icon: GlobiculumTargetIcon, tileColor: "amber", label: "Goal", value: goalValue, editCardId: "targetBoard" },
     { key: "timeline", icon: GlobiculumTimelineIcon, tileColor: "teal", label: "Timeline", value: displayValue("timeline", formData), editCardId: "timeline" },
   ];
@@ -915,6 +921,7 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
                       mode="radio"
                       icon={Globe2}
                       iconColorClassName="text-secondary/70"
+                      emoji={loc.Flag ? <loc.Flag /> : undefined}
                       label={loc.label}
                       description={loc.enabled ? "Available" : "Coming Soon"}
                       selected={formData.snapshotLocation === loc.value}

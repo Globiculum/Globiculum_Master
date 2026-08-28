@@ -16,4 +16,5 @@ export { default as GlobiculumPencilIcon } from "./GlobiculumPencilIcon";
 export { default as GlobiculumEducationIcon } from "./GlobiculumEducationIcon";
 export { default as GlobiculumChecklistIcon } from "./GlobiculumChecklistIcon";
 export { default as GlobiculumIconTile, type GlobiculumIconTileTone } from "./GlobiculumIconTile";
+export { UsFlag, CaFlag, GbFlag, AuFlag, AeFlag, SgFlag, MyFlag } from "./CountryFlags";
 export type { GlobiculumIconProps } from "./types";

@@ -47,12 +47,9 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors }: Stu
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(formData.snapshotGrade);
   const activeSubjectList = isHigherSecondary ? HIGHER_SECONDARY_SUBJECTS : SUBJECTS;
   const requiredSubjects = isHigherSecondary ? new Set<string>() : REQUIRED_SUBJECTS;
-  const firstName = formData.studentName.trim();
-  const subtitle = firstName ? `Let's explore the best academic path for ${firstName}.` : "Let’s build your academic path, one subject at a time.";
-
   return (
-    <SectionCard icon={academicPathIcon} title="Academic Path" description="Tell us what you're studying right now.">
-      <div className="-mt-4 text-sm text-muted-foreground">{subtitle}</div>
+    <SectionCard icon={academicPathIcon} title="Academic Path">
+      <div className="-mt-4 text-sm text-muted-foreground">Tell us what you're studying right now.</div>
 
       <AcademicPathFlashcards
         activeSubjectList={activeSubjectList}

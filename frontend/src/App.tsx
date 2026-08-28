@@ -65,13 +65,13 @@ const App = () => (
             path="/report-preview"
             element={<ReportPreviewRoute />}
           />
-          <Route 
-            path="/reports" 
+          <Route
+            path="/reports"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute skipOnboardingCheck>
                 <ReportsHistory />
               </ProtectedRoute>
-            } 
+            }
           />
           <Route 
             path="/content-export" 

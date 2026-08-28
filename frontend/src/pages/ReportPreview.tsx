@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { FileText, Download, ArrowLeft, Target, AlertTriangle, Loader2, GitCompareArrows, Layers, GraduationCap, School, BookOpen, Youtube, FileQuestion, Sparkles, TrendingUp, Clock, Gauge, Globe2, MessageCircleQuestion, ChevronDown } from "lucide-react";
+import { FileText, Download, ArrowLeft, Target, AlertTriangle, Loader2, GitCompareArrows, Layers, GraduationCap, School, BookOpen, Youtube, FileQuestion, Sparkles, TrendingUp, Clock, Gauge, Globe2, MessageCircleQuestion, ChevronDown, Share2 } from "lucide-react";
 import ReportComparison from "@/components/ReportComparison";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -389,15 +389,24 @@ const buildMonthlyBridgePlan = (
   });
 };
 
-const buildWhyStartNow = (analysis: AnalysisData): string => {
+// Returns 2-3 short points instead of one long paragraph — same underlying
+// facts (top gaps, estimated duration), just broken up for scannability.
+const buildWhyStartNow = (analysis: AnalysisData): string[] => {
   const topGaps = analysis.criticalGaps.slice(0, 2).map(getGapTopic);
   const duration = analysis.overallAlignment.estimatedDuration;
   if (topGaps.length === 0) {
-    return `Beginning preparation now keeps the plan on track for the estimated ${duration} timeline, rather than compressing everything into the final weeks.`;
+    return [
+      `Beginning preparation now keeps the plan on track for the estimated ${duration} timeline.`,
+      "Waiting risks compressing everything into the final weeks.",
+    ];
   }
   const gapPhrase = topGaps.join(" and ");
   const plural = analysis.criticalGaps.length > 1;
-  return `The highest-priority gap${plural ? "s" : ""} — ${gapPhrase} — carr${plural ? "y" : "ies"} the greatest academic impact and should be addressed first. Starting preparation now keeps the overall plan on track for the estimated ${duration} timeline, rather than compressing everything into the final weeks.`;
+  return [
+    `The highest-priority gap${plural ? "s" : ""} — ${gapPhrase} — carr${plural ? "y" : "ies"} the greatest academic impact and should be addressed first.`,
+    `Starting preparation now keeps the overall plan on track for the estimated ${duration} timeline.`,
+    "Waiting risks compressing everything into the final weeks.",
+  ];
 };
 
 // Prioritizes real resource links, then falls back to real study/skill tips —
@@ -465,45 +474,6 @@ const buildStudentChecklist = (analysis: AnalysisData): string[] => {
 const buildTeacherRecommendations = (analysis: AnalysisData): string[] =>
   [...analysis.recommendations.skillStrategy, ...analysis.recommendations.culturalLanguage].slice(0, 3);
 
-// Every subject's alignment % is real. There is no per-subject "study hours"
-// field anywhere in the backend response, so hour figures below are an
-// ESTIMATE constructed from that real gap size — disclosed via the on-page
-// captions, not a hidden score. HOURS_PER_WEEK_AT_FULL_GAP and the weekly
-// taper are fixed, transparent planning assumptions, not derived data.
-const HOURS_PER_WEEK_AT_FULL_GAP = 5;
-const WEEKLY_PLAN_WEEKS = 4;
-const WEEKLY_PLAN_TAPER = [1, 0.9, 0.8, 0.7];
-
-const subjectGapPercentages = (analysis: AnalysisData): { subject: string; percentage: number }[] =>
-  analysis.subjectAnalysis.map((s) => ({
-    subject: s.subject,
-    percentage: s.totalTopics > 0 ? Math.round((s.topicsCovered / s.totalTopics) * 100) : 0,
-  }));
-
-// Total estimated hours per subject to close its gap, scaled against the
-// report's own real estimated preparation length (via extractMonthCount).
-const buildStudyHoursToCloseGaps = (analysis: AnalysisData): { subject: string; hours: number }[] => {
-  const totalWeeks = extractMonthCount(analysis) * 4;
-  return subjectGapPercentages(analysis).map(({ subject, percentage }) => ({
-    subject,
-    hours: Math.round(((100 - percentage) / 100) * totalWeeks * HOURS_PER_WEEK_AT_FULL_GAP),
-  }));
-};
-
-// A near-term (4-week) weekly hour allocation per subject, front-loaded then
-// tapering — the same disclosed, uniform taper applied to every subject.
-const buildWeeklyStudyPlan = (
-  analysis: AnalysisData
-): { subjects: string[]; rows: { week: number; hours: number[] }[] } => {
-  const subjects = subjectGapPercentages(analysis);
-  const baseWeeklyHours = subjects.map(({ percentage }) => Math.max(1, Math.round(((100 - percentage) / 100) * 6)));
-  const rows = Array.from({ length: WEEKLY_PLAN_WEEKS }, (_, weekIdx) => ({
-    week: weekIdx + 1,
-    hours: baseWeeklyHours.map((h) => Math.max(1, Math.round(h * WEEKLY_PLAN_TAPER[weekIdx]))),
-  }));
-  return { subjects: subjects.map((s) => s.subject), rows };
-};
-
 // Cycles through the app's own brand tokens (already used throughout this
 // report) rather than introducing new colors, so each subject row gets a
 // distinct, on-brand chip color.
@@ -518,38 +488,6 @@ const SUBJECT_CHIP_PALETTE: { bg: string; fg: string }[] = [
   { bg: "bg-primary", fg: "text-primary-foreground" },
   { bg: "bg-destructive", fg: "text-destructive-foreground" },
 ];
-
-// One real gap topic per week, per subject (from subject.keyGaps, the same
-// field the Subject-wise Gap Analysis cards already use), shown in full —
-// no truncation. Once a subject's real topics run out — e.g. it only had 2
-// flagged gaps — the remaining weeks show a muted generic "Review" chip
-// rather than inventing more topics. hoursPerWeek reuses buildWeeklyStudyPlan's
-// real Week-1 rate.
-const buildWeeklyStudyStream = (
-  analysis: AnalysisData
-): { subject: string; hoursPerWeek: number; chip: { bg: string; fg: string }; weeks: { label: string; muted: boolean }[] }[] => {
-  const weeklyPlan = buildWeeklyStudyPlan(analysis);
-  return analysis.subjectAnalysis.map((subject, i) => {
-    const topics = subject.keyGaps.map(getGapTopic);
-    const weeks = Array.from({ length: WEEKLY_PLAN_WEEKS }, (_, weekIdx) => {
-      const topic = topics[weekIdx];
-      return topic ? { label: topic, muted: false } : { label: "Review", muted: true };
-    });
-    return {
-      subject: subject.subject,
-      hoursPerWeek: weeklyPlan.rows[0]?.hours[i] ?? 0,
-      chip: SUBJECT_CHIP_PALETTE[i % SUBJECT_CHIP_PALETTE.length],
-      weeks,
-    };
-  });
-};
-
-const buildWeeklyPlanCaption = (analysis: AnalysisData): string => {
-  const hoursToClose = buildStudyHoursToCloseGaps(analysis);
-  if (hoursToClose.length === 0) return "";
-  const heaviest = [...hoursToClose].sort((a, b) => b.hours - a.hours)[0];
-  return `${heaviest.subject} carries the heaviest weekly load, tapering gradually across the plan as practice builds fluency in every subject.`;
-};
 
 // Short, real-data-driven answers — no fabricated dates/weeks, only the
 // report's own duration, phase name, and risk level.
@@ -822,7 +760,14 @@ const ReportPreview = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const analysisStartedRef = useRef(false);
   const [previousReport, setPreviousReport] = useState<{ analysis_data: AnalysisData; created_at: string } | null>(null);
-  
+  // The saved_reports row id for this report, if known — seeded from
+  // navigation state when opened from Reports History (which already has
+  // the row), and set once a freshly-generated report auto-saves. Share
+  // Report only appears once this is available, since it's the foreign key
+  // the shared_reports link points at.
+  const [savedReportId, setSavedReportId] = useState<string | null>((location.state?.savedReportId as string | undefined) ?? null);
+  const [isSharing, setIsSharing] = useState(false);
+
   const prevReportId = location.state?.prevReportId as string | undefined;
 
   // Redirect if no valid form data
@@ -1023,6 +968,7 @@ const ReportPreview = () => {
           console.error("Failed to save report:", saveError);
         } else {
           setIsSaved(true);
+          setSavedReportId((savedReport as any)?.id ?? null);
           toast.success("Report saved to your history");
 
           // Fire-and-forget: send report summary email
@@ -1213,6 +1159,42 @@ const ReportPreview = () => {
       toast.success("PDF downloaded successfully!");
     } catch {
       toast.error("Failed to generate PDF. Please try again.");
+    }
+  };
+
+  const handleShare = async () => {
+    if (!savedReportId) return;
+    setIsSharing(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        toast.error("You must be logged in to share");
+        return;
+      }
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const { data, error } = await supabase
+        .from("shared_reports" as any)
+        .insert({
+          report_id: savedReportId,
+          user_id: userData.user.id,
+          expires_at: expiresAt.toISOString(),
+        } as any)
+        .select("token")
+        .single();
+
+      if (error) throw error;
+
+      const shareUrl = `${window.location.origin}/report/${(data as any).token}`;
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Share link copied to clipboard! Valid for 7 days.");
+    } catch (err) {
+      console.error("Share error:", err);
+      toast.error("Failed to generate share link");
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -1644,7 +1626,8 @@ const ReportPreview = () => {
                   return (
                     <div className="rounded-xl border border-border bg-muted/20 p-4">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="text-[11px] font-bold uppercase tracking-wide text-primary">
+                        <h3 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-primary">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" aria-hidden="true" />
                           Critical Gaps Prioritised by Academic Impact
                         </h3>
                         <span className="text-[10px] font-bold uppercase tracking-wide text-secondary">
@@ -1674,20 +1657,22 @@ const ReportPreview = () => {
                             </CollapsibleTrigger>
                             <CollapsibleContent className="divide-y divide-border border-t border-border">
                               {gaps.map((g, i) => (
-                                <div key={i} className="flex flex-col gap-1 px-3 py-2.5 text-xs sm:flex-row sm:items-center sm:gap-3">
-                                  <span className="shrink-0 font-semibold text-foreground sm:w-36">
-                                    {g.url ? (
-                                      <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
-                                        {g.topic}
-                                      </a>
-                                    ) : (
-                                      g.topic
-                                    )}
-                                  </span>
-                                  <span className="text-muted-foreground sm:flex-1">{g.description}</span>
-                                  <span className="shrink-0 text-xs font-semibold text-secondary sm:w-16 sm:text-right">
-                                    {g.weeks} Week{g.weeks === 1 ? "" : "s"}
-                                  </span>
+                                <div key={i} className="px-3 py-2.5 text-xs">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <span className="font-semibold text-foreground">
+                                      {g.url ? (
+                                        <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
+                                          {g.topic}
+                                        </a>
+                                      ) : (
+                                        g.topic
+                                      )}
+                                    </span>
+                                    <span className="shrink-0 rounded-full bg-secondary/10 px-2 py-0.5 text-[10px] font-semibold text-secondary">
+                                      {g.weeks} Week{g.weeks === 1 ? "" : "s"}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-muted-foreground">{g.description}</p>
                                 </div>
                               ))}
                             </CollapsibleContent>
@@ -1736,7 +1721,14 @@ const ReportPreview = () => {
 
                         <div>
                           <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-secondary">Why Start Now</h4>
-                          <p className="text-[13px] leading-relaxed text-foreground/90">{whyStartNow}</p>
+                          <ul className="space-y-1.5 text-[13px] leading-relaxed text-foreground/90">
+                            {whyStartNow.map((point, i) => (
+                              <li key={i} className="flex gap-1.5">
+                                <span className="text-secondary" aria-hidden="true">•</span>
+                                <span>{point}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       </div>
 
@@ -1831,8 +1823,6 @@ const ReportPreview = () => {
 
                   const studentChecklist = buildStudentChecklist(analysis);
                   const teacherRecommendations = buildTeacherRecommendations(analysis);
-                  const weeklyStream = buildWeeklyStudyStream(analysis);
-                  const weeklyPlanCaption = buildWeeklyPlanCaption(analysis);
                   const culturalTips = analysis.recommendations.culturalLanguage;
 
                   return (
@@ -1924,65 +1914,6 @@ const ReportPreview = () => {
                       </div>
 
                       <div>
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                          <h4 className="text-[10px] font-semibold uppercase tracking-wide text-secondary">
-                            Weekly Study Plan
-                          </h4>
-                          <span className="text-[9px] font-semibold uppercase tracking-wide text-secondary">
-                            Weekly Load
-                          </span>
-                        </div>
-                        {weeklyStream.length > 0 ? (
-                          <div className="overflow-x-auto rounded-lg border border-border bg-muted/20 p-2.5">
-                            <table className="w-full min-w-[420px] border-collapse text-xs">
-                              <thead>
-                                <tr className="bg-primary text-primary-foreground">
-                                  <th scope="col" className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide">
-                                    Subject
-                                  </th>
-                                  {Array.from({ length: WEEKLY_PLAN_WEEKS }, (_, i) => (
-                                    <th
-                                      key={i}
-                                      scope="col"
-                                      className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide"
-                                    >
-                                      Week {i + 1}
-                                    </th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {weeklyStream.map((row) => (
-                                  <tr key={row.subject}>
-                                    <td className="border-b border-border px-2 py-2 align-middle font-semibold text-foreground">
-                                      {row.subject} <span className="font-normal text-muted-foreground">({row.hoursPerWeek}h)</span>
-                                    </td>
-                                    {row.weeks.map((week, wi) => (
-                                      <td key={wi} className="border-b border-border px-2 py-2 align-middle">
-                                        <span
-                                          className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                            week.muted ? "bg-muted text-muted-foreground" : `${row.chip.bg} ${row.chip.fg}`
-                                          }`}
-                                        >
-                                          {week.label}
-                                        </span>
-                                      </td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">No weekly plan available yet.</p>
-                        )}
-                      </div>
-
-                      {weeklyPlanCaption && (
-                        <p className="text-xs italic leading-relaxed text-muted-foreground">{weeklyPlanCaption}</p>
-                      )}
-
-                      <div>
                         <h4 className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
                           <Globe2 className="h-3.5 w-3.5" aria-hidden="true" />
                           Cultural Adaptation
@@ -2068,8 +1999,24 @@ const ReportPreview = () => {
                   </p>
                 </div>
 
-                {/* Download Button */}
-                <div className="flex justify-center pt-2">
+                {/* Download / Share Buttons */}
+                <div className="flex flex-col justify-center gap-2 pt-2 sm:flex-row">
+                  {savedReportId && (
+                    <Button
+                      onClick={handleShare}
+                      variant="outline"
+                      className="w-full md:w-auto"
+                      size="sm"
+                      disabled={isSharing}
+                    >
+                      {isSharing ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Share2 className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      Share Report
+                    </Button>
+                  )}
                   <Button
                     onClick={handleDownloadPDF}
                     className="w-full md:w-auto"

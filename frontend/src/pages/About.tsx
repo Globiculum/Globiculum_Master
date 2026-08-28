@@ -7,6 +7,7 @@ import bgAboutImage from "@/assets/BG-ABOUT.png";
 import preranaOswalPhoto from "@/assets/Prerana Photo - Prerana Oswal.jpg";
 import swarupaPhoto from "@/assets/Swarupa-Photo.png";
 import sushmaPhoto from "@/assets/SUSHMA-Photo.png";
+import somyashreePhoto from "@/assets/Somyashree.png";
 
 interface AboutValue {
   icon: typeof Heart;
@@ -108,7 +109,12 @@ const SHOW_GENERAL_ADVISORS = false;
 const ADVISORY_BOARD: { name: string; role: string; photo?: string; bio?: string }[] = [
   { name: "Usha Chaitanya", role: "Academic Advisor" },
   { name: "Srivatsala", role: "Academic Advisor" },
-  { name: "Sowmyasree Sumadhar", role: "Academic Advisor" },
+  {
+    name: "Sowmyasree Sumadhar",
+    role: "Academic Advisor",
+    photo: somyashreePhoto,
+    bio: "Educator - Tavta Academy",
+  },
   {
     name: "Prerana Oswal",
     role: "Academic Advisor",

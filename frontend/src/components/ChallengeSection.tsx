@@ -3,41 +3,41 @@ import { Bot, BookOpen, MessageCircle, Puzzle } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 
 interface ProblemCard {
-  number: string;
   icon: LucideIcon;
   title: string;
   description: string;
   color: string;
+  bgColor: string;
 }
 
 const PROBLEM_CARDS: ProblemCard[] = [
   {
-    number: "01",
     icon: MessageCircle,
     title: "WhatsApp Groups",
     description: "Generic advice that ignores your child's actual grade, board, or subject gaps.",
     color: "hsl(var(--accent))",
+    bgColor: "hsl(var(--accent) / 0.14)",
   },
   {
-    number: "02",
     icon: Bot,
     title: "ChatGPT & Google",
     description: "No NCERT mapping, no grade context — just a list of learning platforms.",
     color: "hsl(var(--violet))",
+    bgColor: "hsl(var(--violet) / 0.14)",
   },
   {
-    number: "03",
     icon: BookOpen,
     title: "Tutors Without Assessment",
     description: "Teaching starts before anyone knows where your child actually stands.",
     color: "hsl(var(--secondary))",
+    bgColor: "hsl(var(--secondary) / 0.14)",
   },
   {
-    number: "04",
     icon: Puzzle,
     title: "The Methodology Shock",
     description: "Discussion-based classrooms don't prepare kids for exam-heavy, teacher-led ones.",
     color: "hsl(var(--mint))",
+    bgColor: "hsl(var(--mint) / 0.18)",
   },
 ];
 
@@ -53,11 +53,6 @@ const NOISE_SVG =
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
-};
-
-const iconPop: Variants = {
-  hidden: { opacity: 0, scale: 0.5 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: [0.34, 1.56, 0.64, 1], delay: 0.15 } },
 };
 
 const staggerContainer: Variants = {
@@ -76,25 +71,17 @@ const ProblemCardItem = ({ card }: { card: ProblemCard }) => {
         transition={{ type: "spring", stiffness: 300, damping: 22, mass: 0.6 }}
         className="relative flex h-full flex-col overflow-hidden rounded-[28px] border border-[rgba(15,23,42,0.06)] bg-white p-6 shadow-sm transition-[box-shadow,border-color] duration-[450ms] hover:border-secondary hover:shadow-xl sm:p-7"
       >
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute right-5 top-2 select-none text-5xl font-black blur-[0.3px] transition-transform duration-[450ms] group-hover:-translate-y-1.5 sm:text-6xl"
-          style={{ color: "rgba(15,23,42,0.14)" }}
-        >
-          {card.number}
-        </span>
-
         <motion.div
-          variants={iconPop}
           whileHover={shouldReduceMotion ? undefined : { scale: 1.08, rotate: 5 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-background"
+          className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-2xl"
           style={{
             color: card.color,
+            backgroundColor: card.bgColor,
             boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.6), 0 2px 6px -2px rgba(15,23,42,0.12)",
           }}
         >
-          <Icon className="h-5 w-5" aria-hidden="true" />
+          <Icon className="h-6 w-6" strokeWidth={2.25} aria-hidden="true" />
         </motion.div>
 
         <h3 className="relative mb-2 text-lg font-bold text-foreground">{card.title}</h3>
