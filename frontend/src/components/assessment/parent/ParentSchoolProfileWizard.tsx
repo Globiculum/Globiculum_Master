@@ -212,7 +212,7 @@ const buildCardSequence = (formData: ParentFormData): ProfileCard[] => {
       tileColor: "teal",
       milestone: "School Details",
       navLabel: "Location",
-      title: "Which country does your child currently go to school in?",
+      title: "In which country does your child currently attend school?",
       errorField: "snapshotLocation",
     },
   ];
@@ -784,7 +784,7 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
                   <GlobiculumChecklistIcon size={28} />
                 </GlobiculumIconTile>
               </div>
-              <h3 className="text-lg font-bold text-foreground">School Profile is ready.</h3>
+              <h3 className="text-lg font-bold text-foreground">School profile is ready.</h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {answeredCount} of {sections.length} complete
               </p>

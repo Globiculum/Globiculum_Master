@@ -1,12 +1,17 @@
+import { Check } from "lucide-react";
 import academicPathIcon from "@/assets/icons-3d/academic-path.png";
 import goalsAspirationsIcon from "@/assets/icons-3d/goals-aspirations.png";
+import { cn } from "@/lib/utils";
+import { GlobiculumIconTile, GlobiculumTargetIcon, GlobiculumSuccessIcon } from "@/components/icons";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import InputCard from "../shared/InputCard";
 import MultiSelect from "../shared/MultiSelect";
 import SectionCard from "../shared/SectionCard";
-import SectionContainer from "../shared/SectionContainer";
 import QuestionCard from "../shared/QuestionCard";
+import FlashcardShell from "../shared/FlashcardShell";
+import FieldError from "../shared/FieldError";
 import { HighSchoolMathDeepDive } from "../HighSchoolMathDeepDive";
-import AcademicPathFlashcards from "../student/steps/AcademicPathFlashcards";
+import AcademicPathFlashcards, { MAIN_CONFIDENCE_LEVELS } from "../student/steps/AcademicPathFlashcards";
 import ParentLanguageJourneyCard from "./ParentLanguageJourneyCard";
 import type { ParentStepProps } from "./types";
 
@@ -91,6 +96,17 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
   const subjects = getSubjectsByGradeBand(formData.schoolStage, formData.currentCurriculum, gradeNumber);
   const activeSubjectList = isHigherSecondary ? HIGHER_SECONDARY_SUBJECTS : subjects;
 
+  // Same two-step pattern as the Foreign Language / Indian Languages cards
+  // in ParentLanguageJourneyCard.tsx: pick which apply from the chip grid
+  // first, then a compact confidence row appears only for what's selected —
+  // instead of always showing a full rating row for every AP subject
+  // whether it applies or not, which was the space problem with the
+  // previous design. Same 4 levels as the main subject flashcards
+  // (Strong/Moderate/Needs Help/Not Applicable).
+  const selectedApSubjects = AP_SUBJECTS.filter((ap) => formData.academicPath.includes(ap));
+  const apAddedCount = selectedApSubjects.length + (formData.academicPath.includes("University Entrance Test Prep") ? 1 : 0);
+  const apSectionComplete = apAddedCount > 0;
+
   return (
     <SectionCard icon={academicPathIcon} title="Academic Path">
       <div className="-mt-4 text-sm text-muted-foreground">Tell us what the student studies today.</div>
@@ -105,13 +121,12 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
         error={fieldErrors.academicPath}
         navTitle="Your Child's Academic Path"
         navSubtitle="See how your child is doing in each subject."
-        confidenceQuestion="How confident does your child seem in this subject?"
         microcopy={{
           strong: "Seems confident",
           moderate: "Understands most of it",
           "needs-help": "Could use more support",
         }}
-        skipLabel="My child doesn't take this"
+        excludeFromCustom={[...AP_SUBJECTS, "University Entrance Test Prep"]}
         customCardTitle="Any other subjects?"
         customCardSubtitle="Add any subject not listed above, then note your child's confidence."
         customCardQuestion="How confident does your child seem in this subject?"
@@ -121,35 +136,114 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
       <span id="academic-path-next-section" className="sr-only" aria-hidden="true" />
 
       {formData.schoolStage === "high" && (
-        <SectionContainer title="AP Courses & University Prep">
-          {/* One unified chip grid — University Entrance Test Prep sits
-              alongside the AP subjects rather than as its own separate
-              full-width block, so every option in this section reads the
-              same way (a tappable chip) instead of mixing a block-style
-              row with a grid of pills below it.
-              Display label drops the redundant "(Advanced Placement)" prefix
-              (already stated in the section title above) — the stored value
-              in academicPath stays the full string, unchanged. This is what
-              was making long subjects like "...Computer Science Principles"
-              wrap to two lines and look uneven next to the single-line pills. */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <InputCard
-              variant="chip"
-              label="University Entrance Test Prep"
-              selected={formData.academicPath.includes("University Entrance Test Prep")}
-              onClick={() => onArrayToggle("academicPath", "University Entrance Test Prep")}
-            />
-            {AP_SUBJECTS.map((ap) => (
-              <InputCard
-                key={ap}
-                variant="chip"
-                label={ap.replace("(Advanced Placement) ", "")}
-                selected={formData.academicPath.includes(ap)}
-                onClick={() => onArrayToggle("academicPath", ap)}
-              />
-            ))}
+        // Same outer two-column shell as ParentLanguageJourneyCard's
+        // Language Exposure section: a persistent left nav rail (labeled
+        // section name + tab entry) alongside the content card on the
+        // right, for visual consistency between the two sections — even
+        // though AP Courses is a single card, not a multi-card sequence.
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <nav aria-label="AP courses progress" className="hidden lg:block lg:w-[232px] lg:shrink-0">
+            <div className="lg:sticky lg:top-4">
+              <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">AP Courses</h3>
+              <ol className="mt-3">
+                <li className="pb-3 last:pb-0">
+                  <div className="relative z-10 flex items-center gap-2.5 rounded-lg p-0.5">
+                    <span
+                      className={cn(
+                        "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
+                        apSectionComplete ? "border-secondary bg-secondary text-secondary-foreground" : "border-violet bg-violet"
+                      )}
+                    >
+                      {apSectionComplete ? (
+                        <Check className="h-3 w-3" aria-hidden="true" />
+                      ) : (
+                        <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />
+                      )}
+                    </span>
+                    <span className="min-w-0">
+                      <span className={cn("block text-sm", apSectionComplete ? "font-medium text-secondary" : "font-bold text-primary")}>
+                        AP Courses & University Prep
+                      </span>
+                      <span className={cn("block text-xs", apSectionComplete ? "font-medium text-secondary" : "text-muted-foreground/70")}>
+                        {apSectionComplete ? `${apAddedCount} added` : "None added"}
+                      </span>
+                    </span>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </nav>
+
+          <div className="min-w-0 flex-1">
+            <FlashcardShell accent="violet">
+              {/* Same card structure as the Indian Languages / Foreign
+                  Language cards: icon + centered title, then select-then-rate
+                  — pick which apply from one compact chip grid, then a
+                  confidence row appears only for what's selected. Display
+                  label drops the redundant "(Advanced Placement)" prefix
+                  (already stated in the title above); the stored value in
+                  academicPath stays the full string. */}
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4">
+                  <GlobiculumIconTile tone="teal" size={64}>
+                    <GlobiculumTargetIcon size={34} />
+                  </GlobiculumIconTile>
+                </div>
+                <h4 className="text-xl font-bold text-foreground">AP Courses & University Prep</h4>
+                {apAddedCount > 0 && (
+                  <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-secondary">
+                    <Check className="h-3.5 w-3.5" aria-hidden="true" /> {apAddedCount} added
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <InputCard
+                  variant="chip"
+                  label="University Entrance Test Prep"
+                  selected={formData.academicPath.includes("University Entrance Test Prep")}
+                  onClick={() => onArrayToggle("academicPath", "University Entrance Test Prep")}
+                />
+                {AP_SUBJECTS.map((ap) => (
+                  <InputCard
+                    key={ap}
+                    variant="chip"
+                    label={ap.replace("(Advanced Placement) ", "")}
+                    selected={formData.academicPath.includes(ap)}
+                    onClick={() => onArrayToggle("academicPath", ap)}
+                  />
+                ))}
+              </div>
+
+              {selectedApSubjects.length > 0 && (
+                <div className="mt-5 space-y-1.5">
+                  <p className="text-center text-xs font-medium text-muted-foreground">How confident does your child seem in each?</p>
+                  {selectedApSubjects.map((ap) => {
+                    const label = ap.replace("(Advanced Placement) ", "");
+                    const current = formData.subjectConfidences[ap];
+                    return (
+                      <div key={ap} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3 py-2">
+                        <span className="text-sm font-semibold text-foreground">{label}</span>
+                        <Select value={current} onValueChange={(value) => onRecordFieldChange("subjectConfidences", ap, value)}>
+                          <SelectTrigger className="h-8 w-[150px] text-xs" aria-label={`${label} confidence`}>
+                            <SelectValue placeholder="Rate confidence" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MAIN_CONFIDENCE_LEVELS.map((level) => (
+                              <SelectItem key={level.value} value={level.value}>
+                                {level.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </FlashcardShell>
           </div>
-        </SectionContainer>
+        </div>
       )}
 
       {formData.schoolStage === "high" &&
@@ -168,24 +262,65 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
 
       <ParentLanguageJourneyCard formData={formData} onFieldChange={onFieldChange} onRecordFieldChange={onRecordFieldChange} />
 
-      <QuestionCard
-        label="Overall Performance"
-        tooltip="A general sense of how your child is performing academically overall."
-        error={fieldErrors.overallPerformance}
-      >
-        <div role="radiogroup" aria-label="Overall Performance" className="flex flex-wrap gap-2">
-          {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
-            <InputCard
-              key={opt.value}
-              variant="chip"
-              mode="radio"
-              label={opt.label}
-              selected={formData.overallPerformance === opt.value}
-              onClick={() => onFieldChange("overallPerformance", opt.value)}
-            />
-          ))}
+      {/* Same nav + FlashcardShell structure as AP Courses & University
+          Prep / Language Exposure, for consistent typography and layout
+          across every section in this step. */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <nav aria-label="Overall performance" className="hidden lg:block lg:w-[232px] lg:shrink-0">
+          <div className="lg:sticky lg:top-4">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Overall Performance</h3>
+            <ol className="mt-3">
+              <li className="pb-3 last:pb-0">
+                <div className="relative z-10 flex items-center gap-2.5 rounded-lg p-0.5">
+                  <span
+                    className={cn(
+                      "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
+                      formData.overallPerformance ? "border-secondary bg-secondary text-secondary-foreground" : "border-violet bg-violet"
+                    )}
+                  >
+                    {formData.overallPerformance ? (
+                      <Check className="h-3 w-3" aria-hidden="true" />
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />
+                    )}
+                  </span>
+                  <span className={cn("block text-sm", formData.overallPerformance ? "font-medium text-secondary" : "font-bold text-primary")}>
+                    Overall Performance
+                  </span>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </nav>
+
+        <div className="min-w-0 flex-1">
+          <FlashcardShell accent="teal" invalid={!!fieldErrors.overallPerformance}>
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4">
+                <GlobiculumIconTile tone="violet" size={64}>
+                  <GlobiculumSuccessIcon size={34} />
+                </GlobiculumIconTile>
+              </div>
+              <h4 className="text-xl font-bold text-foreground">Overall Performance</h4>
+              <p className="mt-1 text-sm text-muted-foreground">A general sense of how your child is performing academically overall.</p>
+            </div>
+
+            <div role="radiogroup" aria-label="Overall Performance" className="mt-6 flex flex-wrap justify-center gap-2">
+              {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
+                <InputCard
+                  key={opt.value}
+                  variant="chip"
+                  mode="radio"
+                  label={opt.label}
+                  selected={formData.overallPerformance === opt.value}
+                  onClick={() => onFieldChange("overallPerformance", opt.value)}
+                />
+              ))}
+            </div>
+            <FieldError message={fieldErrors.overallPerformance} />
+          </FlashcardShell>
         </div>
-      </QuestionCard>
+      </div>
 
       {formData.schoolStage !== "elementary" && (
         <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.06] to-transparent p-5 shadow-soft">

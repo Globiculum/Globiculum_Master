@@ -239,7 +239,7 @@ const buildCardSequence = (formData: AssessmentFormData): ProfileCard[] => {
       tileColor: "teal",
       milestone: "Your School",
       navLabel: "Location",
-      title: "Which country do you currently go to school in?",
+      title: "In which country do you currently attend school?",
       errorField: "snapshotLocation",
     },
   ];

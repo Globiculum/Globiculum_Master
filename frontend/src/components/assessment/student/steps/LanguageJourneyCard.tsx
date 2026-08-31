@@ -1,32 +1,26 @@
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, Minus, Plus, X } from "lucide-react";
+import { Check, Minus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { GlobiculumChecklistIcon, GlobiculumEducationIcon, GlobiculumGlobeIcon, GlobiculumIconTile } from "@/components/icons";
 import InputCard from "../../shared/InputCard";
 import FlashcardShell from "../../shared/FlashcardShell";
 import type { AssessmentFormData } from "../../shared/types";
-import editIcon from "@/assets/icons-3d/edit.png";
 import backIcon from "@/assets/icons-3d/back.png";
 
-// Revision: Language Exposure as a one-flashcard-per-language sequence,
-// mirroring AcademicPathFlashcards.tsx's per-subject pattern exactly (own
-// nav panel, mobile progress dots, single active card, custom-item card,
-// summary/edit phase). Indian-language exposure (selectedLanguages[] +
-// languageProficiencies{}) and foreign-language study
+// Two cards now, not four: Indian Languages is a select-then-rate
+// multi-select (pick every language that applies from one chip grid, then a
+// compact proficiency row appears only for what's selected) — same pattern
+// as Foreign Language's own select-then-rate card, just multi- instead of
+// single-select. Replaces the old one-flashcard-per-language sequence
+// (separate Hindi/Sanskrit/Other Indian languages cards), which took more
+// space and more taps than picking from a grid. Indian-language exposure
+// (selectedLanguages[] + languageProficiencies{}) and foreign-language study
 // (foreignLanguageName/foreignLanguageNameOther/foreignLanguageLevel) stay
-// two separate fields internally, unchanged — Indian is array-backed
-// (multiple languages can be rated), Foreign is single-value (only one
-// foreign language is ever stored), so its card picks-and-rates in one
-// step instead of getting its own per-language card the way Hindi/Sanskrit
-// do. Only Hindi and Sanskrit get dedicated cards; every other Indian
-// language is reachable through the trailing "Other" custom card, and
-// French/Spanish are the only two direct foreign-language chips, with
-// every other language reachable the same way — a deliberate narrowing of
-// the visible preset list, not a change to what can be stored.
+// two separate fields internally, unchanged.
 
-const INDIAN_LANGUAGE_CARDS = ["Hindi", "Sanskrit"];
+const INDIAN_LANGUAGES = ["Hindi", "Sanskrit", "Bengali", "Tamil", "Telugu", "Kannada"];
 
 const INDIAN_LEVELS = [
   { value: "none", label: "No Exposure" },
@@ -52,8 +46,9 @@ const foreignLabel = (formData: AssessmentFormData): string =>
     ? formData.foreignLanguageNameOther || "Other language"
     : FOREIGN_LANGUAGE_CHIPS.find((f) => f.value === formData.foreignLanguageName)?.label ?? formData.foreignLanguageName;
 
-type CardId = "hindi" | "sanskrit" | "otherIndian" | "foreign";
-const ORDER: CardId[] = ["hindi", "sanskrit", "otherIndian", "foreign"];
+type CardId = "indian" | "foreign";
+const ORDER: CardId[] = ["indian", "foreign"];
+const CARD_LABEL: Record<CardId, string> = { indian: "Indian Languages", foreign: "Foreign Language" };
 
 const LevelButton = ({ label, selected, onSelect }: { label: string; selected: boolean; onSelect: () => void }) => (
   <motion.button
@@ -65,12 +60,12 @@ const LevelButton = ({ label, selected, onSelect }: { label: string; selected: b
     whileTap={{ scale: 0.96 }}
     transition={{ type: "spring", stiffness: 420, damping: 18 }}
     className={cn(
-      "flex items-center gap-1.5 rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition-colors duration-200",
+      "rounded-full border-2 px-3 py-1.5 text-xs font-semibold transition-colors duration-200",
       "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       selected ? "border-secondary bg-secondary text-secondary-foreground shadow-glow-sm" : "border-border bg-card text-foreground hover:border-secondary/40"
     )}
   >
-    {selected && <Check className="h-3.5 w-3.5" aria-hidden="true" />}
+    {selected && <Check className="mr-1 inline h-3 w-3" aria-hidden="true" />}
     {label}
   </motion.button>
 );
@@ -81,20 +76,18 @@ interface LanguageJourneyCardProps {
   setRecordField: (field: "languageProficiencies", key: string, value: string) => void;
 }
 
-const ADVANCE_DELAY_MS = 420;
-
 const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJourneyCardProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
-  const customIndianLanguages = formData.selectedLanguages.filter((l) => !INDIAN_LANGUAGE_CARDS.includes(l));
+  const customIndianLanguages = formData.selectedLanguages.filter((l) => !INDIAN_LANGUAGES.includes(l));
   const hasForeign = !!formData.foreignLanguageName;
 
   const hasExistingAnswers = formData.selectedLanguages.length > 0 || hasForeign;
 
   const [phase, setPhase] = useState<"cards" | "summary">(hasExistingAnswers ? "summary" : "cards");
   const [cardIndex, setCardIndex] = useState(0);
+  const [showOtherIndianInput, setShowOtherIndianInput] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [showForeignOtherInput, setShowForeignOtherInput] = useState(formData.foreignLanguageName === "other");
-  const [isTransitioning, setIsTransitioning] = useState(false);
   const [editingSingleCard, setEditingSingleCard] = useState(false);
 
   const currentId = ORDER[cardIndex] ?? ORDER[0];
@@ -102,62 +95,38 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
   const position = cardIndex + 1;
 
   const advance = () => {
-    setIsTransitioning(true);
     const isLast = cardIndex >= total - 1 || editingSingleCard;
-    window.setTimeout(
-      () => {
-        setIsTransitioning(false);
-        if (isLast) {
-          setEditingSingleCard(false);
-          setPhase("summary");
-        } else {
-          setCardIndex((i) => i + 1);
-        }
-      },
-      shouldReduceMotion ? 0 : ADVANCE_DELAY_MS
-    );
+    if (isLast) {
+      setEditingSingleCard(false);
+      setPhase("summary");
+    } else {
+      setCardIndex((i) => i + 1);
+    }
+  };
+
+  const toggleIndianLanguage = (lang: string) => {
+    if (formData.selectedLanguages.includes(lang)) {
+      setField("selectedLanguages", formData.selectedLanguages.filter((l) => l !== lang));
+    } else {
+      setField("selectedLanguages", [...formData.selectedLanguages, lang]);
+    }
   };
 
   const rateIndianLanguage = (lang: string, level: string) => {
-    if (isTransitioning) return;
-    if (!formData.selectedLanguages.includes(lang)) {
-      setField("selectedLanguages", [...formData.selectedLanguages, lang]);
-    }
     setRecordField("languageProficiencies", lang, level);
-    advance();
   };
 
-  const skipIndianLanguage = (lang: string) => {
-    if (isTransitioning) return;
-    if (formData.selectedLanguages.includes(lang)) {
-      setField(
-        "selectedLanguages",
-        formData.selectedLanguages.filter((l) => l !== lang)
-      );
-    }
-    advance();
-  };
-
-  const addCustomIndianLanguage = (level: string) => {
+  const addCustomIndianLanguage = () => {
     const trimmed = draftName.trim();
     if (!trimmed) return;
     if (!formData.selectedLanguages.includes(trimmed)) {
       setField("selectedLanguages", [...formData.selectedLanguages, trimmed]);
     }
-    setRecordField("languageProficiencies", trimmed, level);
     setDraftName("");
   };
 
   const removeCustomIndianLanguage = (lang: string) => {
-    setField(
-      "selectedLanguages",
-      formData.selectedLanguages.filter((l) => l !== lang)
-    );
-  };
-
-  const finishCustomIndian = () => {
-    if (isTransitioning) return;
-    advance();
+    setField("selectedLanguages", formData.selectedLanguages.filter((l) => l !== lang));
   };
 
   // Single-select: picking a new foreign language replaces the old pick;
@@ -176,13 +145,10 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
   };
 
   const selectForeignLevel = (level: string) => {
-    if (isTransitioning) return;
     setField("foreignLanguageLevel", level);
-    advance();
   };
 
   const skipForeign = () => {
-    if (isTransitioning) return;
     setField("foreignLanguageName", "");
     setField("foreignLanguageLevel", "");
     setShowForeignOtherInput(false);
@@ -190,7 +156,7 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
   };
 
   const goBackOneCard = () => {
-    if (isTransitioning || cardIndex === 0) return;
+    if (cardIndex === 0) return;
     setEditingSingleCard(false);
     setCardIndex((i) => Math.max(0, i - 1));
   };
@@ -203,20 +169,8 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
     setCardIndex(ORDER.indexOf(id));
   };
 
-  const CARD_LABEL: Record<CardId, string> = {
-    hindi: "Hindi",
-    sanskrit: "Sanskrit",
-    otherIndian: "Other Indian languages",
-    foreign: "Foreign language",
-  };
-
   const navItems = ORDER.map((id, idx) => {
-    const answered =
-      id === "hindi" || id === "sanskrit"
-        ? formData.selectedLanguages.includes(CARD_LABEL[id]) && !!formData.languageProficiencies[CARD_LABEL[id]]
-        : id === "otherIndian"
-          ? customIndianLanguages.length > 0
-          : hasForeign;
+    const answered = id === "indian" ? formData.selectedLanguages.length > 0 : hasForeign;
     const status = answered ? "completed" : phase === "summary" ? "skipped" : idx === cardIndex ? "current" : idx < cardIndex ? "skipped" : "upcoming";
     return { id, label: CARD_LABEL[id], status, onClick: status === "completed" || status === "skipped" ? () => editCard(id) : undefined };
   });
@@ -251,18 +205,15 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
                 <button
                   key={lang}
                   type="button"
-                  onClick={() => editCard(INDIAN_LANGUAGE_CARDS.includes(lang) ? (lang.toLowerCase() as CardId) : "otherIndian")}
+                  onClick={() => editCard("indian")}
                   className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
                 >
                   <span className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
                     {lang}
                   </span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {INDIAN_LEVELS.find((lv) => lv.value === formData.languageProficiencies[lang])?.label ?? "—"}
-                    </span>
-                    <img src={editIcon} className="h-3.5 w-3.5 shrink-0 object-contain" alt="" aria-hidden="true" draggable={false} />
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {INDIAN_LEVELS.find((lv) => lv.value === formData.languageProficiencies[lang])?.label ?? "—"}
                   </span>
                 </button>
               ))}
@@ -276,11 +227,8 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
                     <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
                     {foreignLabel(formData)}
                   </span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {FOREIGN_LEVELS.find((lv) => lv.value === formData.foreignLanguageLevel)?.label ?? "—"}
-                    </span>
-                    <img src={editIcon} className="h-3.5 w-3.5 shrink-0 object-contain" alt="" aria-hidden="true" draggable={false} />
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {FOREIGN_LEVELS.find((lv) => lv.value === formData.foreignLanguageLevel)?.label ?? "—"}
                   </span>
                 </button>
               )}
@@ -365,52 +313,65 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
             <FlashcardShell accent="violet">
-              {(currentId === "hindi" || currentId === "sanskrit") && (
-                <>
-                  <div className="flex flex-col items-center text-center">
-                    <div className="mb-4">
-                      <GlobiculumIconTile tone={currentId === "hindi" ? "teal" : "violet"} size={64}>
-                        <GlobiculumEducationIcon size={34} />
-                      </GlobiculumIconTile>
-                    </div>
-                    <h4 className="text-xl font-bold text-foreground">How familiar are you with {CARD_LABEL[currentId]}?</h4>
-                  </div>
-                  <div role="radiogroup" aria-label={`${CARD_LABEL[currentId]} familiarity`} className="mt-6 flex flex-wrap justify-center gap-2">
-                    {INDIAN_LEVELS.map((level) => (
-                      <LevelButton
-                        key={level.value}
-                        label={level.label}
-                        selected={formData.languageProficiencies[CARD_LABEL[currentId]] === level.value && formData.selectedLanguages.includes(CARD_LABEL[currentId])}
-                        onSelect={() => rateIndianLanguage(CARD_LABEL[currentId], level.value)}
-                      />
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => skipIndianLanguage(CARD_LABEL[currentId])}
-                    className="mt-4 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                  >
-                    I haven&rsquo;t learned this
-                  </button>
-                </>
-              )}
-
-              {currentId === "otherIndian" && (
+              {currentId === "indian" && (
                 <>
                   <div className="flex flex-col items-center text-center">
                     <div className="mb-4">
                       <GlobiculumIconTile tone="teal" size={64}>
-                        <Plus size={30} aria-hidden="true" />
+                        <GlobiculumEducationIcon size={34} />
                       </GlobiculumIconTile>
                     </div>
-                    <h4 className="text-xl font-bold text-foreground">Any other Indian languages?</h4>
+                    <h4 className="text-xl font-bold text-foreground">Which Indian languages do you know?</h4>
                   </div>
 
+                  <div role="group" aria-label="Indian languages" className="mt-6 flex flex-wrap justify-center gap-2">
+                    {INDIAN_LANGUAGES.map((lang) => (
+                      <InputCard
+                        key={lang}
+                        variant="chip"
+                        label={lang}
+                        selected={formData.selectedLanguages.includes(lang)}
+                        onClick={() => toggleIndianLanguage(lang)}
+                      />
+                    ))}
+                    <InputCard
+                      variant="chip"
+                      label="Other"
+                      selected={showOtherIndianInput}
+                      onClick={() => setShowOtherIndianInput((v) => !v)}
+                    />
+                  </div>
+
+                  {showOtherIndianInput && (
+                    <div className="mx-auto mt-3 flex max-w-xs gap-2">
+                      <Input
+                        value={draftName}
+                        onChange={(e) => setDraftName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addCustomIndianLanguage();
+                          }
+                        }}
+                        placeholder="e.g. Bhojpuri, Tulu, Rajasthani"
+                        aria-label="Other Indian language name"
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomIndianLanguage}
+                        disabled={!draftName.trim()}
+                        className="shrink-0 rounded-xl border-2 border-border bg-card px-3 text-sm font-semibold text-foreground transition-colors duration-200 hover:border-secondary/40 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  )}
+
                   {customIndianLanguages.length > 0 && (
-                    <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <div className="mt-3 flex flex-wrap justify-center gap-2">
                       {customIndianLanguages.map((lang) => (
                         <span key={lang} className="inline-flex items-center gap-1.5 rounded-full border-2 border-secondary bg-secondary/10 px-3 py-1 text-xs font-medium text-secondary">
-                          {lang} · {INDIAN_LEVELS.find((lv) => lv.value === formData.languageProficiencies[lang])?.label}
+                          {lang}
                           <button type="button" onClick={() => removeCustomIndianLanguage(lang)} aria-label={`Remove ${lang}`} className="rounded-full p-0.5 hover:bg-secondary/20">
                             <X className="h-3 w-3" />
                           </button>
@@ -419,25 +380,33 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
                     </div>
                   )}
 
-                  <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="e.g. Tamil, Punjabi, Odia" className="mt-4" aria-label="Other Indian language name" />
+                  {formData.selectedLanguages.length > 0 && (
+                    <div className="mt-5 space-y-2">
+                      <p className="text-center text-xs font-medium text-muted-foreground">How familiar are you with each?</p>
+                      {formData.selectedLanguages.map((lang) => (
+                        <div key={lang} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card/50 px-3 py-2">
+                          <span className="text-sm font-semibold text-foreground">{lang}</span>
+                          <div role="radiogroup" aria-label={`${lang} familiarity`} className="flex flex-wrap gap-1.5">
+                            {INDIAN_LEVELS.map((level) => (
+                              <LevelButton
+                                key={level.value}
+                                label={level.label}
+                                selected={formData.languageProficiencies[lang] === level.value}
+                                onSelect={() => rateIndianLanguage(lang, level.value)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                  <p className="mb-2 mt-4 text-center text-xs font-medium text-muted-foreground">How familiar?</p>
-                  <div role="radiogroup" aria-label="New language familiarity" className="flex flex-wrap justify-center gap-2">
-                    {INDIAN_LEVELS.map((level) => (
-                      <button
-                        key={level.value}
-                        type="button"
-                        disabled={!draftName.trim()}
-                        onClick={() => addCustomIndianLanguage(level.value)}
-                        className="rounded-xl border-2 border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition-colors duration-200 hover:border-secondary/40 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {level.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button type="button" onClick={finishCustomIndian} className="mt-4 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
-                    I&rsquo;m done adding languages →
+                  <button
+                    type="button"
+                    onClick={advance}
+                    className="mt-5 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  >
+                    {formData.selectedLanguages.length > 0 ? "Continue →" : "I don't know any Indian languages →"}
                   </button>
                 </>
               )}
@@ -490,6 +459,12 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
                   <button type="button" onClick={skipForeign} className="mt-4 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
                     I&rsquo;m not studying a foreign language
                   </button>
+
+                  {formData.foreignLanguageName && formData.foreignLanguageLevel && (
+                    <button type="button" onClick={advance} className="mt-2 block w-full text-center text-xs font-medium text-secondary underline-offset-2 hover:underline">
+                      Continue →
+                    </button>
+                  )}
                 </>
               )}
             </FlashcardShell>

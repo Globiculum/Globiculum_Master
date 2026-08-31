@@ -47,33 +47,7 @@ const EducationHistoryList = ({ entries, onChange, currentGrade }: EducationHist
   return (
     <div className="space-y-3">
       {entries.map((entry, index) => (
-        <div key={index} className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-card/50 p-4 shadow-soft sm:grid-cols-[1fr_1fr_1.4fr_1.4fr_auto] sm:items-end">
-          <div>
-            <Label htmlFor={`edu-history-from-${index}`} className="text-xs">From Grade</Label>
-            <Select value={entry.fromGrade} onValueChange={(value) => updateEntry(index, "fromGrade", value)}>
-              <SelectTrigger id={`edu-history-from-${index}`}>
-                <SelectValue placeholder="Grade" />
-              </SelectTrigger>
-              <SelectContent>
-                {gradeOptions.map((g) => (
-                  <SelectItem key={g} value={g}>Grade {g}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor={`edu-history-to-${index}`} className="text-xs">To Grade</Label>
-            <Select value={entry.toGrade} onValueChange={(value) => updateEntry(index, "toGrade", value)}>
-              <SelectTrigger id={`edu-history-to-${index}`}>
-                <SelectValue placeholder="Grade" />
-              </SelectTrigger>
-              <SelectContent>
-                {gradeOptions.map((g) => (
-                  <SelectItem key={g} value={g}>Grade {g}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div key={index} className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-card/50 p-4 shadow-soft sm:grid-cols-[1.4fr_1.4fr_1fr_1fr_auto] sm:items-end">
           <div>
             <Label htmlFor={`edu-history-country-${index}`} className="text-xs">Country</Label>
             <Select value={entry.country} onValueChange={(value) => updateEntry(index, "country", value)}>
@@ -96,6 +70,32 @@ const EducationHistoryList = ({ entries, onChange, currentGrade }: EducationHist
               <SelectContent>
                 {CURRICULA.map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor={`edu-history-from-${index}`} className="text-xs">From Grade</Label>
+            <Select value={entry.fromGrade} onValueChange={(value) => updateEntry(index, "fromGrade", value)}>
+              <SelectTrigger id={`edu-history-from-${index}`}>
+                <SelectValue placeholder="Grade" />
+              </SelectTrigger>
+              <SelectContent>
+                {gradeOptions.map((g) => (
+                  <SelectItem key={g} value={g}>Grade {g}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor={`edu-history-to-${index}`} className="text-xs">To Grade</Label>
+            <Select value={entry.toGrade} onValueChange={(value) => updateEntry(index, "toGrade", value)}>
+              <SelectTrigger id={`edu-history-to-${index}`}>
+                <SelectValue placeholder="Grade" />
+              </SelectTrigger>
+              <SelectContent>
+                {gradeOptions.map((g) => (
+                  <SelectItem key={g} value={g}>Grade {g}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
