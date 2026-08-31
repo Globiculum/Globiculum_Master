@@ -61,7 +61,6 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
     <SectionCard
       icon={locationIcon}
       title="Your child's school & transition plans."
-      description="Let's get to know your child."
       illustration={parentKidsIllustration}
       animated={false}
     >

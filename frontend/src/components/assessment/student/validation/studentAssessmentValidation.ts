@@ -45,6 +45,7 @@ const studentProfileStepSchema = z
 
 const academicProfileStepSchema = z.object({
   academicPath: z.array(z.string()).min(1, "Select at least one current subject"),
+  overallPerformance: z.string().min(1, "Please select overall performance"),
 });
 
 const wrapUpStepSchema = z.object({

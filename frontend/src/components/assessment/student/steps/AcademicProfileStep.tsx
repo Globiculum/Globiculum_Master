@@ -1,8 +1,20 @@
 import type { StudentStepProps } from "./types";
 import SectionCard from "../../shared/SectionCard";
+import QuestionCard from "../../shared/QuestionCard";
+import InputCard from "../../shared/InputCard";
 import AcademicPathFlashcards from "./AcademicPathFlashcards";
 import LanguageJourneyCard from "./LanguageJourneyCard";
 import academicPathIcon from "@/assets/icons-3d/academic-path.png";
+
+// Mirrors Parent's Overall Performance question (see ParentStep2.tsx) —
+// same options, first-person copy, placed after Language Exposure to match
+// where Parent puts it.
+const OVERALL_PERFORMANCE_OPTIONS = [
+  { value: "excelling", label: "Excelling" },
+  { value: "above-average", label: "Above Average" },
+  { value: "on-track", label: "On Track" },
+  { value: "needs-support", label: "Needs Support" },
+];
 
 // Step 2: Academic Path — current subjects, per-subject confidence, language
 // exposure for Indian schooling, and foreign language details. Current
@@ -64,6 +76,25 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors }: Stu
       <span id="academic-path-next-section" className="sr-only" aria-hidden="true" />
 
       <LanguageJourneyCard formData={formData} setField={setField} setRecordField={setRecordField} />
+
+      <QuestionCard
+        label="Overall Performance"
+        tooltip="A general sense of how you're performing academically overall."
+        error={errors.overallPerformance}
+      >
+        <div role="radiogroup" aria-label="Overall Performance" className="flex flex-wrap gap-2">
+          {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
+            <InputCard
+              key={opt.value}
+              variant="chip"
+              mode="radio"
+              label={opt.label}
+              selected={formData.overallPerformance === opt.value}
+              onClick={() => setField("overallPerformance", opt.value)}
+            />
+          ))}
+        </div>
+      </QuestionCard>
     </SectionCard>
   );
 };

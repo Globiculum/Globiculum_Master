@@ -58,16 +58,13 @@ const ParentStep4 = ({ formData, onFieldChange, onArrayToggle, fieldErrors }: Pa
 
   return (
     <SectionCard icon={nervousIcon} title={title} description="What concerns you, and how can we help?">
-      <SectionContainer
-        title="Biggest Concerns"
-        description="What worries you most about the move?"
-        required
-        error={fieldErrors.transitionConcerns}
-      >
+      <SectionContainer title="Biggest Concerns" required error={fieldErrors.transitionConcerns}>
+        <p className="-mt-2 text-sm text-muted-foreground">What worries you most about the move?</p>
         <ConcernCards options={TRANSITION_CONCERNS} selected={formData.transitionConcerns} onToggle={(value) => onArrayToggle("transitionConcerns", value)} />
       </SectionContainer>
 
-      <SectionContainer title="Preferred Support" description="What kind of support would help your family most?">
+      <SectionContainer title="Preferred Support">
+        <p className="-mt-2 text-sm text-muted-foreground">What kind of support would help your family most?</p>
         <SupportCards options={SUPPORT_NEEDS} selected={formData.supportNeeds} onToggle={(value) => onArrayToggle("supportNeeds", value)} />
       </SectionContainer>
 
