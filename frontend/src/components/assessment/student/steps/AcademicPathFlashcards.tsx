@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Check, Minus, Plus, X } from "lucide-react";
+import {
+  ArrowRight, Check, Minus, Plus, X,
+  Calculator, Sigma, Shapes, Infinity as InfinityIcon, FlaskConical, TestTube, Atom, Dna, Code,
+  BookOpen, PenTool, Languages, Landmark, ScrollText, Scale, Compass, Brain, Users, TrendingUp,
+  Receipt, Briefcase, Leaf, Palette, GraduationCap,
+  type LucideIcon,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { GlobiculumChecklistIcon, GlobiculumIconTile } from "@/components/icons";
@@ -8,16 +14,6 @@ import FieldError from "../../shared/FieldError";
 import editIcon from "@/assets/icons-3d/edit.png";
 import backIcon from "@/assets/icons-3d/back.png";
 import FlashcardShell from "../../shared/FlashcardShell";
-import targetIcon from "@/assets/icons-3d/target.png";
-import curriculumIcon from "@/assets/icons-3d/curriculum.png";
-import notesIcon from "@/assets/icons-3d/notes.png";
-import communicationIcon from "@/assets/icons-3d/communication.png";
-import locationIcon from "@/assets/icons-3d/location.png";
-import learningStyleIcon from "@/assets/icons-3d/learning-style.png";
-import areasToImproveIcon from "@/assets/icons-3d/areas-to-improve.png";
-import academicPathIcon from "@/assets/icons-3d/academic-path.png";
-import timelineIcon from "@/assets/icons-3d/timeline.png";
-import emotionalWellbeingIcon from "@/assets/icons-3d/emotional-wellbeing.png";
 
 // Combines what used to be two separate questions ("Current Subjects" then
 // "How confident do you feel in each subject?") into one flashcard-per-
@@ -46,32 +42,48 @@ const DEFAULT_MICROCOPY: Record<ConfidenceValue, string> = {
 const confidenceLabel = (value?: string): string =>
   CONFIDENCE_LEVELS.find((l) => l.value === value)?.label ?? value ?? "";
 
-// Maps to the closest fit among the existing 3D icon family rather than a
-// bespoke icon per subject — several subjects legitimately share an asset
-// (e.g. Physics/Chemistry/Biology all read as "curriculum/science"), the
-// same grouping the previous Lucide map already did with FlaskConical.
-const SUBJECT_ICON: Record<string, string> = {
-  "Mathematics": targetIcon,
-  "Science": curriculumIcon,
-  "English / Language Arts": notesIcon,
-  "Social Studies": communicationIcon,
-  "Foreign Language": locationIcon,
-  "Elective (Art/Music/CS/Other)": learningStyleIcon,
-  "Physics": curriculumIcon,
-  "Chemistry": curriculumIcon,
-  "Biology": curriculumIcon,
-  "Computer Science": targetIcon,
-  "Accountancy": areasToImproveIcon,
-  "Economics": areasToImproveIcon,
-  "Business Studies": academicPathIcon,
-  "English": notesIcon,
-  "History": timelineIcon,
-  "Political Science": communicationIcon,
-  "Geography": locationIcon,
-  "Psychology": emotionalWellbeingIcon,
-  "Sociology": communicationIcon,
+// A distinct, subject-relevant Lucide icon per subject, covering every
+// subject string across all grade bands/curricula (elementary, IB,
+// Cambridge/IGCSE, US high school, higher-secondary streams) rather than
+// clustering many subjects behind one generic icon.
+const SUBJECT_ICON: Record<string, LucideIcon> = {
+  "Mathematics": Calculator,
+  "Foundational Math": Calculator,
+  "Algebra": Sigma,
+  "Geometry": Shapes,
+  "Pre-Calculus / Calculus": InfinityIcon,
+  "Science": FlaskConical,
+  "Basic Science": FlaskConical,
+  "Sciences": FlaskConical,
+  "Physics": Atom,
+  "Chemistry": TestTube,
+  "Biology": Dna,
+  "Computer Science": Code,
+  "English / Language Arts": BookOpen,
+  "English": BookOpen,
+  "English Language": BookOpen,
+  "Language and Literature": BookOpen,
+  "Reading & Comprehension": BookOpen,
+  "Writing Skills": PenTool,
+  "Language Acquisition": Languages,
+  "Foreign Language": Languages,
+  "Social Studies": Landmark,
+  "Social Studies / US History": Landmark,
+  "History": ScrollText,
+  "Individuals and Societies": Landmark,
+  "Humanities": Landmark,
+  "Political Science": Scale,
+  "Geography": Compass,
+  "Psychology": Brain,
+  "Sociology": Users,
+  "Economics": TrendingUp,
+  "Accountancy": Receipt,
+  "Business Studies": Briefcase,
+  "General Awareness / Environmental Learning": Leaf,
+  "Elective (Art/Music/CS/Other)": Palette,
+  "Elective (Art/Music/Technology)": Palette,
 };
-const getSubjectIcon = (subject: string): string => SUBJECT_ICON[subject] ?? curriculumIcon;
+const getSubjectIcon = (subject: string): LucideIcon => SUBJECT_ICON[subject] ?? GraduationCap;
 
 const CONFIDENCE_STYLE: Record<ConfidenceValue, { idle: string; selected: string }> = {
   strong: {
@@ -309,7 +321,7 @@ const AcademicPathFlashcards = ({
   customCardTitle = "Any other subjects?",
   customCardSubtitle = "Add any subject not listed above, then rate your confidence.",
   customCardQuestion = "How confident do you feel in this subject?",
-  summaryTitle = "Your Academic Path is ready",
+  summaryTitle = "Your Academic Path is ready.",
 }: AcademicPathFlashcardsProps) => {
   const resolvedMicrocopy: Record<ConfidenceValue, string> = { ...DEFAULT_MICROCOPY, ...microcopy };
   const shouldReduceMotion = useReducedMotion() ?? false;
@@ -648,13 +660,10 @@ const AcademicPathFlashcards = ({
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-3">
                     <GlobiculumIconTile tone="teal" size={64}>
-                      <img
-                        src={getSubjectIcon(currentSubject)}
-                        className="h-[30px] w-[30px] object-contain"
-                        alt=""
-                        aria-hidden="true"
-                        draggable={false}
-                      />
+                      {(() => {
+                        const SubjectIcon = getSubjectIcon(currentSubject);
+                        return <SubjectIcon size={30} aria-hidden="true" />;
+                      })()}
                     </GlobiculumIconTile>
                   </div>
                   <h4 className="text-xl font-bold text-foreground">{currentSubject}</h4>

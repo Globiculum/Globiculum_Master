@@ -210,7 +210,7 @@ const buildCardSequence = (formData: AssessmentFormData): ProfileCard[] => {
       icon: GlobiculumPencilIcon,
       tileColor: "violet",
       milestone: "About You",
-      navLabel: "About you",
+      navLabel: "Your Name",
       title: "What's your name?",
       errorField: null, // composite — handled via studentName/studentLastName directly
     },
@@ -239,7 +239,7 @@ const buildCardSequence = (formData: AssessmentFormData): ProfileCard[] => {
       tileColor: "teal",
       milestone: "Your School",
       navLabel: "Location",
-      title: "Where do you currently go to school?",
+      title: "Which country do you currently go to school in?",
       errorField: "snapshotLocation",
     },
   ];
@@ -507,7 +507,7 @@ const NavRow = ({ item, isLast }: { item: NavItem; isLast: boolean }) => {
     <>
       <NavDot status={item.status} />
       <span className="min-w-0">
-        <span className={cn("block truncate text-xs", NAV_LABEL_STYLE[item.status])}>{item.label}</span>
+        <span className={cn("block truncate text-[11px]", NAV_LABEL_STYLE[item.status])}>{item.label}</span>
         {item.sublabel && (
           <span
             className={cn(
@@ -577,7 +577,7 @@ const NavPanel = ({ navItems }: { navItems: NavItem[] }) => {
             if (entry.type === "header") {
               return (
                 <li key={entry.key} className="list-none pb-0.5 pt-2.5 first:pt-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/60">{entry.label}</span>
+                  <span className="text-sm font-bold tracking-wide text-muted-foreground/60">{entry.label}</span>
                 </li>
               );
             }
@@ -626,6 +626,8 @@ const CardFrame = ({
   error,
   invalid,
   children,
+  editing,
+  onFinishEditing,
 }: {
   icon: ProfileIcon;
   tileColor: TileColor;
@@ -635,6 +637,15 @@ const CardFrame = ({
   error?: string;
   invalid?: boolean;
   children: ReactNode;
+  /** True when this card was reached by clicking an already-answered nav
+   * item to revisit it, rather than the normal forward sequence. Auto-advance
+   * cards (radio/select, no manual "Next" of their own) only move on when the
+   * selection actually changes — if reopened just to check it and nothing
+   * changes, there was previously no way back to the summary except
+   * retracing every "Back" step. Showing an explicit "Next" here, only while
+   * editing, gives a guaranteed way out either way. */
+  editing?: boolean;
+  onFinishEditing?: () => void;
 }) => (
   <FlashcardShell invalid={invalid || !!error} accent="teal" accentBorder>
     <div className="flex flex-col items-center text-center">
@@ -649,6 +660,20 @@ const CardFrame = ({
     </div>
     <div className="mt-6">{children}</div>
     <FieldError message={error} />
+    {editing && onFinishEditing && (
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={onFinishEditing}
+          className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
+        >
+          Next
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
+        </button>
+      </div>
+    )}
   </FlashcardShell>
 );
 
@@ -760,6 +785,16 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
     setCurrentCardId(id);
   };
 
+  // For auto-advance cards (radio/select) reached via editCard: selecting a
+  // value already jumps back to the summary via advanceTo's editingSingleCard
+  // check, but if nothing changes there was previously no way back except
+  // "Back"-ing through every earlier card. This gives a direct, guaranteed
+  // way out regardless of whether anything changed.
+  const finishEditing = () => {
+    setEditingSingleCard(false);
+    setPhase("summary");
+  };
+
   const continueToNext = () => {
     document.getElementById("student-profile-next-section")?.scrollIntoView({ behavior: shouldReduceMotion ? "auto" : "smooth", block: "start" });
   };
@@ -783,7 +818,12 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
       label: card.navLabel,
       milestone: card.milestone,
       status,
-      onClick: status === "completed" || status === "skipped" ? () => editCard(card.id) : undefined,
+      // Display-only — editing an already-answered step now happens in
+      // exactly one place (the summary page's own pencil-icon rows, via
+      // buildSummarySections below), not also here mid-sequence. Two
+      // separate ways to trigger the same edit was the redundancy being
+      // removed; editCard(card.id) is still what the summary rows call.
+      onClick: undefined,
     };
   });
 
@@ -912,7 +952,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "schoolStage" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} kicker={currentCard.kicker} title={currentCard.title} hint={currentCard.hint} error={errors.schoolStage}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} kicker={currentCard.kicker} title={currentCard.title} hint={currentCard.hint} error={errors.schoolStage} editing={editingSingleCard} onFinishEditing={finishEditing}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {SCHOOL_STAGES.map((stage) => (
                     <InputCard
@@ -936,7 +976,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "grade" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.snapshotGrade}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.snapshotGrade} editing={editingSingleCard} onFinishEditing={finishEditing}>
                 <div role="radiogroup" aria-label={currentCard.title} className="flex flex-wrap justify-center gap-2">
                   {getGradeOptions(formData.schoolStage).map((grade) => (
                     <InputCard
@@ -953,7 +993,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "country" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.snapshotLocation}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.snapshotLocation} editing={editingSingleCard} onFinishEditing={finishEditing}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {COUNTRIES.map((loc) => (
                     <InputCard
@@ -976,7 +1016,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "usState" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.usState}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.usState} editing={editingSingleCard} onFinishEditing={finishEditing}>
                 <Select value={formData.usState} onValueChange={(value) => selectChoice("usState", value)}>
                   <SelectTrigger id="us-state">
                     <SelectValue placeholder="Select your state" />
@@ -1039,7 +1079,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
                     disabled={formData.currentCurriculum.length === 0}
                     className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
                   >
-                    Next
+                    Done
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
                       <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </span>
@@ -1072,7 +1112,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "targetBoard" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetGoal}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetGoal} editing={editingSingleCard} onFinishEditing={finishEditing}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-2 gap-3">
                   {TARGET_BOARDS.map((board) => (
                     <InputCard
@@ -1089,7 +1129,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "targetGrade" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetGrade}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetGrade} editing={editingSingleCard} onFinishEditing={finishEditing}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-2 gap-3">
                   {TARGET_GRADE_OPTIONS.map((option) => (
                     <InputCard
@@ -1107,7 +1147,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "timeline" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.timeline}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.timeline} editing={editingSingleCard} onFinishEditing={finishEditing}>
                 <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => selectChoice("timeline", value)} />
               </CardFrame>
             )}

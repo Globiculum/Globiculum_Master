@@ -95,25 +95,6 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
     <SectionCard icon={academicPathIcon} title="Academic Path">
       <div className="-mt-4 text-sm text-muted-foreground">Tell us what the student studies today.</div>
 
-      <QuestionCard
-        label="Overall Performance"
-        tooltip="A general sense of how your child is performing academically overall."
-        error={fieldErrors.overallPerformance}
-      >
-        <div role="radiogroup" aria-label="Overall Performance" className="flex flex-wrap gap-2">
-          {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
-            <InputCard
-              key={opt.value}
-              variant="chip"
-              mode="radio"
-              label={opt.label}
-              selected={formData.overallPerformance === opt.value}
-              onClick={() => onFieldChange("overallPerformance", opt.value)}
-            />
-          ))}
-        </div>
-      </QuestionCard>
-
       <AcademicPathFlashcards
         activeSubjectList={activeSubjectList}
         requiredSubjects={NO_REQUIRED_SUBJECTS}
@@ -134,7 +115,7 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
         customCardTitle="Any other subjects?"
         customCardSubtitle="Add any subject not listed above, then note your child's confidence."
         customCardQuestion="How confident does your child seem in this subject?"
-        summaryTitle="Your Child's Academic Path is ready"
+        summaryTitle="Your Child's Academic Path is ready."
       />
 
       <span id="academic-path-next-section" className="sr-only" aria-hidden="true" />
@@ -186,6 +167,25 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
         )}
 
       <ParentLanguageJourneyCard formData={formData} onFieldChange={onFieldChange} onRecordFieldChange={onRecordFieldChange} />
+
+      <QuestionCard
+        label="Overall Performance"
+        tooltip="A general sense of how your child is performing academically overall."
+        error={fieldErrors.overallPerformance}
+      >
+        <div role="radiogroup" aria-label="Overall Performance" className="flex flex-wrap gap-2">
+          {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
+            <InputCard
+              key={opt.value}
+              variant="chip"
+              mode="radio"
+              label={opt.label}
+              selected={formData.overallPerformance === opt.value}
+              onClick={() => onFieldChange("overallPerformance", opt.value)}
+            />
+          ))}
+        </div>
+      </QuestionCard>
 
       {formData.schoolStage !== "elementary" && (
         <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.06] to-transparent p-5 shadow-soft">

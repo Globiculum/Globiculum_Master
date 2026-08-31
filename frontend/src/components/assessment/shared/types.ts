@@ -36,6 +36,7 @@ export interface AssessmentFormData {
   foreignLanguageName: string; // new: foreign-language studied (mirrors Parent flow)
   foreignLanguageNameOther: string;
   foreignLanguageLevel: string;
+  overallPerformance: string; // mirrors Parent's Overall Performance question
 
   // ---- Learning Profile ----
   learningStyles: string[];
@@ -85,6 +86,7 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   foreignLanguageName: "",
   foreignLanguageNameOther: "",
   foreignLanguageLevel: "",
+  overallPerformance: "",
 
   learningStyles: [],
   studyTime: "",

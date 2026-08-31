@@ -103,6 +103,7 @@ const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors,
       icon: academicPathIcon,
       rows: [
         { label: "Current Subjects", value: joinList(formData.academicPath) },
+        { label: "Overall Performance", value: prettify(formData.overallPerformance) },
         { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
         { label: "Language Proficiencies", value: joinRecord(formData.languageProficiencies) },
         {
