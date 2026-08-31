@@ -25,7 +25,7 @@ import FlashcardShell from "../../shared/FlashcardShell";
 // storage are unchanged: academicPath: string[], plus subjectConfidences:
 // Record<string, "strong"|"moderate"|"needs-help">.
 
-export type ConfidenceValue = "strong" | "moderate" | "needs-help";
+export type ConfidenceValue = "strong" | "moderate" | "needs-help" | "not-applicable";
 
 const CONFIDENCE_LEVELS: { value: ConfidenceValue; label: string }[] = [
   { value: "strong", label: "Strong" },
@@ -33,10 +33,20 @@ const CONFIDENCE_LEVELS: { value: ConfidenceValue; label: string }[] = [
   { value: "needs-help", label: "Needs Help" },
 ];
 
+// Fourth option shown only on the main per-subject card (not the custom-add
+// card) — replaces the old "I don't take this" text link below the row with
+// a proper fourth button, and removes a subject from academicPath exactly
+// like that link used to (see skipSubject).
+export const MAIN_CONFIDENCE_LEVELS: { value: ConfidenceValue; label: string }[] = [
+  ...CONFIDENCE_LEVELS,
+  { value: "not-applicable", label: "Not Applicable" },
+];
+
 const DEFAULT_MICROCOPY: Record<ConfidenceValue, string> = {
   strong: "I feel confident",
   moderate: "I understand most of it",
   "needs-help": "I'd like more support",
+  "not-applicable": "Doesn't apply",
 };
 
 const confidenceLabel = (value?: string): string =>
@@ -85,7 +95,7 @@ const SUBJECT_ICON: Record<string, LucideIcon> = {
 };
 const getSubjectIcon = (subject: string): LucideIcon => SUBJECT_ICON[subject] ?? GraduationCap;
 
-const CONFIDENCE_STYLE: Record<ConfidenceValue, { idle: string; selected: string }> = {
+export const CONFIDENCE_STYLE: Record<ConfidenceValue, { idle: string; selected: string }> = {
   strong: {
     idle: "border-secondary/25 bg-secondary/5 text-foreground hover:border-secondary/60 hover:bg-secondary/10",
     selected: "border-secondary bg-secondary text-secondary-foreground shadow-glow-sm",
@@ -97,6 +107,10 @@ const CONFIDENCE_STYLE: Record<ConfidenceValue, { idle: string; selected: string
   "needs-help": {
     idle: "border-violet/25 bg-violet/5 text-foreground hover:border-violet/60 hover:bg-violet/10",
     selected: "border-violet bg-violet text-violet-foreground shadow-glow-sm",
+  },
+  "not-applicable": {
+    idle: "border-border bg-muted/30 text-foreground hover:border-muted-foreground/40 hover:bg-muted/50",
+    selected: "border-muted-foreground bg-muted text-foreground shadow-glow-sm",
   },
 };
 
@@ -292,10 +306,12 @@ interface AcademicPathFlashcardsProps {
   // animation, or the interaction pattern itself.
   navTitle?: string;
   navSubtitle?: string;
-  confidenceQuestion?: string;
   confidenceHint?: string;
   microcopy?: Partial<Record<ConfidenceValue, string>>;
-  skipLabel?: string;
+  // Entries that live in academicPath but belong to a different section
+  // (e.g. Parent's AP Courses chips) — excluded from the "Other subjects"
+  // custom-card count so picking an AP course doesn't show up there too.
+  excludeFromCustom?: string[];
   customCardTitle?: string;
   customCardSubtitle?: string;
   customCardQuestion?: string;
@@ -314,10 +330,9 @@ const AcademicPathFlashcards = ({
   error,
   navTitle = "Your Academic Path",
   navSubtitle = "Tell us how each subject feels.",
-  confidenceQuestion = "How confident do you feel in this subject?",
   confidenceHint,
   microcopy,
-  skipLabel = "I don't take this",
+  excludeFromCustom = [],
   customCardTitle = "Any other subjects?",
   customCardSubtitle = "Add any subject not listed above, then rate your confidence.",
   customCardQuestion = "How confident do you feel in this subject?",
@@ -325,7 +340,7 @@ const AcademicPathFlashcards = ({
 }: AcademicPathFlashcardsProps) => {
   const resolvedMicrocopy: Record<ConfidenceValue, string> = { ...DEFAULT_MICROCOPY, ...microcopy };
   const shouldReduceMotion = useReducedMotion() ?? false;
-  const customSubjects = academicPath.filter((s) => !activeSubjectList.includes(s));
+  const customSubjects = academicPath.filter((s) => !activeSubjectList.includes(s) && !excludeFromCustom.includes(s));
   const totalCards = activeSubjectList.length + 1; // +1 for the trailing "Other subjects" card
 
   const hasExistingAnswers =
@@ -377,6 +392,7 @@ const AcademicPathFlashcards = ({
     if (academicPath.includes(subject)) {
       setAcademicPath(academicPath.filter((s) => s !== subject));
     }
+    setConfidence(subject, "not-applicable");
     advance();
   };
 
@@ -667,31 +683,21 @@ const AcademicPathFlashcards = ({
                     </GlobiculumIconTile>
                   </div>
                   <h4 className="text-xl font-bold text-foreground">{currentSubject}</h4>
-                  <p className="mt-1 text-sm text-muted-foreground">{confidenceQuestion}</p>
-                  {confidenceHint && <p className="mt-0.5 text-[11px] text-muted-foreground/70">{confidenceHint}</p>}
+                  {confidenceHint && <p className="mt-1 text-[11px] text-muted-foreground/70">{confidenceHint}</p>}
                 </div>
 
                 <div role="radiogroup" aria-label={`${currentSubject} confidence`} className="mt-5 flex flex-col gap-2 sm:flex-row">
-                  {CONFIDENCE_LEVELS.map((level) => (
+                  {MAIN_CONFIDENCE_LEVELS.map((level) => (
                     <ConfidenceButton
                       key={level.value}
                       level={level}
                       microcopy={resolvedMicrocopy[level.value]}
                       selected={currentSubjectSelected === level.value}
                       disabled={isTransitioning}
-                      onSelect={() => selectConfidence(currentSubject, level.value)}
+                      onSelect={() => (level.value === "not-applicable" ? skipSubject(currentSubject) : selectConfidence(currentSubject, level.value))}
                     />
                   ))}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => skipSubject(currentSubject)}
-                  disabled={isTransitioning}
-                  className="mt-4 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-40"
-                >
-                  {skipLabel}
-                </button>
                 </FlashcardShell>
               </motion.div>
             )
