@@ -3,82 +3,31 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import ReportView, { type AnalysisData } from "@/components/ReportView";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, FileText, BookOpen, AlertTriangle, Calendar, Lightbulb, Clock, ShieldAlert, LinkIcon } from "lucide-react";
-
-// Gap items can be plain strings (legacy) or rich objects (current AI output)
-type GapItem = string | { topic: string; resourceUrl?: string; subject?: string; reason?: string };
-// Resource items can be plain strings or objects
-type ResourceItem = string | { name: string; url?: string };
-
-// Extract a display string from any GapItem shape
-const gapText = (g: GapItem): string => (typeof g === "string" ? g : g.topic ?? String(g));
-// Extract a display string from any ResourceItem shape
-const resourceText = (r: ResourceItem): string => (typeof r === "string" ? r : r.name ?? String(r));
-// Coerce any unknown value to a safe renderable string
-const safeStr = (v: unknown): string => {
-  if (typeof v === "string") return v;
-  if (v === null || v === undefined) return "";
-  if (typeof v === "object") return gapText(v as GapItem);
-  return String(v);
-};
-
-interface SubjectAnalysis {
-  subject: string;
-  topicsCovered: number;
-  totalTopics: number;
-  alignmentLevel: "strong" | "moderate" | "high_gap";
-  keyGaps: GapItem[];
-}
-
-interface TimelinePhase {
-  name: string;
-  duration: string;
-  bullets: (string | unknown)[];
-}
-
-interface AnalysisData {
-  overallAlignment: {
-    percentage: number;
-    subjectsNeedingBridge: string[];
-    estimatedDuration: string;
-  };
-  subjectAnalysis: SubjectAnalysis[];
-  criticalGaps: GapItem[];
-  bridgeTimeline: {
-    phase1: TimelinePhase;
-    phase2: TimelinePhase;
-    phase3: TimelinePhase;
-  };
-  recommendations: {
-    study: (string | ResourceItem)[];
-    skillStrategy: (string | ResourceItem)[];
-    resources: (string | ResourceItem)[];
-    culturalLanguage: (string | ResourceItem)[];
-  };
-}
+import { Loader2, Clock, LinkIcon, ShieldAlert } from "lucide-react";
 
 interface SharedReportData {
   id: string;
   title: string;
-  form_data: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  form_data: any;
   analysis_data: AnalysisData;
   created_at: string;
   student_name: string;
 }
 
-// Error boundary so a rendering crash shows a message instead of a blank page
-interface EBState { hasError: boolean; message: string }
+// ---------------------------------------------------------------------------
+// Error boundary — catches render crashes so the page never goes blank
+// ---------------------------------------------------------------------------
+interface EBState { hasError: boolean }
 class SharedReportErrorBoundary extends Component<{ children: ReactNode }, EBState> {
   constructor(props: { children: ReactNode }) {
     super(props);
-    this.state = { hasError: false, message: "" };
+    this.state = { hasError: false };
   }
-  static getDerivedStateFromError(error: unknown): EBState {
-    return { hasError: true, message: error instanceof Error ? error.message : String(error) };
-  }
+  static getDerivedStateFromError(): EBState { return { hasError: true }; }
   render() {
     if (this.state.hasError) {
       return (
@@ -94,9 +43,7 @@ class SharedReportErrorBoundary extends Component<{ children: ReactNode }, EBSta
                 <p className="text-muted-foreground text-center text-sm">
                   The report data could not be rendered. Please try again or contact support.
                 </p>
-                <Button asChild variant="outline">
-                  <a href="/">Back to Home</a>
-                </Button>
+                <Button asChild variant="outline"><a href="/">Back to Home</a></Button>
               </CardContent>
             </Card>
           </div>
@@ -108,6 +55,9 @@ class SharedReportErrorBoundary extends Component<{ children: ReactNode }, EBSta
   }
 }
 
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 const SharedReportPage = () => {
   const { token } = useParams<{ token: string }>();
   const [report, setReport] = useState<SharedReportData | null>(null);
@@ -116,11 +66,7 @@ const SharedReportPage = () => {
 
   useEffect(() => {
     const fetchReport = async () => {
-      if (!token) {
-        setError("Invalid link");
-        setLoading(false);
-        return;
-      }
+      if (!token) { setError("Invalid link"); setLoading(false); return; }
 
       const { data, error: fnError } = await supabase.functions.invoke("fetch-shared-report", {
         body: { token },
@@ -130,30 +76,13 @@ const SharedReportPage = () => {
         setError(data?.error || fnError?.message || "Failed to load report");
       } else if (data?.report) {
         setReport(data.report as SharedReportData);
+      } else {
+        setError("Report not found");
       }
       setLoading(false);
     };
-
     fetchReport();
   }, [token]);
-
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString("en-US", {
-      year: "numeric", month: "short", day: "numeric",
-    });
-
-  const getAlignmentBadge = (level: string) => {
-    switch (level) {
-      case "strong":
-        return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">Strong</Badge>;
-      case "moderate":
-        return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs">Moderate</Badge>;
-      case "high_gap":
-        return <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-0 text-xs">High Gap</Badge>;
-      default:
-        return <Badge variant="secondary" className="text-xs">Unknown</Badge>;
-    }
-  };
 
   if (loading) {
     return (
@@ -176,19 +105,15 @@ const SharedReportPage = () => {
           <Card className="max-w-md w-full mx-4">
             <CardContent className="flex flex-col items-center py-12 space-y-4">
               <div className="p-4 bg-destructive/10 rounded-full">
-                {error?.includes("expired") ? (
-                  <Clock className="h-10 w-10 text-destructive" />
-                ) : error?.includes("not found") ? (
-                  <LinkIcon className="h-10 w-10 text-destructive" />
-                ) : (
-                  <ShieldAlert className="h-10 w-10 text-destructive" />
-                )}
+                {error?.includes("expired")
+                  ? <Clock className="h-10 w-10 text-destructive" />
+                  : error?.includes("not found")
+                    ? <LinkIcon className="h-10 w-10 text-destructive" />
+                    : <ShieldAlert className="h-10 w-10 text-destructive" />}
               </div>
               <h1 className="text-xl font-semibold">Unable to Load Report</h1>
               <p className="text-muted-foreground text-center">{error || "Report not found"}</p>
-              <Button asChild variant="outline">
-                <a href="/">Back to Home</a>
-              </Button>
+              <Button asChild variant="outline"><a href="/">Back to Home</a></Button>
             </CardContent>
           </Card>
         </div>
@@ -197,189 +122,29 @@ const SharedReportPage = () => {
     );
   }
 
-  const analysis = report.analysis_data;
+  const sharedBanner = (
+    <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+      <LinkIcon className="h-4 w-4 shrink-0" />
+      <span>Shared report for <strong className="text-foreground">{report.student_name}</strong></span>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8 max-w-4xl">
-        {/* Shared banner */}
-        <div className="mb-6 p-3 bg-muted/50 border rounded-lg flex items-center gap-2 text-sm text-muted-foreground">
-          <LinkIcon className="h-4 w-4" />
-          <span>Shared report for <strong className="text-foreground">{report.student_name}</strong></span>
-        </div>
-
-        {/* Title */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-primary/10 rounded-full">
-            <FileText className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{report.title}</h1>
-            <p className="text-sm text-muted-foreground">Generated {formatDate(report.created_at)}</p>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          {/* Quick Overview */}
-          <div className="grid grid-cols-3 gap-4">
-            <Card className="bg-primary/5 border-primary/20">
-              <CardContent className="p-4 text-center">
-                <div className="text-3xl font-bold text-primary">{analysis.overallAlignment?.percentage || 0}%</div>
-                <div className="text-sm text-muted-foreground">Overall Alignment</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
-              <CardContent className="p-4 text-center">
-                <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-                  {analysis.overallAlignment?.subjectsNeedingBridge?.length || 0}
-                </div>
-                <div className="text-sm text-muted-foreground">Subjects Need Bridge</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-              <CardContent className="p-4 text-center">
-                <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                  {analysis.overallAlignment?.estimatedDuration || "N/A"}
-                </div>
-                <div className="text-sm text-muted-foreground">Est. Duration</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Coverage Analysis */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold">Coverage Analysis</h3>
-            </div>
-            <div className="grid gap-3">
-              {analysis.subjectAnalysis?.map((subject, idx) => (
-                <Card key={idx} className="border">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">{subject.subject}</span>
-                      {getAlignmentBadge(subject.alignmentLevel)}
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
-                        <div
-                          className={`h-full transition-all ${
-                            subject.alignmentLevel === "strong" ? "bg-emerald-500" :
-                            subject.alignmentLevel === "moderate" ? "bg-amber-500" : "bg-rose-500"
-                          }`}
-                          style={{ width: `${(subject.topicsCovered / subject.totalTopics) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-sm text-muted-foreground">{subject.topicsCovered}/{subject.totalTopics}</span>
-                    </div>
-                    {subject.keyGaps?.length > 0 && (
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-medium">Gaps: </span>{subject.keyGaps.map(gapText).join(", ")}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          {/* Critical Gaps */}
-          {analysis.criticalGaps?.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-rose-500" />
-                <h3 className="text-lg font-semibold">Critical Gaps</h3>
-              </div>
-              <Card className="bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800">
-                <CardContent className="p-4">
-                  <ul className="space-y-1.5">
-                    {analysis.criticalGaps.map((gap, idx) => (
-                      <li key={idx} className="text-sm flex items-start gap-2">
-                        <span className="text-rose-500 mt-1">•</span>
-                        <span>{gapText(gap)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Bridge Timeline */}
-          {analysis.bridgeTimeline && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-semibold">Bridge Timeline</h3>
-              </div>
-              <div className="space-y-3">
-                {(["phase1", "phase2", "phase3"] as const).map((phaseKey, idx) => {
-                  const phase = analysis.bridgeTimeline[phaseKey];
-                  if (!phase) return null;
-                  return (
-                    <Card key={phaseKey} className="border">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="outline" className="text-xs">Phase {idx + 1}</Badge>
-                          <span className="font-medium">{phase.name}</span>
-                          <span className="text-sm text-muted-foreground ml-auto">{phase.duration}</span>
-                        </div>
-                        <ul className="space-y-1">
-                          {phase.bullets?.map((bullet, bIdx) => (
-                            <li key={bIdx} className="text-sm text-muted-foreground flex items-start gap-2">
-                              <span className="text-primary mt-1">•</span>
-                              <span>{safeStr(bullet)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Recommendations */}
-          {analysis.recommendations && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Lightbulb className="h-5 w-5 text-amber-500" />
-                <h3 className="text-lg font-semibold">Recommendations</h3>
-              </div>
-              <div className="grid md:grid-cols-2 gap-3">
-                {[
-                  { key: "study", label: "Study Tips" },
-                  { key: "skillStrategy", label: "Skill Strategy" },
-                  { key: "resources", label: "Resources" },
-                  { key: "culturalLanguage", label: "Cultural & Language" },
-                ].map(({ key, label }) => {
-                  const items = analysis.recommendations[key as keyof typeof analysis.recommendations];
-                  if (!items?.length) return null;
-                  return (
-                    <Card key={key} className="border">
-                      <CardContent className="p-4">
-                        <h4 className="font-medium text-sm mb-2">{label}</h4>
-                        <ul className="space-y-1">
-                          {items.map((rec, idx: number) => (
-                            <li key={idx} className="text-sm text-muted-foreground">• {resourceText(rec as ResourceItem)}</li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+        <ReportView
+          formData={report.form_data}
+          analysisData={report.analysis_data}
+          sharedBanner={sharedBanner}
+        />
       </main>
       <Footer />
     </div>
   );
 };
 
+// Wrap with error boundary so any render crash shows a message, not blank page
 const SharedReportPageWithBoundary = () => (
   <SharedReportErrorBoundary>
     <SharedReportPage />
