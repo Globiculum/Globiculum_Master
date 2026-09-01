@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component, ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
@@ -8,18 +8,35 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, FileText, BookOpen, AlertTriangle, Calendar, Lightbulb, Clock, ShieldAlert, LinkIcon } from "lucide-react";
 
+// Gap items can be plain strings (legacy) or rich objects (current AI output)
+type GapItem = string | { topic: string; resourceUrl?: string; subject?: string; reason?: string };
+// Resource items can be plain strings or objects
+type ResourceItem = string | { name: string; url?: string };
+
+// Extract a display string from any GapItem shape
+const gapText = (g: GapItem): string => (typeof g === "string" ? g : g.topic ?? String(g));
+// Extract a display string from any ResourceItem shape
+const resourceText = (r: ResourceItem): string => (typeof r === "string" ? r : r.name ?? String(r));
+// Coerce any unknown value to a safe renderable string
+const safeStr = (v: unknown): string => {
+  if (typeof v === "string") return v;
+  if (v === null || v === undefined) return "";
+  if (typeof v === "object") return gapText(v as GapItem);
+  return String(v);
+};
+
 interface SubjectAnalysis {
   subject: string;
   topicsCovered: number;
   totalTopics: number;
   alignmentLevel: "strong" | "moderate" | "high_gap";
-  keyGaps: string[];
+  keyGaps: GapItem[];
 }
 
 interface TimelinePhase {
   name: string;
   duration: string;
-  bullets: string[];
+  bullets: (string | unknown)[];
 }
 
 interface AnalysisData {
@@ -29,17 +46,17 @@ interface AnalysisData {
     estimatedDuration: string;
   };
   subjectAnalysis: SubjectAnalysis[];
-  criticalGaps: string[];
+  criticalGaps: GapItem[];
   bridgeTimeline: {
     phase1: TimelinePhase;
     phase2: TimelinePhase;
     phase3: TimelinePhase;
   };
   recommendations: {
-    study: string[];
-    skillStrategy: string[];
-    resources: string[];
-    culturalLanguage: string[];
+    study: (string | ResourceItem)[];
+    skillStrategy: (string | ResourceItem)[];
+    resources: (string | ResourceItem)[];
+    culturalLanguage: (string | ResourceItem)[];
   };
 }
 
@@ -50,6 +67,45 @@ interface SharedReportData {
   analysis_data: AnalysisData;
   created_at: string;
   student_name: string;
+}
+
+// Error boundary so a rendering crash shows a message instead of a blank page
+interface EBState { hasError: boolean; message: string }
+class SharedReportErrorBoundary extends Component<{ children: ReactNode }, EBState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, message: "" };
+  }
+  static getDerivedStateFromError(error: unknown): EBState {
+    return { hasError: true, message: error instanceof Error ? error.message : String(error) };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-background flex flex-col">
+          <Header />
+          <div className="flex-1 flex items-center justify-center">
+            <Card className="max-w-md w-full mx-4">
+              <CardContent className="flex flex-col items-center py-12 space-y-4">
+                <div className="p-4 bg-destructive/10 rounded-full">
+                  <ShieldAlert className="h-10 w-10 text-destructive" />
+                </div>
+                <h1 className="text-xl font-semibold">Unable to Display Report</h1>
+                <p className="text-muted-foreground text-center text-sm">
+                  The report data could not be rendered. Please try again or contact support.
+                </p>
+                <Button asChild variant="outline">
+                  <a href="/">Back to Home</a>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+          <Footer />
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 const SharedReportPage = () => {
@@ -219,7 +275,7 @@ const SharedReportPage = () => {
                     </div>
                     {subject.keyGaps?.length > 0 && (
                       <div className="text-sm text-muted-foreground">
-                        <span className="font-medium">Gaps: </span>{subject.keyGaps.join(", ")}
+                        <span className="font-medium">Gaps: </span>{subject.keyGaps.map(gapText).join(", ")}
                       </div>
                     )}
                   </CardContent>
@@ -241,7 +297,7 @@ const SharedReportPage = () => {
                     {analysis.criticalGaps.map((gap, idx) => (
                       <li key={idx} className="text-sm flex items-start gap-2">
                         <span className="text-rose-500 mt-1">•</span>
-                        <span>{gap}</span>
+                        <span>{gapText(gap)}</span>
                       </li>
                     ))}
                   </ul>
@@ -273,7 +329,7 @@ const SharedReportPage = () => {
                           {phase.bullets?.map((bullet, bIdx) => (
                             <li key={bIdx} className="text-sm text-muted-foreground flex items-start gap-2">
                               <span className="text-primary mt-1">•</span>
-                              <span>{bullet}</span>
+                              <span>{safeStr(bullet)}</span>
                             </li>
                           ))}
                         </ul>
@@ -306,8 +362,8 @@ const SharedReportPage = () => {
                       <CardContent className="p-4">
                         <h4 className="font-medium text-sm mb-2">{label}</h4>
                         <ul className="space-y-1">
-                          {items.map((rec: string, idx: number) => (
-                            <li key={idx} className="text-sm text-muted-foreground">• {rec}</li>
+                          {items.map((rec, idx: number) => (
+                            <li key={idx} className="text-sm text-muted-foreground">• {resourceText(rec as ResourceItem)}</li>
                           ))}
                         </ul>
                       </CardContent>
@@ -324,4 +380,10 @@ const SharedReportPage = () => {
   );
 };
 
-export default SharedReportPage;
+const SharedReportPageWithBoundary = () => (
+  <SharedReportErrorBoundary>
+    <SharedReportPage />
+  </SharedReportErrorBoundary>
+);
+
+export default SharedReportPageWithBoundary;
