@@ -32,58 +32,29 @@ import {
   validateStudentData,
   createValidationSummary,
 } from "../_shared/knowledgeValidation.ts";
+import {
+  CurriculumEntry,
+  CURRICULUM_DB_REGISTRY,
+  SUBJECT_ALIASES,
+  mapToDBEntry,
+  expandSubjectFilter,
+  GapNode,
+  GapNodeWithSeverity,
+  SubjectClassification,
+  SUBJECT_QUALIFY_RATIO,
+  classifyGapsBySubject,
+  selectFairGapSample,
+  mergeBestSourceMatch,
+  getNodeSubjectLabel,
+  buildGapReason,
+} from "../_shared/curriculumGaps.ts";
 
 // =============================================================================
 // RAG HELPERS — map student curriculum to DB system + build gap context for LLM
+// The curriculum registry, subject aliases, and gap classification live in
+// _shared/curriculumGaps.ts — see that file's header for why they're shared
+// across analyze-curriculum, diagnostics-engine, and alignment-engine.
 // =============================================================================
-
-// =============================================================================
-// CURRICULUM REGISTRY — single source of truth for all supported curricula.
-// When a new curriculum is ingested into the DB, add one entry here.
-// =============================================================================
-interface CurriculumEntry {
-  dbSystem: string;        // curriculum_system value in curriculum_nodes table
-  nodeType: string | null; // node_type to filter on; null = all types
-  label: string;           // human-readable name for LLM prompts
-}
-
-const CURRICULUM_DB_REGISTRY: Record<string, CurriculumEntry> = {
-  // ── Indian NCERT/CBSE system ────────────────────────────────────────────
-  'cbse':          { dbSystem: 'ncert-cbse', nodeType: 'topic',    label: 'Indian CBSE (NCERT)' },
-  'ncert':         { dbSystem: 'ncert-cbse', nodeType: 'topic',    label: 'Indian CBSE (NCERT)' },
-  'icse':          { dbSystem: 'ncert-cbse', nodeType: 'topic',    label: 'Indian ICSE (NCERT-based)' },
-  'state-board':   { dbSystem: 'ncert-cbse', nodeType: 'topic',    label: 'Indian State Board' },
-  'ncert-cbse':    { dbSystem: 'ncert-cbse', nodeType: 'topic',    label: 'Indian CBSE (NCERT)' },
-  'indian':        { dbSystem: 'ncert-cbse', nodeType: 'topic',    label: 'Indian Curriculum' },
-  'india':         { dbSystem: 'ncert-cbse', nodeType: 'topic',    label: 'Indian Curriculum' },
-  // ── US Common Core ──────────────────────────────────────────────────────
-  'common-core':   { dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Common Core' },
-  'common_core':   { dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Common Core' },
-  'us-common-core':{ dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Common Core' },
-  'us':            { dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Common Core' },
-  // ── NGSS (US Science) — Common Core only covers Math/ELA, so this is a
-  // separate standards framework merged in alongside 'us-common-core' below.
-  'ngss':          { dbSystem: 'ngss',           nodeType: 'standard', label: 'US NGSS (Science)' },
-  'science':       { dbSystem: 'ngss',           nodeType: 'standard', label: 'US NGSS (Science)' },
-  // ── Future curricula (uncomment when ingested into DB) ─────────────────
-  // 'ib-myp':     { dbSystem: 'ib-myp',            nodeType: 'objective', label: 'IB MYP' },
-  // 'cambridge':  { dbSystem: 'cambridge-igcse',    nodeType: 'topic',    label: 'Cambridge IGCSE' },
-  // 'igcse':      { dbSystem: 'cambridge-igcse',    nodeType: 'topic',    label: 'Cambridge IGCSE' },
-  // 'uk':         { dbSystem: 'uk-national',        nodeType: 'standard', label: 'UK National Curriculum' },
-};
-
-/** Resolve a curriculum string to its DB entry. Returns null if not yet ingested. */
-function mapToDBEntry(curriculum?: string): CurriculumEntry | null {
-  if (!curriculum) return null;
-  const c = curriculum.toLowerCase().trim();
-  // Direct key match
-  if (CURRICULUM_DB_REGISTRY[c]) return CURRICULUM_DB_REGISTRY[c];
-  // Substring match (handles 'CBSE India', 'US Common Core', etc.)
-  for (const [key, entry] of Object.entries(CURRICULUM_DB_REGISTRY)) {
-    if (c.includes(key) || key.includes(c)) return entry;
-  }
-  return null;
-}
 
 /**
  * Infer the TARGET curriculum the student is transitioning TO.
@@ -107,23 +78,6 @@ function inferTargetEntry(formData: FormData): CurriculumEntry | null {
   if (loc === 'us') return CURRICULUM_DB_REGISTRY['us-common-core'];
   if (loc === 'india' || loc === 'in') return CURRICULUM_DB_REGISTRY['ncert-cbse'];
   return null;
-}
-
-interface GapNode {
-  target_node_id: string;
-  target_node_name: string;
-  target_node_type: string;
-  target_grade_min: number;
-  target_grade_max: number;
-  target_description: string;
-  target_metadata: Record<string, unknown>;
-  best_source_match: string | null;
-  best_similarity: number | null;
-  gap_exists: boolean;
-}
-
-interface GapNodeWithSeverity extends GapNode {
-  _severity: 'CRITICAL' | 'MAJOR' | 'MODERATE';
 }
 
 /**
@@ -185,6 +139,11 @@ function buildRagContext(
 
   return lines.join('\n');
 }
+
+// classifyGapsBySubject() and selectFairGapSample() now live in
+// _shared/curriculumGaps.ts (imported above) — shared with diagnostics-engine
+// and alignment-engine. See that file's header for the domain-gating +
+// per-subject percentile rationale.
 
 /** Count how many gap items in the LLM analysis have resourceUrl set. */
 function countUrls(analysisData: Record<string, unknown>): number {
@@ -368,19 +327,36 @@ function injectRagUrls(
 }
 
 /**
- * Ensure every RAG subject has a subjectAnalysis entry with its key gaps.
+ * Ensure every RAG subject has a subjectAnalysis entry with its key gaps —
+ * INCLUDING subjects with zero gaps (fully covered) and subjects the LLM
+ * skipped because they weren't in the student's selected/challenging list.
  * The LLM often skips subjects from the RAG context despite explicit
- * instructions, so we build missing entries deterministically from the
- * RAG gap nodes and correct their topicsCovered / totalTopics counts.
+ * instructions, so we build missing entries deterministically.
+ *
+ * topicsCovered/totalTopics come from `subjectStats` — the REAL per-subject
+ * counts computed in classifyGapsBySubject() — never from gap-list length.
+ * The previous version derived them as `total = max(gapCount+2, 8)`, which
+ * has no connection to the actual curriculum data: for any subject with 6+
+ * gap topics it always produced exactly "2 of 8 covered", regardless of
+ * grade, subject, or how many real target topics existed. That's the exact
+ * "fake partial coverage" reported for Hindi/Sanskrit against a source
+ * curriculum with zero real overlap — confirmed by reproducing it directly
+ * from this formula, independent of gap classification.
  */
 function expandSubjectAnalysisFromRag(
   analysisData: Record<string, unknown>,
-  ragGaps: GapNodeWithSeverity[]
+  ragGaps: GapNodeWithSeverity[],
+  subjectStats: Map<string, { total: number; covered: number }>,
+  subjectClassifications: SubjectClassification[],
+  sourceLabel: string
 ): { subject: string; action: 'added' | 'existing' | 'updated' }[] {
   const expansionLog: { subject: string; action: 'added' | 'existing' | 'updated' }[] = [];
-  if (!ragGaps.length) return expansionLog;
+  if (subjectStats.size === 0) return expansionLog;
 
-  // Group RAG gaps by subject (from metadata.subject or metadata.domain)
+  const domainCoveredBySubject = new Map(subjectClassifications.map(s => [s.subject, s.domainCovered]));
+
+  // Group RAG gaps by subject (from metadata.subject or metadata.domain) —
+  // used for keyGaps text/URLs only; counts come from subjectStats instead.
   const bySubject = new Map<string, GapNodeWithSeverity[]>();
   for (const gap of ragGaps) {
     const meta = (gap.target_metadata || {}) as Record<string, unknown>;
@@ -402,43 +378,94 @@ function expandSubjectAnalysisFromRag(
     if (name) existingBySubject.set(name, s);
   }
 
-  for (const [subject, gaps] of bySubject.entries()) {
-    // Keep severity order already present in the array (CRITICAL first)
-    const sortedGaps = gaps;
-    const topGaps = sortedGaps.slice(0, 6); // max 6 keyGaps per subject
-    const total = Math.max(topGaps.length + 2, 8); // sensible minimum total
-    const covered = Math.max(0, total - topGaps.length);
-    const ratio = covered / total;
+  // Exact match first, then known aliases (SUBJECT_ALIASES) in both
+  // directions — otherwise the LLM's own "Social Studies" placeholder entry
+  // (created per the system prompt's grade 2-10 simplification rule) and
+  // this function's real RAG-grounded "Social Science" entry never merge,
+  // producing two separate cards for the same subject with contradictory
+  // numbers. Confirmed present in every test report so far.
+  const findExistingEntry = (normalized: string): Record<string, unknown> | undefined => {
+    if (existingBySubject.has(normalized)) return existingBySubject.get(normalized);
+    const aliases = SUBJECT_ALIASES[normalized] || [];
+    for (const alias of aliases) {
+      if (existingBySubject.has(alias)) return existingBySubject.get(alias);
+    }
+    // Reverse direction: normalized might itself be the alias target of some other key's list
+    for (const [key, aliasList] of Object.entries(SUBJECT_ALIASES)) {
+      if (aliasList.includes(normalized) && existingBySubject.has(key)) return existingBySubject.get(key);
+    }
+    return undefined;
+  };
+
+  // Iterate every subject with real target nodes — not just ones with gaps —
+  // so a fully-covered subject the LLM skipped still gets a correct entry.
+  for (const [subject, stats] of subjectStats.entries()) {
+    const gaps = bySubject.get(subject) || [];
+    const topGaps = gaps.slice(0, 6); // max 6 keyGaps shown per subject
+
+    const { total, covered } = stats;
+    const ratio = total > 0 ? covered / total : 1;
     let alignmentLevel: string;
     if (ratio >= 0.7) alignmentLevel = 'strong';
     else if (ratio >= 0.4) alignmentLevel = 'moderate';
     else alignmentLevel = 'high_gap';
 
+    const domainCovered = domainCoveredBySubject.get(subject) ?? true;
     const keyGaps = topGaps.map(g => {
       const meta = (g.target_metadata || {}) as Record<string, unknown>;
       const url = (meta.url as string) || (meta.source_url as string);
-      return url ? { topic: g.target_node_name, resourceUrl: url } : { topic: g.target_node_name };
+      const reason = buildGapReason(g, domainCovered, sourceLabel);
+      return { topic: g.target_node_name, subject, reason, ...(url ? { resourceUrl: url } : {}) };
     });
 
     const normalized = subject.toLowerCase();
-    if (existingBySubject.has(normalized)) {
-      const s = existingBySubject.get(normalized)!;
-      s.keyGaps = keyGaps;
-      s.topicsCovered = covered;
-      s.totalTopics = total;
-      s.alignmentLevel = alignmentLevel;
+    const existing = findExistingEntry(normalized);
+    if (existing) {
+      existing.keyGaps = keyGaps;
+      existing.topicsCovered = covered;
+      existing.totalTopics = total;
+      existing.alignmentLevel = alignmentLevel;
       expansionLog.push({ subject, action: 'updated' });
     } else {
-      subjectAnalysis.push({
+      const newEntry = {
         subject,
         topicsCovered: covered,
         totalTopics: total,
         alignmentLevel,
         keyGaps,
-      });
+      };
+      subjectAnalysis.push(newEntry);
+      existingBySubject.set(normalized, newEntry);
       expansionLog.push({ subject, action: 'added' });
     }
   }
+
+  // Final safety pass: if the LLM independently produced two of its own
+  // entries under alias names of the same real subject (rare, but possible
+  // since the LLM isn't guaranteed to follow the exact-match instruction),
+  // keep only the entry with the higher totalTopics (the one that actually
+  // got real subjectStats data merged into it above) and drop the rest.
+  const seenCanonical = new Map<string, Record<string, unknown>>();
+  const deduped: Record<string, unknown>[] = [];
+  for (const entry of subjectAnalysis) {
+    const name = ((entry.subject as string) || '').toLowerCase().trim();
+    let canonicalKey = name;
+    for (const [key, aliasList] of Object.entries(SUBJECT_ALIASES)) {
+      if (key === name || aliasList.includes(name)) { canonicalKey = key; break; }
+    }
+    const prior = seenCanonical.get(canonicalKey);
+    if (!prior) {
+      seenCanonical.set(canonicalKey, entry);
+      deduped.push(entry);
+    } else if (((entry.totalTopics as number) || 0) > ((prior.totalTopics as number) || 0)) {
+      // Replace the weaker duplicate in-place in `deduped`
+      const idx = deduped.indexOf(prior);
+      if (idx !== -1) deduped[idx] = entry;
+      seenCanonical.set(canonicalKey, entry);
+    }
+  }
+  subjectAnalysis.length = 0;
+  subjectAnalysis.push(...deduped);
 
   // Ensure criticalGaps reflect the most severe gaps across subjects
   const criticalGaps = Array.isArray(analysisData.criticalGaps)
@@ -454,7 +481,16 @@ function expandSubjectAnalysisFromRag(
     if (criticalSet.has(topic.toLowerCase())) continue;
     const meta = (gap.target_metadata || {}) as Record<string, unknown>;
     const url = (meta.url as string) || (meta.source_url as string);
-    criticalGaps.push(url ? { topic, resourceUrl: url } : { topic });
+    // subject and reason are attached explicitly here (not just inferrable
+    // from keyGaps above) because keyGaps only ever holds each subject's
+    // first 6 gaps, while criticalGaps can hold every CRITICAL gap for a
+    // subject — for Hindi/Sanskrit that's dozens more than 6, and without
+    // these fields the frontend had no way to give the 7th+ gap a correct,
+    // specific reason.
+    const subject = getNodeSubjectLabel(gap);
+    const domainCovered = domainCoveredBySubject.get(subject) ?? true;
+    const reason = buildGapReason(gap, domainCovered, sourceLabel);
+    criticalGaps.push({ topic, subject, reason, ...(url ? { resourceUrl: url } : {}) });
     criticalSet.add(topic.toLowerCase());
   }
   if (criticalGaps.length > 0) analysisData.criticalGaps = criticalGaps;
@@ -785,6 +821,13 @@ serve(async (req) => {
     let ragContext = '';
     let ragGapCount = 0;
     let ragGapNodes: GapNodeWithSeverity[] = [];
+    let ragSubjectStats: Map<string, { total: number; covered: number }> = new Map();
+    let ragSubjectClassifications: SubjectClassification[] = [];
+    // Real, RAG-computed alignment % — set once inside the RAG block below.
+    // Everything downstream (validation summary, and the final
+    // overallAlignment grounding) reads this instead of trusting the LLM's
+    // own guess or re-parsing it back out of a formatted string.
+    let ragAlignmentPct: number | null = null;
 
     // Resolve source and target curricula from the registry
     const sourceEntry = mapToDBEntry(formData.currentCurriculum);
@@ -810,6 +853,19 @@ serve(async (req) => {
         const gradeMin = Math.max(1, grade - 1);
         const gradeMax = Math.min(12, grade + 1);
 
+        // Only apply the subject filter for grades 11-12. academicPath for
+        // those grades is drawn from the same NCERT-stream-shaped subject
+        // list (Physics/Accountancy/Commerce-style) regardless of the
+        // student's actual source curriculum, so it's a reasonable proxy for
+        // intended target stream. For grades 1-10, academicPath is the
+        // generic source-side list (Mathematics/Science/Social Studies/...)
+        // which has no way to represent a target-only mandatory subject like
+        // Hindi or Sanskrit — filtering by it there would silently hide the
+        // exact gaps a cross-curriculum transition report exists to surface
+        // (verified against production data: a US Common Core -> CBSE grade 8
+        // report where Hindi/Sanskrit are the single most important findings).
+        const targetSubjects = grade >= 11 ? expandSubjectFilter(formData.academicPath) : undefined;
+
         const rpcParams = {
           source_curriculum: sourceEntry.dbSystem,
           target_curriculum: targetEntry.dbSystem,
@@ -819,6 +875,17 @@ serve(async (req) => {
           result_limit: 300,
           source_node_type: sourceEntry.nodeType,
           target_node_type_filter: targetEntry.nodeType,
+          target_subjects: targetSubjects ?? null,
+          // Cumulative, not symmetric: the TARGET grade band stays narrow
+          // (grade±1 — what we're assessing readiness FOR), but the SOURCE
+          // band spans from grade 1 through grade+1 — everything the student
+          // has plausibly been taught so far, plus a small lookahead buffer.
+          // Verified this mattered in practice: a student's grade-3 US
+          // arithmetic is real prior knowledge that should count toward an
+          // NCERT grade-8 topic looking "covered", but a symmetric grade±1
+          // window made it invisible to matching entirely.
+          source_grade_min: 1,
+          source_grade_max: gradeMax,
         };
         addDebug('rag_rpc_params', 'Calling find_curriculum_gaps_rag', rpcParams);
 
@@ -850,15 +917,54 @@ serve(async (req) => {
           }
         }
 
+        // ── Merge in a secondary SOURCE curriculum ────────────────────────────
+        // Symmetric to the target-side merge above, but for the opposite
+        // direction: when the student's SOURCE curriculum is 'us-common-core'
+        // (Math/ELA only), their real NGSS science background was never
+        // counted as coverage for Science-domain target topics — those got
+        // compared only against irrelevant Math/ELA text instead, producing a
+        // meaningless similarity number (verified against production data:
+        // NCERT Science topics matched against Common Core Math/ELA text
+        // scored ~0.42 average, purely from incidental vocabulary overlap).
+        // Unlike the target-side merge (which adds independent extra rows),
+        // this re-queries the SAME target nodes against a second source pool,
+        // so results must be merged per target node (keep whichever source
+        // gives the higher similarity), not concatenated.
+        // sourceSystemsQueried tracks which source systems actually
+        // contributed rows to this request — classifyGapsBySubject uses it to
+        // decide which subject domains the combined source pool can plausibly
+        // cover. If this call errors out or times out, 'ngss' is correctly
+        // left off the list, so Science-domain topics fall back to being
+        // treated as uncovered rather than keeping a stale cross-domain match.
+        const sourceSystemsQueried: string[] = [sourceEntry.dbSystem];
+        if (!rpcError && sourceEntry.dbSystem === 'us-common-core') {
+          const ngssSourceParams = { ...rpcParams, source_curriculum: 'ngss', source_node_type: CURRICULUM_DB_REGISTRY['ngss'].nodeType };
+          const { data: ngssSourceGaps, error: ngssSourceError } = await logger.measureRetrieval(
+            'find_curriculum_gaps_rag:ngss_source',
+            async () => supabase.rpc('find_curriculum_gaps_rag', ngssSourceParams)
+          );
+          if (ngssSourceError) {
+            logger.warn('NGSS source-merge error (non-fatal)', { error: ngssSourceError.message });
+            addDebug('rag_ngss_source_merge_error', 'find_curriculum_gaps_rag failed for ngss as source', { error: ngssSourceError.message });
+          } else if (ngssSourceGaps && ngssSourceGaps.length > 0) {
+            const beforeCount = rawGaps.length;
+            rawGaps = mergeBestSourceMatch(rawGaps, ngssSourceGaps as GapNode[]);
+            sourceSystemsQueried.push('ngss');
+            addDebug('rag_ngss_source_merge', 'Merged NGSS as an additional source pool (kept best match per target node)', {
+              ngssSourceRowCount: ngssSourceGaps.length,
+              targetRowCountBefore: beforeCount,
+              targetRowCountAfter: rawGaps.length,
+            });
+          }
+        }
+
         if (rpcError) {
           logger.warn('RAG RPC error (non-fatal, using LLM fallback)', { error: rpcError.message });
           addDebug('rag_rpc_error', 'find_curriculum_gaps_rag returned error', { error: rpcError.message });
         } else if (rawGaps && rawGaps.length > 0) {
-          // ── Adaptive percentile gap classification ──────────────────────────────
-          // Nemotron 2048-dim vectors compress similarity into ~0.17-0.27 range,
-          // so fixed thresholds (e.g. 0.65) mark everything as a gap. Instead we
-          // rank all target nodes by similarity and classify by relative position:
-          //   bottom 10% = CRITICAL, 10-20% = MAJOR, 20-35% = MODERATE, top 65% = covered.
+          // ── Per-subject gap classification ──────────────────────────────
+          // See classifyGapsBySubject() above for why this replaced a single
+          // global percentile ranking.
           // Filter to the target curriculum's specific node type (or all nodes if null)
           const allTargetNodes = (rawGaps as GapNode[]).filter(g =>
             targetEntry.nodeType == null || g.target_node_type === targetEntry.nodeType
@@ -874,7 +980,7 @@ serve(async (req) => {
           const nodesBySubject: Record<string, { count: number; simMin: number; simMax: number; hasUrl: number }> = {};
           for (const n of allTargetNodes) {
             const m = (n.target_metadata || {}) as Record<string, unknown>;
-            const subj = ((m.subject as string) || (m.domain as string) || 'Unknown').substring(0, 40);
+            const subj = getNodeSubjectLabel(n);
             if (!nodesBySubject[subj]) nodesBySubject[subj] = { count: 0, simMin: 1, simMax: 0, hasUrl: 0 };
             const s = nodesBySubject[subj];
             s.count++;
@@ -885,47 +991,36 @@ serve(async (req) => {
           }
           addDebug('rag_nodes_per_subject', 'Retrieved nodes breakdown by subject (similarity = cosine score 0-1, lower = bigger gap)', nodesBySubject);
 
-          // Sort ascending: index 0 = biggest gap (lowest similarity to any source node)
-          const sortedAsc = [...allTargetNodes].sort(
-            (a, b) => (a.best_similarity ?? 0) - (b.best_similarity ?? 0)
-          );
+          const {
+            gapNodesWithSeverity: allGapNodesWithSeverity,
+            coveredCount,
+            total,
+            subjectClassifications,
+            subjectStats,
+          } = classifyGapsBySubject(allTargetNodes, sourceSystemsQueried);
 
-          const total = sortedAsc.length;
-          const critIdx = Math.floor(total * 0.10);
-          const majorIdx = Math.floor(total * 0.20);
-          const gapIdx = Math.floor(total * 0.35); // bottom 35% = priority gaps
+          const allSims = allTargetNodes.map(n => n.best_similarity ?? 0);
+          const simLow = Math.min(...allSims);
+          const simHigh = Math.max(...allSims);
 
-          const critThresh = sortedAsc[critIdx]?.best_similarity ?? 0;
-          const majorThresh = sortedAsc[majorIdx]?.best_similarity ?? 0;
-
-          const simLow = sortedAsc[0]?.best_similarity ?? 0;
-          const simHigh = sortedAsc[total - 1]?.best_similarity ?? 0;
-
-          addDebug('rag_percentile_thresholds', 'Adaptive percentile thresholds computed', {
-            totalTargetNodes: total,
-            critIdx,
-            majorIdx,
-            gapIdx,
-            critThresh,
-            majorThresh,
-            similarityRange: `${simLow.toFixed(3)} - ${simHigh.toFixed(3)}`,
+          addDebug('rag_subject_qualification', 'Per-subject "covered" eligibility (needs domainCovered=true AND avgSimilarity >= qualifyRatio * best subject\'s average)', {
+            qualifyRatio: SUBJECT_QUALIFY_RATIO,
+            sourceSystemsQueried,
+            subjects: subjectClassifications.map(s => ({
+              subject: s.subject,
+              avgSimilarity: Number(s.avgSimilarity.toFixed(4)),
+              domainCovered: s.domainCovered,
+              qualifies: s.qualifies,
+              count: s.count,
+            })),
           });
 
-          // Assign severity based on percentile position (not absolute sim value)
-          const assignSeverity = (sim: number | null): 'CRITICAL' | 'MAJOR' | 'MODERATE' => {
-            const s = sim ?? 0;
-            if (s <= critThresh) return 'CRITICAL';
-            if (s <= majorThresh) return 'MAJOR';
-            return 'MODERATE';
-          };
-
-          // Take the bottom 35% — these are the real curriculum gaps
-          const rawGapNodes = sortedAsc.slice(0, gapIdx + 1);
-          // All gap nodes with severity (used for URL injection — do NOT slice here)
-          const allGapNodesWithSeverity: GapNodeWithSeverity[] = rawGapNodes
-            .map(g => ({ ...g, _severity: assignSeverity(g.best_similarity) }));
-          // Top 25 are sent to the LLM in the prompt (keeps prompt size reasonable)
-          const gapNodesWithSeverity: GapNodeWithSeverity[] = allGapNodesWithSeverity.slice(0, 25);
+          // Top 25 are sent to the LLM in the prompt (keeps prompt size
+          // reasonable) — selected with a fair cross-subject sample, not a
+          // pure global top-25, so one subject can't crowd every other
+          // subject's gaps out of what the LLM ever sees. See
+          // selectFairGapSample() above.
+          const gapNodesWithSeverity: GapNodeWithSeverity[] = selectFairGapSample(allGapNodesWithSeverity, 25);
 
           const severityCounts = {
             CRITICAL: gapNodesWithSeverity.filter(g => g._severity === 'CRITICAL').length,
@@ -933,12 +1028,14 @@ serve(async (req) => {
             MODERATE: gapNodesWithSeverity.filter(g => g._severity === 'MODERATE').length,
           };
 
-          const coveredCount = total - rawGapNodes.length;
           const alignmentPct = Math.round((coveredCount / total) * 100);
+          ragAlignmentPct = alignmentPct;
 
           ragGapCount = gapNodesWithSeverity.length;
-          // Store ALL gap nodes for URL injection (not just the 25 sent to LLM)
+          // Store ALL gap nodes for URL injection (not just the fair sample sent to LLM)
           ragGapNodes = allGapNodesWithSeverity;
+          ragSubjectStats = subjectStats;
+          ragSubjectClassifications = subjectClassifications;
           ragContext = buildRagContext(
             gapNodesWithSeverity,
             sourceEntry.label,
@@ -955,7 +1052,7 @@ serve(async (req) => {
             nearestSource: g.best_source_match,
           }));
 
-          addDebug('rag_gaps_classified', 'Priority gaps classified by percentile', {
+          addDebug('rag_gaps_classified', 'Priority gaps classified per-subject', {
             alignmentPct,
             totalTargetNodes: total,
             priorityGapCount: ragGapCount,
@@ -969,7 +1066,7 @@ serve(async (req) => {
             ragContextPreview: ragContext.substring(0, 500),
           });
 
-          logger.info('RAG gaps fetched (adaptive percentile)', {
+          logger.info('RAG gaps fetched (per-subject classification)', {
             totalTarget: total,
             gapCount: ragGapCount,
             alignmentPct,
@@ -1463,7 +1560,7 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
     // the real URL from DB metadata (metadata.url for NCERT, metadata.source_url
     // for US CC).
     // ==========================================================================
-    if (ragGapNodes.length > 0) {
+    if (ragGapNodes.length > 0 || ragSubjectStats.size > 0) {
       const urlCountBefore = countUrls(analysisData);
       const urlMatchLog = injectRagUrls(analysisData, ragGapNodes);
       const urlCountAfter = countUrls(analysisData);
@@ -1482,12 +1579,56 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
       });
 
       // Make sure every RAG subject appears in subjectAnalysis, even if LLM skipped it
-      const expansionLog = expandSubjectAnalysisFromRag(analysisData, ragGapNodes);
+      const expansionLog = expandSubjectAnalysisFromRag(
+        analysisData,
+        ragGapNodes,
+        ragSubjectStats,
+        ragSubjectClassifications,
+        sourceEntry?.label || formData.currentCurriculum || 'the student\'s current curriculum'
+      );
       addDebug('subject_analysis_expansion', 'Expanded subjectAnalysis from RAG data', {
         ragSubjects: [...new Set(ragGapNodes.map(g => ((g.target_metadata || {}) as Record<string, unknown>).subject as string).filter(Boolean))],
         expansionLog,
         subjectCountAfter: (analysisData.subjectAnalysis as unknown[])?.length || 0,
       });
+
+      // ────────────────────────────────────────────────────────────────────
+      // GROUND overallAlignment.percentage / subjectsNeedingBridge in the
+      // real RAG numbers instead of the LLM's own guess.
+      //
+      // Every per-subject number in subjectAnalysis[] already gets corrected
+      // above from ragSubjectStats — but the headline "Overall Readiness"
+      // number the frontend actually renders (ReportPreview.tsx reads
+      // analysis.overallAlignment.percentage directly, and derives
+      // "Academic Risk"/"Transition Risk" from it) was still left as
+      // whatever Gemini invented, with no cross-check against the corrected
+      // subject cards underneath it. Confirmed in production: the LLM's own
+      // subjectsNeedingBridge listed EVERY subject (including one the same
+      // response marked 85% aligned), producing a nonsensical 100%
+      // "Transition Risk" next to subject cards that clearly weren't all gaps.
+      // ────────────────────────────────────────────────────────────────────
+      if (ragAlignmentPct !== null) {
+        const correctedSubjects = Array.isArray(analysisData.subjectAnalysis)
+          ? (analysisData.subjectAnalysis as Record<string, unknown>[])
+          : [];
+        const subjectsNeedingBridge = correctedSubjects
+          .filter(s => s.alignmentLevel !== 'strong')
+          .map(s => s.subject as string)
+          .filter(Boolean);
+
+        const priorOverall = (analysisData.overallAlignment || {}) as Record<string, unknown>;
+        analysisData.overallAlignment = {
+          ...priorOverall,
+          percentage: ragAlignmentPct,
+          subjectsNeedingBridge,
+        };
+        addDebug('overall_alignment_grounded', 'Overwrote LLM overallAlignment with real RAG-derived values', {
+          llmPercentage: priorOverall.percentage,
+          ragPercentage: ragAlignmentPct,
+          llmSubjectsNeedingBridge: priorOverall.subjectsNeedingBridge,
+          correctedSubjectsNeedingBridge: subjectsNeedingBridge,
+        });
+      }
     }
 
     logger.info("Successfully parsed curriculum analysis");
@@ -1518,12 +1659,9 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
     // Create validation summary — override alignment_score with real RAG value if available
     const validationSummary = createValidationSummary(knowledgeValidation);
 
-    // Extract real alignment % from the RAG context header line (e.g. "~65%")
-    let ragAlignmentPct: number | null = null;
-    if (ragContext) {
-      const pctMatch = ragContext.match(/~(\d+)%/);
-      if (pctMatch) ragAlignmentPct = parseInt(pctMatch[1], 10);
-    }
+    // ragAlignmentPct was already set directly (not regex-parsed) inside the
+    // RAG block above, from the same coveredCount/total classifyGapsBySubject
+    // computed — see the "GROUND overallAlignment" comment above.
     if (ragAlignmentPct !== null) {
       validationSummary.alignment_score = ragAlignmentPct / 100;
     }

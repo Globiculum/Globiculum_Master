@@ -174,56 +174,73 @@ export async function submitAssessment<T extends SubmittableFormData>({
     newData: { student_profile_id: studentProfile.id, status: "completed" },
   });
 
-  // Fire-and-forget: same analyze-curriculum payload shape as the existing flow.
-  // strongestSubjects/challengingAreas are derived from subjectConfidences —
-  // see deriveSubjectStrengths above — rather than read from a separately
-  // collected field, so this stays correct whether or not either flow's UI
-  // still asks a standalone "strongest/challenging subjects" question.
+  // analyze-curriculum and diagnostics-engine both only need the assessment
+  // that was just saved, so they run concurrently rather than one waiting on
+  // the other. analyze-curriculum used to be fire-and-forget here AND called
+  // again, synchronously, by ReportPreview.tsx — two full Gemini + RAG round
+  // trips for one report. It's now awaited (alongside diagnostics-engine, not
+  // after it) and its result is threaded through to ReportPreview via
+  // navigation state (see `prefetchedAnalysis` below), which checks for it
+  // before making its own call.
   const { strongest, challenging } = deriveSubjectStrengths(formData.subjectConfidences);
-  supabase.functions
-    .invoke("analyze-curriculum", {
-      body: {
-        formData: {
-          schoolStage: formData.schoolStage,
-          snapshotGrade: parseInt(formData.snapshotGrade, 10) || undefined,
-          snapshotLocation: formData.snapshotLocation || undefined,
-          usState: formData.usState || undefined,
-          previousCountry: formData.previousLocation || undefined,
-          currentCurriculum: formData.currentCurriculum.length > 0 ? formData.currentCurriculum.join(", ") : undefined,
-          targetCurriculum: formData.targetGoal || formData.curriculumType || undefined,
-          targetGoal: formData.targetGoal || undefined,
-          academicPath: formData.academicPath.length > 0 ? formData.academicPath : undefined,
-          strongestSubjects: strongest.length > 0 ? strongest : undefined,
-          challengingAreas: challenging.length > 0 ? challenging : undefined,
-          languagesSpoken: formData.selectedLanguages.length > 0 ? formData.selectedLanguages : undefined,
-          transitionTimeline: formData.timeline || undefined,
+  const [analysisSettled, diagSettled] = await Promise.all([
+    supabase.functions
+      .invoke("analyze-curriculum", {
+        body: {
+          formData: {
+            schoolStage: formData.schoolStage,
+            snapshotGrade: parseInt(formData.snapshotGrade, 10) || undefined,
+            snapshotLocation: formData.snapshotLocation || undefined,
+            usState: formData.usState || undefined,
+            previousCountry: formData.previousLocation || undefined,
+            currentCurriculum: formData.currentCurriculum || undefined,
+            targetCurriculum: formData.targetGoal || formData.curriculumType || undefined,
+            targetGoal: formData.targetGoal || undefined,
+            academicPath: formData.academicPath.length > 0 ? formData.academicPath : undefined,
+            strongestSubjects: strongest.length > 0 ? strongest : undefined,
+            challengingAreas: challenging.length > 0 ? challenging : undefined,
+            languagesSpoken: formData.selectedLanguages.length > 0 ? formData.selectedLanguages : undefined,
+            transitionTimeline: formData.timeline || undefined,
+          },
         },
+        headers: { "X-API-Version": "v1" },
+      })
+      .catch((err) => {
+        console.error("[submitAssessment] analyze-curriculum error:", err);
+        return null;
+      }),
+    supabase.functions.invoke("diagnostics-engine", {
+      body: {
+        studentId: studentProfile.id,
+        assessmentId: assessment.id,
+        diagnosticType: "full",
       },
-      headers: { "X-API-Version": "v1" },
-    })
-    .then(({ data: analysisResp }) => {
-      if (analysisResp?.success && analysisResp.data) {
-        supabase
-          .from("student_profiles")
-          .update({ curriculum_analysis: analysisResp.data } as any)
-          .eq("id", studentProfile.id)
-          .then(({ error: updateErr }) => {
-            if (updateErr) console.error("[submitAssessment] Failed to store curriculum_analysis:", updateErr);
-          });
-      }
-    })
-    .catch((err) => {
-      console.error("[submitAssessment] analyze-curriculum fire-and-forget error:", err);
-    });
+    }),
+  ]);
 
-  // ── Diagnostics ──
-  const { data: diagResponse, error: diagError } = await supabase.functions.invoke("diagnostics-engine", {
-    body: {
-      studentId: studentProfile.id,
-      assessmentId: assessment.id,
-      diagnosticType: "full",
-    },
-  });
+  // Same unwrap shape ReportPreview.tsx uses for its own analyze-curriculum
+  // response — { success, data: { analysis, validation, _meta } } — so
+  // `prefetchedAnalysis` below is exactly the AnalysisData shape ReportPreview
+  // expects, not the outer envelope.
+  interface AnalyzeCurriculumResponseData {
+    analysis?: Record<string, unknown>;
+    [key: string]: unknown;
+  }
+  let prefetchedAnalysis: Record<string, unknown> | undefined;
+  const rawAnalysisData = analysisSettled?.data as { data?: AnalyzeCurriculumResponseData } & AnalyzeCurriculumResponseData | undefined;
+  const analysisResponseData: AnalyzeCurriculumResponseData | undefined = rawAnalysisData?.data ?? rawAnalysisData;
+  if (analysisResponseData?.analysis) {
+    prefetchedAnalysis = analysisResponseData.analysis;
+    supabase
+      .from("student_profiles")
+      .update({ curriculum_analysis: analysisResponseData } as any)
+      .eq("id", studentProfile.id)
+      .then(({ error: updateErr }) => {
+        if (updateErr) console.error("[submitAssessment] Failed to store curriculum_analysis:", updateErr);
+      });
+  }
+
+  const { data: diagResponse, error: diagError } = diagSettled;
 
   if (diagError || !diagResponse?.success) {
     return { ...fallbackResult(formData, prevReportId), warnings };
@@ -259,6 +276,7 @@ export async function submitAssessment<T extends SubmittableFormData>({
       diagnosticResultId: (savedDiag as any).id,
       assessmentId: assessment.id,
       prevReportId,
+      prefetchedAnalysis,
     },
     warnings,
   };

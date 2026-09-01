@@ -4,6 +4,17 @@ import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { createLogger } from "../_shared/observability.ts";
 import { checkRateLimit, getRateLimitIdentifier, RateLimitConfigs, sanitizeUUID, sanitizeArray } from "../_shared/security.ts";
 import { createErrorResponse, ErrorCodes, API_VERSION } from "../_shared/apiContracts.ts";
+import {
+  CurriculumEntry,
+  CURRICULUM_DB_REGISTRY,
+  SUBJECT_ALIASES,
+  mapToDBEntry,
+  expandSubjectFilter,
+  GapNode,
+  getNodeSubjectLabel,
+  classifyGapsBySubject,
+  mergeBestSourceMatch,
+} from "../_shared/curriculumGaps.ts";
 
 interface DiagnosticsRequest {
   studentId: string;
@@ -197,6 +208,42 @@ serve(async (req) => {
   }
 });
 
+// =============================================================================
+// RAG-based diagnostics (replaces hardcoded per-curriculum factor table)
+//
+// The previous implementation never queried real gap data: it fetched an
+// unfiltered, uncurricula-scoped list of curriculum_nodes purely to get a
+// COUNT, then split that count via a hardcoded lookup table
+// (cbse: 0.65, ib: 0.80, common_core: 0.90, ...) or a fixed 70/20/10 split
+// keyed off self-reported "strong"/"challenging" subjects. None of that
+// touched curriculum_embeddings — the exact same real gap data that
+// analyze-curriculum and alignment-engine already use — so the Guardian
+// Dashboard (which reads this function's output via diagnostic_results)
+// showed a different, fabricated number from the parent/student report for
+// the same student. This rewrite calls the same find_curriculum_gaps_rag
+// RPC and the same percentile severity classification those two functions
+// use, so all three surfaces agree.
+// =============================================================================
+
+// Registry, subject aliases, and getNodeSubjectLabel come from
+// _shared/curriculumGaps.ts (imported above) — kept in one place after this
+// function's own copy of the classifier drifted from analyze-curriculum's,
+// which is exactly what caused the Guardian Dashboard to disagree with the
+// parent/student report for the same student (see the header comment on the
+// RAG-based diagnostics rewrite below).
+function normalizeToDBEntry(curriculum: string): CurriculumEntry | null {
+  return mapToDBEntry(curriculum);
+}
+
+/** Conservative flat estimate for when RAG data isn't available — clearly a fallback, not computed. */
+function buildFallbackSubjectScores(subjectsToAnalyze: string[]): Record<string, SubjectDiagnostic> {
+  const scores: Record<string, SubjectDiagnostic> = {};
+  for (const subject of subjectsToAnalyze) {
+    scores[subject] = { score: 50, conceptsMastered: [], conceptsInProgress: [], conceptsMissing: [], gradeEquivalent: 0 };
+  }
+  return scores;
+}
+
 async function runDiagnostics(
   supabase: any,
   logger: ReturnType<typeof createLogger>,
@@ -205,36 +252,156 @@ async function runDiagnostics(
   diagnosticType: string,
   subjects?: string[]
 ): Promise<DiagnosticResult> {
-  const gradeLevel = studentProfile.grade_level as number || 9;
-  const currentCurriculum = studentProfile.current_curriculum as string || 'unknown';
-  
-  // Define subject areas to analyze
-  const subjectsToAnalyze = subjects || ['math', 'science', 'english', 'social_studies'];
-  
-  logger.debug('Analyzing subjects', { subjects: subjectsToAnalyze, gradeLevel, curriculum: currentCurriculum });
+  const gradeLevel = studentProfile.grade_level as number || (studentProfile.current_grade as number) || 9;
+  const sourceCurriculumRaw = (studentProfile.previous_curriculum as string) || (studentProfile.current_curriculum as string) || 'unknown';
+  const targetCurriculumRaw = (studentProfile.target_curriculum as string) || 'unknown';
 
-  // Calculate subject-specific diagnostics
-  const subjectScores: Record<string, SubjectDiagnostic> = {};
-  const strengthAreas: string[] = [];
-  const gapAreas: string[] = [];
-  
+  const subjectsToAnalyze = subjects || ['math', 'science', 'english', 'social_studies'];
+
+  logger.debug('Analyzing subjects (RAG-based)', { subjects: subjectsToAnalyze, gradeLevel, source: sourceCurriculumRaw, target: targetCurriculumRaw });
+
+  const sourceEntry = normalizeToDBEntry(sourceCurriculumRaw);
+  const targetEntry = normalizeToDBEntry(targetCurriculumRaw);
+
+  let subjectScores: Record<string, SubjectDiagnostic>;
+
+  if (sourceEntry && targetEntry && sourceEntry.dbSystem !== targetEntry.dbSystem) {
+    const gradeMin = Math.max(1, gradeLevel - 1);
+    const gradeMax = Math.min(12, gradeLevel + 1);
+
+    const rpcParams = {
+      source_curriculum: sourceEntry.dbSystem,
+      target_curriculum: targetEntry.dbSystem,
+      grade_min: gradeMin,
+      grade_max: gradeMax,
+      similarity_threshold: 0.0,
+      result_limit: 300,
+      source_node_type: sourceEntry.nodeType,
+      target_node_type_filter: targetEntry.nodeType,
+      // Only for grades 11-12 — see the matching comment in
+      // analyze-curriculum's rpcParams. For grades 1-10 the generic
+      // subject list can't represent a target-only mandatory subject like
+      // Hindi/Sanskrit, so filtering there would hide exactly the gaps a
+      // cross-curriculum report needs to surface.
+      target_subjects: gradeLevel >= 11 ? expandSubjectFilter(subjectsToAnalyze) ?? null : null,
+      // Cumulative source grade window — see the matching comment in
+      // analyze-curriculum's rpcParams. The target band stays narrow
+      // (grade±1); the source band spans grade 1 through grade+1 so a
+      // student's earlier-grade prior knowledge actually counts as coverage.
+      source_grade_min: 1,
+      source_grade_max: gradeMax,
+    };
+
+    const { data: primaryRows, error: rpcError } = await logger.measureRetrieval(
+      'find_curriculum_gaps_rag',
+      async () => supabase.rpc('find_curriculum_gaps_rag', rpcParams)
+    );
+
+    let gapRows: GapNode[] = primaryRows || [];
+
+    // Merge in NGSS as an additional TARGET curriculum when going TO the US
+    // (Common Core alone only covers Math/ELA) — this function previously
+    // had no NGSS handling at all, unlike analyze-curriculum/alignment-engine.
+    if (!rpcError && targetEntry.dbSystem === 'us-common-core') {
+      const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
+      const { data: ngssTargetGaps, error: ngssTargetError } = await logger.measureRetrieval(
+        'find_curriculum_gaps_rag:ngss_target',
+        async () => supabase.rpc('find_curriculum_gaps_rag', { ...rpcParams, target_curriculum: ngssEntry.dbSystem, target_node_type_filter: ngssEntry.nodeType })
+      );
+      if (ngssTargetError) {
+        logger.warn('NGSS target-merge error (non-fatal)', { error: ngssTargetError.message });
+      } else if (ngssTargetGaps && ngssTargetGaps.length > 0) {
+        gapRows = [...gapRows, ...ngssTargetGaps];
+      }
+    }
+
+    // Merge in NGSS as an additional SOURCE curriculum when coming FROM the
+    // US — otherwise a student's real science background never counts as
+    // coverage for Science-domain target topics, which instead get compared
+    // only against irrelevant Math/ELA text (verified against production
+    // data). sourceSystemsQueried tracks which source systems actually
+    // contributed rows, so classifyGapsBySubject's domain gate correctly
+    // falls back if this merge errors or times out.
+    const sourceSystemsQueried: string[] = [sourceEntry.dbSystem];
+    if (!rpcError && sourceEntry.dbSystem === 'us-common-core') {
+      const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
+      const { data: ngssSourceGaps, error: ngssSourceError } = await logger.measureRetrieval(
+        'find_curriculum_gaps_rag:ngss_source',
+        async () => supabase.rpc('find_curriculum_gaps_rag', { ...rpcParams, source_curriculum: ngssEntry.dbSystem, source_node_type: ngssEntry.nodeType })
+      );
+      if (ngssSourceError) {
+        logger.warn('NGSS source-merge error (non-fatal)', { error: ngssSourceError.message });
+      } else if (ngssSourceGaps && ngssSourceGaps.length > 0) {
+        gapRows = mergeBestSourceMatch(gapRows, ngssSourceGaps as GapNode[]);
+        sourceSystemsQueried.push('ngss');
+      }
+    }
+
+    if (rpcError || !gapRows || gapRows.length === 0) {
+      logger.warn('Diagnostics RAG unavailable, using fallback estimate', { error: rpcError?.message });
+      subjectScores = buildFallbackSubjectScores(subjectsToAnalyze);
+    } else {
+      // Per-subject, domain-gated classification — shared with
+      // analyze-curriculum and alignment-engine. See
+      // _shared/curriculumGaps.ts for the full rationale, verified against
+      // production data. Group by a lowercased key so it matches this
+      // function's own subject-request-matching convention below.
+      const lowerKeyFn = (n: GapNode) => getNodeSubjectLabel(n).toLowerCase().trim();
+      const { bySubjectCovered, bySubjectGaps } = classifyGapsBySubject(gapRows, sourceSystemsQueried, lowerKeyFn);
+
+      subjectScores = {};
+      for (const subject of subjectsToAnalyze) {
+        // Match the requested subject label against whatever subject keys the RAG rows grouped into.
+        const key = subject.toLowerCase().trim();
+        const aliasSet = new Set([key, ...(SUBJECT_ALIASES[key] || [])]);
+        const allKeys = new Set([...bySubjectCovered.keys(), ...bySubjectGaps.keys()]);
+        const matchedKeys = [...allKeys].filter(k => aliasSet.has(k) || k.includes(key) || key.includes(k));
+        const covered = matchedKeys.flatMap(k => bySubjectCovered.get(k) || []);
+        const gaps = matchedKeys.flatMap(k => bySubjectGaps.get(k) || []);
+        const totalSubj = covered.length + gaps.length;
+
+        if (totalSubj === 0) {
+          subjectScores[subject] = { score: 50, conceptsMastered: [], conceptsInProgress: [], conceptsMissing: [], gradeEquivalent: 0 };
+          continue;
+        }
+
+        const score = Math.round((covered.length / totalSubj) * 100);
+        subjectScores[subject] = {
+          score,
+          conceptsMastered: covered.slice(0, 10).map((r) => r.target_node_name),
+          conceptsInProgress: [],
+          conceptsMissing: gaps.slice(0, 10).map((r) => r.target_node_name),
+          gradeEquivalent: calculateGradeEquivalent(score, gradeLevel),
+        };
+      }
+    }
+  } else {
+    logger.info('Diagnostics: curricula not in DB or same — using fallback estimate', {
+      source: sourceCurriculumRaw, target: targetCurriculumRaw,
+    });
+    subjectScores = buildFallbackSubjectScores(subjectsToAnalyze);
+  }
+
+  // Fill in gradeEquivalent for any subject the block above skipped
   for (const subject of subjectsToAnalyze) {
-    const diagnostic = await analyzeSubject(supabase, logger, subject, gradeLevel, currentCurriculum, assessmentData);
-    subjectScores[subject] = diagnostic;
-    
-    if (diagnostic.score >= 80) {
-      strengthAreas.push(subject);
-    } else if (diagnostic.score < 60) {
-      gapAreas.push(subject);
+    if (subjectScores[subject] && !subjectScores[subject].gradeEquivalent) {
+      subjectScores[subject].gradeEquivalent = calculateGradeEquivalent(subjectScores[subject].score, gradeLevel);
     }
   }
-  
+
+  const strengthAreas: string[] = [];
+  const gapAreas: string[] = [];
+  for (const [subject, diagnostic] of Object.entries(subjectScores)) {
+    if (diagnostic.score >= 80) strengthAreas.push(subject);
+    else if (diagnostic.score < 60) gapAreas.push(subject);
+  }
+
   // Calculate overall score
   const scores = Object.values(subjectScores).map(s => s.score);
-  const overallScore = scores.length > 0 
+  const overallScore = scores.length > 0
     ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
     : 0;
-  
+
   // Determine readiness level
   let readinessLevel: 'ready' | 'needs-bridging' | 'significant-gaps';
   if (overallScore >= 75 && gapAreas.length === 0) {
@@ -244,10 +411,10 @@ async function runDiagnostics(
   } else {
     readinessLevel = 'significant-gaps';
   }
-  
+
   // Generate recommendations based on diagnostics
   const recommendations = generateRecommendations(subjectScores, gapAreas, readinessLevel);
-  
+
   return {
     overallScore,
     subjectScores,
@@ -257,87 +424,6 @@ async function runDiagnostics(
     recommendations,
     timestamp: new Date().toISOString()
   };
-}
-
-async function analyzeSubject(
-  supabase: ReturnType<typeof createClient>,
-  logger: ReturnType<typeof createLogger>,
-  subject: string,
-  gradeLevel: number,
-  curriculum: string,
-  assessmentData: Record<string, unknown> | null
-): Promise<SubjectDiagnostic> {
-  // Fetch curriculum nodes for this subject and grade
-  const { data: curriculumNodes } = await logger.measureRetrieval(
-    `fetch-curriculum-nodes-${subject}`,
-    async () => supabase
-      .from('curriculum_nodes')
-      .select('*')
-      .eq('node_type', 'topic')
-      .lte('grade_level_min', gradeLevel)
-      .gte('grade_level_max', gradeLevel)
-  );
-  
-  const topics = curriculumNodes || [];
-  const totalTopics = topics.length || 10; // fallback
-  
-  // Analyze based on assessment data or use curriculum-based estimation
-  let mastered = 0;
-  let inProgress = 0;
-  let missing = 0;
-  
-  if (assessmentData) {
-    // Use assessment responses to determine mastery
-    const responses = (assessmentData.responses as Record<string, unknown>) || {};
-    const strongSubjects = (responses.strongestSubjects as string[]) || [];
-    const challengingAreas = (responses.challengingAreas as string[]) || [];
-    
-    if (strongSubjects.includes(subject)) {
-      mastered = Math.floor(totalTopics * 0.7);
-      inProgress = Math.floor(totalTopics * 0.2);
-      missing = totalTopics - mastered - inProgress;
-    } else if (challengingAreas.includes(subject)) {
-      mastered = Math.floor(totalTopics * 0.3);
-      inProgress = Math.floor(totalTopics * 0.3);
-      missing = totalTopics - mastered - inProgress;
-    } else {
-      mastered = Math.floor(totalTopics * 0.5);
-      inProgress = Math.floor(totalTopics * 0.3);
-      missing = totalTopics - mastered - inProgress;
-    }
-  } else {
-    // Default distribution based on curriculum type
-    const curriculumFactor = getCurriculumAlignmentFactor(curriculum);
-    mastered = Math.floor(totalTopics * curriculumFactor);
-    inProgress = Math.floor(totalTopics * 0.25);
-    missing = totalTopics - mastered - inProgress;
-  }
-  
-  const score = Math.round((mastered / totalTopics) * 100);
-  const gradeEquivalent = calculateGradeEquivalent(score, gradeLevel);
-  
-  logger.debug(`Subject analysis: ${subject}`, { score, mastered, inProgress, missing });
-  
-  return {
-    score,
-    conceptsMastered: topics.slice(0, mastered).map((t: any) => t.name),
-    conceptsInProgress: topics.slice(mastered, mastered + inProgress).map((t: any) => t.name),
-    conceptsMissing: topics.slice(mastered + inProgress).map((t: any) => t.name),
-    gradeEquivalent
-  };
-}
-
-function getCurriculumAlignmentFactor(curriculum: string): number {
-  const factors: Record<string, number> = {
-    'cbse': 0.65,
-    'icse': 0.70,
-    'ib': 0.80,
-    'igcse': 0.75,
-    'state_board': 0.55,
-    'common_core': 0.90,
-    'unknown': 0.50
-  };
-  return factors[curriculum.toLowerCase()] || 0.50;
 }
 
 function calculateGradeEquivalent(score: number, currentGrade: number): number {

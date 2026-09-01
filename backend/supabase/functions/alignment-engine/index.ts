@@ -4,6 +4,16 @@ import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { createLogger } from "../_shared/observability.ts";
 import { checkRateLimit, getRateLimitIdentifier, RateLimitConfigs, sanitizeString, sanitizeNumber } from "../_shared/security.ts";
 import { createErrorResponse, ErrorCodes, API_VERSION } from "../_shared/apiContracts.ts";
+import {
+  CurriculumEntry,
+  CURRICULUM_DB_REGISTRY,
+  mapToDBEntry,
+  expandSubjectFilter,
+  GapNode,
+  getNodeSubjectLabel,
+  classifyGapsBySubject,
+  mergeBestSourceMatch,
+} from "../_shared/curriculumGaps.ts";
 
 interface AlignmentRequest {
   sourceCurriculum: string;
@@ -199,41 +209,45 @@ serve(async (req) => {
 // RAG HELPERS
 // =============================================================================
 
-// Shared curriculum registry — mirrors CURRICULUM_DB_REGISTRY in analyze-curriculum.
-// Add new curricula here once they are ingested into the DB.
-const CURRICULUM_DB_REGISTRY: Record<string, { dbSystem: string; nodeType: string | null }> = {
-  'cbse':           { dbSystem: 'ncert-cbse',    nodeType: 'topic'    },
-  'ncert':          { dbSystem: 'ncert-cbse',    nodeType: 'topic'    },
-  'icse':           { dbSystem: 'ncert-cbse',    nodeType: 'topic'    },
-  'state-board':    { dbSystem: 'ncert-cbse',    nodeType: 'topic'    },
-  'ncert-cbse':     { dbSystem: 'ncert-cbse',    nodeType: 'topic'    },
-  'indian':         { dbSystem: 'ncert-cbse',    nodeType: 'topic'    },
-  'india':          { dbSystem: 'ncert-cbse',    nodeType: 'topic'    },
-  'common-core':    { dbSystem: 'us-common-core', nodeType: 'standard' },
-  'common_core':    { dbSystem: 'us-common-core', nodeType: 'standard' },
-  'us-common-core': { dbSystem: 'us-common-core', nodeType: 'standard' },
-  'us':             { dbSystem: 'us-common-core', nodeType: 'standard' },
-  // NGSS (US Science) — Common Core only covers Math/ELA, merged in alongside
-  // 'us-common-core' inside runAlignmentRAG below.
-  'ngss':           { dbSystem: 'ngss',           nodeType: 'standard' },
-  'science':        { dbSystem: 'ngss',           nodeType: 'standard' },
-  // 'ib-myp':      { dbSystem: 'ib-myp',          nodeType: 'objective' },
-  // 'cambridge':   { dbSystem: 'cambridge-igcse',  nodeType: 'topic'    },
-};
+// Curriculum registry, subject aliases, and per-subject domain-gated
+// classification now live in _shared/curriculumGaps.ts (imported above) —
+// shared with analyze-curriculum and diagnostics-engine so a fix to any of
+// them lands in one place instead of three. See that file's header for the
+// full rationale: a subject with zero source-curriculum overlap (e.g. Hindi
+// vs. US Common Core) previously got fake partial "coverage" from global
+// percentile ranking, and dominated the "critical" bucket at the expense of
+// other subjects' real gaps.
 
-function normalizeToDBEntry(curriculum: string): { dbSystem: string; nodeType: string | null } | null {
-  const c = curriculum.toLowerCase().trim();
-  if (CURRICULUM_DB_REGISTRY[c]) return CURRICULUM_DB_REGISTRY[c];
-  for (const [key, val] of Object.entries(CURRICULUM_DB_REGISTRY)) {
-    if (c.includes(key) || key.includes(c)) return val;
-  }
-  return null;
+/** Adapts the shared classifier's output to this function's existing
+ * gapStandards/coveredStandards/severityByNodeId shape.
+ *
+ * IMPORTANT: the shared classifier returns new ({ ...node, _severity })
+ * objects for gap rows, not the same references as the input array — so
+ * callers must use subjectStats (also returned here) rather than an
+ * `array.includes(node)` reference check to tell gap vs. covered per
+ * subject; a reference check would silently count every node as "covered". */
+function classifyBySubject(allNodes: GapNode[], sourceSystemsQueried: string[]): {
+  gapStandards: GapNode[];
+  coveredStandards: GapNode[];
+  severityByNodeId: Map<string, 'critical' | 'moderate' | 'minor'>;
+  subjectStats: Map<string, { total: number; covered: number }>;
+} {
+  const lowerKeyFn = (n: GapNode) => getNodeSubjectLabel(n).toLowerCase().trim();
+  const { gapNodesWithSeverity, coveredNodes, subjectStats } = classifyGapsBySubject(allNodes, sourceSystemsQueried, lowerKeyFn);
+  const severityMap: Record<'CRITICAL' | 'MAJOR' | 'MODERATE', 'critical' | 'moderate' | 'minor'> = {
+    CRITICAL: 'critical', MAJOR: 'moderate', MODERATE: 'minor',
+  };
+  const severityByNodeId = new Map<string, 'critical' | 'moderate' | 'minor'>();
+  for (const g of gapNodesWithSeverity) severityByNodeId.set(g.target_node_id, severityMap[g._severity]);
+  return { gapStandards: gapNodesWithSeverity, coveredStandards: coveredNodes, severityByNodeId, subjectStats };
+}
+
+function normalizeToDBEntry(curriculum: string): CurriculumEntry | null {
+  return mapToDBEntry(curriculum);
 }
 
 function getNodeSubject(metadata: Record<string, unknown>): string {
-  return ((metadata.subject as string) || (metadata.domain as string) || 'general')
-    .toLowerCase()
-    .trim();
+  return getNodeSubjectLabel({ target_metadata: metadata }).toLowerCase().trim();
 }
 
 function getResourcesForSubject(subject: string, severity: string): string[] {
@@ -289,6 +303,7 @@ async function runAlignmentRAG(
   sourceEntry: { dbSystem: string; nodeType: string | null },
   targetEntry: { dbSystem: string; nodeType: string | null },
   gradeLevel: number,
+  subjects: string[],
 ): Promise<AlignmentResult> {
   const gradeMin = Math.max(1, gradeLevel - 1);
   const gradeMax = Math.min(12, gradeLevel + 1);
@@ -302,6 +317,17 @@ async function runAlignmentRAG(
     result_limit: 300,
     source_node_type: sourceEntry.nodeType,        // curriculum-specific
     target_node_type_filter: targetEntry.nodeType, // curriculum-specific
+    // Only for grades 11-12 — see the matching comment in analyze-curriculum's
+    // rpcParams. For grades 1-10 the generic subject list can't represent a
+    // target-only mandatory subject like Hindi/Sanskrit, so filtering there
+    // would hide exactly the gaps a cross-curriculum report needs to surface.
+    target_subjects: gradeLevel >= 11 ? expandSubjectFilter(subjects) ?? null : null,
+    // Cumulative source grade window — see the matching comment in
+    // analyze-curriculum's rpcParams. The target band stays narrow
+    // (grade±1); the source band spans grade 1 through grade+1 so a
+    // student's earlier-grade prior knowledge actually counts as coverage.
+    source_grade_min: 1,
+    source_grade_max: gradeMax,
   };
 
   const { data: primaryData, error } = await logger.measureRetrieval(
@@ -316,7 +342,7 @@ async function runAlignmentRAG(
 
   // US Common Core only covers Math/ELA — merge in NGSS (Science) gaps so a
   // "us-common-core" target also reflects Science alignment.
-  let rawData: any[] = primaryData;
+  let rawData: GapNode[] = primaryData;
   if (targetEntry.dbSystem === 'us-common-core') {
     const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
     const { data: ngssData, error: ngssError } = await logger.measureRetrieval(
@@ -330,50 +356,49 @@ async function runAlignmentRAG(
     }
   }
 
-  // ── Adaptive percentile classification ─────────────────────────────────
-  // Same logic as analyze-curriculum edge function:
-  //   bottom 10% by similarity = CRITICAL, 10-20% = MODERATE, 20-35% = MINOR, top 65% = covered
+  // Merge in NGSS as an additional SOURCE curriculum when coming FROM the US
+  // — otherwise a student's real science background never counts as coverage
+  // for Science-domain target topics, which instead get compared only
+  // against irrelevant Math/ELA text (verified against production data).
+  // sourceSystemsQueried tracks which source systems actually contributed
+  // rows, so the domain gate below correctly falls back if this errors/times out.
+  const sourceSystemsQueried: string[] = [sourceEntry.dbSystem];
+  if (sourceEntry.dbSystem === 'us-common-core') {
+    const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
+    const { data: ngssSourceData, error: ngssSourceError } = await logger.measureRetrieval(
+      'find_curriculum_gaps_rag:ngss_source',
+      async () => supabase.rpc('find_curriculum_gaps_rag', { ...baseParams, source_curriculum: ngssEntry.dbSystem, source_node_type: ngssEntry.nodeType })
+    );
+    if (ngssSourceError) {
+      logger.warn('NGSS source-merge error (non-fatal)', { error: ngssSourceError.message });
+    } else if (ngssSourceData && ngssSourceData.length > 0) {
+      rawData = mergeBestSourceMatch(rawData, ngssSourceData as GapNode[]);
+      sourceSystemsQueried.push('ngss');
+    }
+  }
+
+  // ── Per-subject classification ─────────────────────────────────────────
+  // See classifyBySubject() above for why this replaced a single global
+  // percentile ranking across all subjects.
   // Filter to the target curriculum's specific node type (or all nodes if nodeType is null)
-  const allCC = (rawData as any[]).filter(g =>
+  const allCC = rawData.filter(g =>
     targetEntry.nodeType == null || g.target_node_type === targetEntry.nodeType
   );
-  const sortedAsc = [...allCC].sort(
-    (a, b) => (a.best_similarity ?? 0) - (b.best_similarity ?? 0)
-  );
 
-  const total    = sortedAsc.length;
-  const critIdx  = Math.floor(total * 0.10);
-  const modIdx   = Math.floor(total * 0.20);
-  const gapIdx   = Math.floor(total * 0.35);
-
-  const critThresh = (sortedAsc[critIdx]  as any)?.best_similarity ?? 0;
-  const modThresh  = (sortedAsc[modIdx]   as any)?.best_similarity ?? 0;
-
-  const classifySeverity = (sim: number | null): 'critical' | 'moderate' | 'minor' => {
-    const s = sim ?? 0;
-    if (s <= critThresh) return 'critical';
-    if (s <= modThresh)  return 'moderate';
-    return 'minor';
-  };
-
-  const gapStandards     = sortedAsc.slice(0, gapIdx + 1); // bottom 35%
-  const coveredStandards = sortedAsc.slice(gapIdx + 1);    // top 65%
+  const total = allCC.length;
+  const { gapStandards, coveredStandards, severityByNodeId, subjectStats: rawSubjectStats } = classifyBySubject(allCC, sourceSystemsQueried);
 
   // ── Per-subject stats ───────────────────────────────────────────────────
   const subjectStats: Record<string, { gap: number; covered: number }> = {};
-  for (const g of allCC as any[]) {
-    const meta    = (g.target_metadata || {}) as Record<string, unknown>;
-    const subject = getNodeSubject(meta);
-    if (!subjectStats[subject]) subjectStats[subject] = { gap: 0, covered: 0 };
-    if (gapStandards.includes(g)) subjectStats[subject].gap++;
-    else                          subjectStats[subject].covered++;
+  for (const [subject, stats] of rawSubjectStats) {
+    subjectStats[subject] = { gap: stats.total - stats.covered, covered: stats.covered };
   }
 
   // ── Build gap objects ───────────────────────────────────────────────────
   const gaps: AlignmentGap[] = gapStandards.map((g: any, idx: number) => {
     const meta    = (g.target_metadata || {}) as Record<string, unknown>;
     const subject = getNodeSubject(meta);
-    const sev     = classifySeverity(g.best_similarity);
+    const sev     = severityByNodeId.get(g.target_node_id) ?? 'minor';
     return {
       id: `rag-gap-${idx}`,
       subject,
@@ -429,9 +454,10 @@ async function runAlignmentRAG(
       resources: getResourcesForSubject(gap.subject, gap.severity),
     }));
 
+  const allSims = allCC.map((n: any) => n.best_similarity ?? 0);
   logger.info('RAG alignment computed', {
     total, overallAlignment, gaps: gaps.length, overlaps: overlaps.length,
-    simRange: `${sortedAsc[0]?.best_similarity?.toFixed(3)}-${sortedAsc[total-1]?.best_similarity?.toFixed(3)}`,
+    simRange: `${Math.min(...allSims).toFixed(3)}-${Math.max(...allSims).toFixed(3)}`,
   });
 
   return { overallAlignment, subjectAlignments, gaps, overlaps, recommendations, timestamp: new Date().toISOString() };
@@ -450,7 +476,7 @@ async function runAlignment(
 
   if (sourceEntry && targetEntry && sourceEntry.dbSystem !== targetEntry.dbSystem) {
     logger.info('RAG alignment', { source: sourceEntry.dbSystem, target: targetEntry.dbSystem });
-    return runAlignmentRAG(supabase, logger, sourceEntry, targetEntry, gradeLevel);
+    return runAlignmentRAG(supabase, logger, sourceEntry, targetEntry, gradeLevel, subjects);
   }
 
   logger.info('Curricula not in DB or same, returning estimate', { sourceCurriculum, targetCurriculum });

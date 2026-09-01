@@ -423,12 +423,34 @@ const buildWhyStartNow = (analysis: AnalysisData): string[] => {
 // already used in the Subject-wise Missing Topics tables.
 const CRITICAL_GAP_PRIORITY_WEIGHT: Record<"High" | "Medium" | "Low", number> = { High: 3, Medium: 2, Low: 1 };
 
+// analysis.criticalGaps items don't carry a subject field, so getGapReason()
+// was always called with subject="" here — meaning its subject-specific
+// checks (e.g. "Hindi/Sanskrit" via the subject string, since Devanagari
+// topic titles don't contain the English word "Hindi"/"Sanskrit" for the
+// topic-text check to catch) silently fell through to the generic fallback
+// reason. The per-subject "Missing Topics" table right above this one calls
+// getGapReason(topic, subject.subject) correctly and shows the right reason
+// for the exact same topics — this rebuilds that same topic->subject lookup
+// from subjectAnalysis[].keyGaps so the Critical Gaps table matches it.
+const buildTopicSubjectMap = (analysis: AnalysisData): Map<string, string> => {
+  const map = new Map<string, string>();
+  for (const subject of analysis.subjectAnalysis ?? []) {
+    for (const gap of subject.keyGaps ?? []) {
+      const topic = getGapTopic(gap).toLowerCase().trim();
+      if (topic) map.set(topic, subject.subject);
+    }
+  }
+  return map;
+};
+
 const buildCriticalGapsTable = (
   analysis: AnalysisData
 ): { priority: "High" | "Medium" | "Low"; topic: string; url?: string; description: string; weeks: number }[] => {
   const gaps = analysis.criticalGaps;
   const total = gaps.length;
   if (total === 0) return [];
+
+  const topicSubjectMap = buildTopicSubjectMap(analysis);
 
   const highCount = Math.max(1, Math.round(total * 0.4));
   const mediumCount = Math.min(total - highCount, Math.round(total * 0.4));
@@ -443,8 +465,12 @@ const buildCriticalGapsTable = (
 
   return tiered.map(({ gap, priority }) => {
     const topic = getGapTopic(gap);
+    // Prefer the subject the backend attaches directly (covers every
+    // critical gap); fall back to the keyGaps-derived map for older/LLM-only
+    // entries that predate that field (only covers each subject's first 6).
+    const subject = getGapSubject(gap) ?? topicSubjectMap.get(topic.toLowerCase().trim()) ?? "";
     const weeks = Math.max(1, Math.round((CRITICAL_GAP_PRIORITY_WEIGHT[priority] / weightSum) * totalWeeks));
-    return { priority, topic, url: getGapUrl(gap), description: getGapReason(topic, ""), weeks };
+    return { priority, topic, url: getGapUrl(gap), description: getGapDescription(gap, subject), weeks };
   });
 };
 
@@ -549,12 +575,21 @@ const ReadinessDonut = ({ percentage }: { percentage: number }) => {
 };
 
 // Gap items: AI returns either a plain string (legacy) or { topic, resourceUrl? }
-type GapItem = string | { topic: string; resourceUrl?: string };
+type GapItem = string | { topic: string; resourceUrl?: string; subject?: string; reason?: string };
 // Resource items: AI returns either a plain string (legacy) or { name, url? }
 type ResourceItem = string | { name: string; url?: string };
 
 const getGapTopic   = (g: GapItem): string           => typeof g === 'string' ? g : g.topic;
 const getGapUrl     = (g: GapItem): string | undefined => typeof g === 'string' ? undefined : g.resourceUrl;
+const getGapSubject = (g: GapItem): string | undefined => typeof g === 'string' ? undefined : g.subject;
+// Prefer the backend's real, data-grounded per-topic reason (built from
+// actual best_source_match/best_similarity) when present; the keyword-based
+// getGapReason() is now only a fallback for entries that predate that field
+// (older cached saved_reports, or the LLM's own free-text gap entries).
+const getGapDescription = (g: GapItem, subjectHint?: string): string => {
+  if (typeof g !== 'string' && g.reason) return g.reason;
+  return getGapReason(getGapTopic(g), getGapSubject(g) ?? subjectHint ?? "");
+};
 const getResName    = (r: ResourceItem): string           => typeof r === 'string' ? r : r.name;
 const getResUrl     = (r: ResourceItem): string | undefined => typeof r === 'string' ? undefined : r.url;
 
@@ -746,14 +781,31 @@ const ReportPreview = () => {
 
     return null;
   };
-  
+
+  // Analysis computed during submitAssessment (awaited, not fire-and-forget —
+  // see submitAssessment.ts) and handed off via navigation state. Distinct
+  // from getSavedAnalysis() above: that path is for reports that are ALREADY
+  // in saved_reports (history/comparison views), so it marks isSaved=true and
+  // skips saveReportToDatabase entirely. This one is freshly computed and NOT
+  // yet saved anywhere, so it still needs to go through saveReportToDatabase
+  // (and the report-summary email) — it only skips the redundant network call
+  // to analyze-curriculum.
+  const getPrefetchedAnalysis = (): AnalysisData | null => {
+    if (location.state?.prefetchedAnalysis) {
+      console.log("[ReportPreview] Using prefetched analysis from submit — skipping duplicate analyze-curriculum call");
+      return location.state.prefetchedAnalysis as AnalysisData;
+    }
+    return null;
+  };
+
   const formData = getFormData();
   const initialSavedAnalysis = getSavedAnalysis();
+  const initialPrefetchedAnalysis = initialSavedAnalysis ? null : getPrefetchedAnalysis();
   const hasValidFormData = formData && Object.keys(formData).length > 0;
   const persona = getPersona();
-  
-  const [isLoading, setIsLoading] = useState(!initialSavedAnalysis && hasValidFormData);
-  const [analysis, setAnalysis] = useState<AnalysisData | null>(initialSavedAnalysis);
+
+  const [isLoading, setIsLoading] = useState(!initialSavedAnalysis && !initialPrefetchedAnalysis && hasValidFormData);
+  const [analysis, setAnalysis] = useState<AnalysisData | null>(initialSavedAnalysis ?? initialPrefetchedAnalysis);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(!!initialSavedAnalysis);
   const [redirecting, setRedirecting] = useState(false);
@@ -1053,6 +1105,16 @@ const ReportPreview = () => {
         return;
       }
 
+      // Skip the network call if submitAssessment already computed this —
+      // still needs to go through the normal save/email path since, unlike
+      // initialSavedAnalysis above, this hasn't been persisted anywhere yet.
+      if (initialPrefetchedAnalysis) {
+        console.log("[ReportPreview] Using prefetched analysis — saving to database");
+        setIsLoading(false);
+        saveReportToDatabase(initialPrefetchedAnalysis);
+        return;
+      }
+
       const MAX_RETRIES = 2;
 
       setIsLoading(true);
@@ -1167,7 +1229,7 @@ const ReportPreview = () => {
     return () => {
       cancelled = true;
     };
-  }, [formData, navigate, hasValidFormData, initialSavedAnalysis]);
+  }, [formData, navigate, hasValidFormData, initialSavedAnalysis, initialPrefetchedAnalysis]);
 
   const handleDownloadPDF = async () => {
     if (!analysis || !reportRef.current) return;
@@ -1408,14 +1470,24 @@ const ReportPreview = () => {
                 {/* D. Subject-wise Gap Analysis — one uniform card per subject */}
                 {analysis && (() => {
                   const gradeNum = parseInt(formData.snapshotGrade) || 0;
-                  // For Grades 2–10 (Foundation Transition), suppress detailed social-studies
-                  // breakdown — replaced by the 2–3 month refresher note (D3, below).
                   const isFoundation = gradeNum >= 2 && gradeNum <= 10;
-                  const isSocialStudy = (name: string) => /social|history|civics|geography/i.test(name);
 
+                  // Previously, grades 2-10 Social Studies cards were suppressed
+                  // entirely on the assumption the LLM had no real data to show
+                  // for that subject — with a promised "2-3 month refresher note"
+                  // replacement that, on inspection, doesn't actually exist
+                  // anywhere in this file (stale comment/removed code). That
+                  // assumption is also outdated: Social Science now gets the
+                  // same real, RAG-grounded subjectAnalysis entry as every other
+                  // subject (see expandSubjectAnalysisFromRag on the backend),
+                  // so hiding it here means the report's own "single most
+                  // important prep area" (per the Executive Summary) has no
+                  // detail card to click into — the one place a parent would
+                  // most want to look. Only suppress a card when it's genuinely
+                  // empty (no real data came back for it at all), regardless of
+                  // subject name or grade band.
                   const subjectsToRender = analysis.subjectAnalysis.filter((s) => {
-                    if (isFoundation && isSocialStudy(s.subject)) return false;
-                    return true;
+                    return s.totalTopics > 0 || s.keyGaps.length > 0;
                   });
 
                   const renderSubjectCard = (subject: SubjectAnalysis, subjectIndex: number) => {
@@ -1425,7 +1497,7 @@ const ReportPreview = () => {
                       : subject.keyGaps;
                     const gapRows = rawGaps.slice(0, 4).map((gap) => {
                       const topic = getGapTopic(gap);
-                      return { topic, url: getGapUrl(gap), reason: getGapReason(topic, subject.subject) };
+                      return { topic, url: getGapUrl(gap), reason: getGapDescription(gap, subject.subject) };
                     });
                     const strengths = buildSubjectStrengths(subject);
                     const resources = buildSubjectResources(subject);
