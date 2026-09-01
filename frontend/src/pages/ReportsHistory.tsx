@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Trash2, Eye, Loader2, Clock, Target, GraduationCap, TrendingUp, RotateCcw, Share2 } from "lucide-react";
+import { FileText, Trash2, Eye, Loader2, Clock, Target, GraduationCap, TrendingUp, RotateCcw, Share2, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -20,6 +20,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 // Only the slice of the saved analysis this list view actually reads (the
 // alignment badge). "View Full Report" hands the whole blob off to
@@ -58,6 +66,8 @@ const ReportsHistory = () => {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const [shareDialogUrl, setShareDialogUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchReports();
@@ -139,16 +149,38 @@ const ReportsHistory = () => {
         .select("token")
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Share DB error:", error);
+        toast.error(`Failed to generate share link: ${error.message}`);
+        return;
+      }
 
       const shareUrl = `${window.location.origin}/report/${(data as any).token}`;
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Share link copied to clipboard! Valid for 7 days.");
+      // Show the dialog with the URL so the user can always access it
+      setShareDialogUrl(shareUrl);
+      setCopied(false);
+      // Try clipboard silently — dialog is the reliable fallback
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+      } catch {
+        // Clipboard failed — user can copy from the dialog
+      }
     } catch (err) {
       console.error("Share error:", err);
       toast.error("Failed to generate share link");
     } finally {
       setSharingId(null);
+    }
+  };
+
+  const handleCopyFromDialog = async () => {
+    if (!shareDialogUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareDialogUrl);
+      setCopied(true);
+    } catch {
+      // Fallback: select the input text
     }
   };
 
@@ -176,6 +208,30 @@ const ReportsHistory = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+
+      {/* Share Link Dialog */}
+      <Dialog open={!!shareDialogUrl} onOpenChange={(open) => { if (!open) setShareDialogUrl(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share Report</DialogTitle>
+            <DialogDescription>
+              Anyone with this link can view the report for 7 days.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 mt-2">
+            <Input
+              readOnly
+              value={shareDialogUrl ?? ""}
+              className="font-mono text-xs"
+              onFocus={(e) => e.target.select()}
+            />
+            <Button size="sm" variant="outline" onClick={handleCopyFromDialog} className="shrink-0">
+              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
+          {copied && <p className="text-xs text-green-600 mt-1">Copied to clipboard!</p>}
+        </DialogContent>
+      </Dialog>
 
       <section id="main-content" tabIndex={-1} className="py-12 outline-none md:py-16">
         <div className="container mx-auto px-4 max-w-4xl">

@@ -4,9 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { FileText, Download, ArrowLeft, Target, AlertTriangle, Loader2, GitCompareArrows, Layers, GraduationCap, School, BookOpen, Youtube, FileQuestion, Sparkles, TrendingUp, Clock, Gauge, Globe2, MessageCircleQuestion, ChevronDown, Share2 } from "lucide-react";
+import { FileText, Download, ArrowLeft, Target, AlertTriangle, Loader2, GitCompareArrows, Layers, GraduationCap, School, BookOpen, Youtube, FileQuestion, Sparkles, TrendingUp, Clock, Gauge, Globe2, MessageCircleQuestion, ChevronDown, Share2, Copy, Check } from "lucide-react";
 import ReportComparison from "@/components/ReportComparison";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -819,6 +827,8 @@ const ReportPreview = () => {
   // the shared_reports link points at.
   const [savedReportId, setSavedReportId] = useState<string | null>((location.state?.savedReportId as string | undefined) ?? null);
   const [isSharing, setIsSharing] = useState(false);
+  const [shareDialogUrl, setShareDialogUrl] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const prevReportId = location.state?.prevReportId as string | undefined;
 
@@ -1264,11 +1274,23 @@ const ReportPreview = () => {
         .select("token")
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Share DB error:", error);
+        toast.error(`Failed to generate share link: ${error.message}`);
+        return;
+      }
 
       const shareUrl = `${window.location.origin}/report/${(data as any).token}`;
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Share link copied to clipboard! Valid for 7 days.");
+      // Show dialog with URL — this is the reliable path regardless of clipboard
+      setShareDialogUrl(shareUrl);
+      setShareCopied(false);
+      // Try clipboard silently
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareCopied(true);
+      } catch {
+        // Clipboard failed — user can copy from the dialog
+      }
     } catch (err) {
       console.error("Share error:", err);
       toast.error("Failed to generate share link");
@@ -1277,10 +1299,44 @@ const ReportPreview = () => {
     }
   };
 
+  const handleCopyShareUrl = async () => {
+    if (!shareDialogUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareDialogUrl);
+      setShareCopied(true);
+    } catch {
+      // Fallback: user can manually select the text
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
+      {/* Share Link Dialog */}
+      <Dialog open={!!shareDialogUrl} onOpenChange={(open) => { if (!open) setShareDialogUrl(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share Report</DialogTitle>
+            <DialogDescription>
+              Anyone with this link can view the report for 7 days.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 mt-2">
+            <Input
+              readOnly
+              value={shareDialogUrl ?? ""}
+              className="font-mono text-xs"
+              onFocus={(e) => e.target.select()}
+            />
+            <Button size="sm" variant="outline" onClick={handleCopyShareUrl} className="shrink-0">
+              {shareCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
+          {shareCopied && <p className="text-xs text-green-600 mt-1">Copied to clipboard!</p>}
+        </DialogContent>
+      </Dialog>
+
       <section className="py-12 md:py-16">
         <div className="container mx-auto px-4 max-w-4xl">
           <Button
