@@ -41,6 +41,24 @@ const ChangePersonaLink = ({ onClick }: { onClick: () => void }) => (
   </button>
 );
 
+const RetakeBar = ({ onSkipToReview }: { onSkipToReview: () => void }) => (
+  <div className="mb-4 flex items-center justify-between rounded-xl border border-secondary/25 bg-secondary/5 px-4 py-2.5">
+    <div className="flex items-center gap-2 text-sm">
+      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-bold text-secondary-foreground">↺</span>
+      <span className="text-muted-foreground">
+        <span className="font-semibold text-foreground">Retake mode</span> — your previous answers are pre-filled. Edit what you need, then regenerate.
+      </span>
+    </div>
+    <button
+      type="button"
+      onClick={onSkipToReview}
+      className="ml-4 shrink-0 text-sm font-semibold text-secondary transition-colors hover:text-secondary/80"
+    >
+      Back to Review →
+    </button>
+  </div>
+);
+
 const ParentAssessmentHeader = ({
   onChangePersona,
   showChangePersona,
@@ -146,6 +164,10 @@ interface ParentAssessmentLayoutProps {
   saveStatus?: "idle" | "saving" | "saved";
   isFirstStep: boolean;
   isLastStep: boolean;
+  /** True when the user arrived from the Reports History "Retake" button. */
+  isRetake?: boolean;
+  /** When set (retake + not on last step), a "Back to Review" shortcut appears. */
+  onSkipToReview?: () => void;
   children: ReactNode;
 }
 
@@ -159,6 +181,8 @@ const ParentAssessmentLayout = ({
   saveStatus,
   isFirstStep,
   isLastStep,
+  isRetake = false,
+  onSkipToReview,
   children,
 }: ParentAssessmentLayoutProps) => (
   <div className="relative">
@@ -168,11 +192,17 @@ const ParentAssessmentLayout = ({
         <ParentAssessmentHeader
           onChangePersona={onChangePersona}
           showChangePersona={showChangePersona}
-          title="Parent Assessment"
-          subtitle="Answer a few questions to generate your child's personalized curriculum transition report."
+          title={isRetake ? "Update & Retake" : "Parent Assessment"}
+          subtitle={
+            isRetake
+              ? "Your previous answers are pre-filled — change what you need, then regenerate the report."
+              : "Answer a few questions to generate your child's personalized curriculum transition report."
+          }
         />
         <ParentAssessmentStepper steps={steps} currentIndex={currentIndex} />
       </div>
+      {/* Retake banner with "Back to Review" shortcut — only on non-review steps */}
+      {isRetake && !isLastStep && onSkipToReview && <RetakeBar onSkipToReview={onSkipToReview} />}
       <AnimatePresence mode="wait">
         <motion.div
           key={steps[currentIndex]?.id}

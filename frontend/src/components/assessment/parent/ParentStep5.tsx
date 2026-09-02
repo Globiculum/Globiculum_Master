@@ -26,12 +26,14 @@ import type { ParentFormData } from "./parentMapper";
 interface ParentStep5Props {
   formData: ParentFormData;
   prevReportId?: string;
+  /** True when the user arrived via the "Retake" button from Reports History. */
+  isRetake?: boolean;
   onPrev: () => void;
   onValidationErrors: (errors: Record<string, string>) => void;
   onEditStep: (index: number) => void;
 }
 
-const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEditStep }: ParentStep5Props) => {
+const ParentStep5 = ({ formData, prevReportId, isRetake = false, onPrev, onValidationErrors, onEditStep }: ParentStep5Props) => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -130,10 +132,32 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
     },
   ];
 
+  // Dynamic title — personalised when a name is available, otherwise falls
+  // back to the teammate's "Assessment Summary" label.
+  const reviewTitle = formData.childName.trim() ? `${formData.childName.trim()}'s Review` : "Assessment Summary";
+  const submitLabel = isSubmitting
+    ? "Generating Report..."
+    : isRetake
+      ? "Regenerate Report"
+      : "View Alignment Report";
+
   return (
     <>
-      <SectionCard logo={parentLogo} title="Assessment Summary">
-        <div className="-mt-4 text-sm text-muted-foreground">Here&rsquo;s everything you&rsquo;ve shared with us — take a look, then generate the AI-powered readiness report.</div>
+      {/* logo= uses the teammate's new parentLogo visual instead of the icon badge */}
+      <SectionCard logo={parentLogo} title={reviewTitle}>
+        {isRetake && (
+          <div className="-mt-2 mb-4 flex items-start gap-2 rounded-xl border border-secondary/25 bg-secondary/5 px-4 py-3 text-sm">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-bold text-secondary-foreground">↺</span>
+            <p className="text-muted-foreground">
+              <span className="font-semibold text-foreground">Retaking this assessment.</span>{" "}
+              All fields below are pre-filled from your previous submission. Click the pencil icon on any section to edit just that part, then hit <span className="font-semibold">Regenerate Report</span>.
+            </p>
+          </div>
+        )}
+        <div className="-mt-4 text-sm text-muted-foreground">
+          {isRetake
+            ? "Confirm your answers below or make changes before regenerating."
+            : "Here\u2019s everything you\u2019ve shared with us \u2014 take a look, then generate the AI-powered readiness report."}</div>
         <div className="space-y-4">
           {sections.map((section) => (
             <ReviewSection key={section.title} section={section} onEditStep={onEditStep} />
@@ -145,7 +169,7 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
         onPrev={onPrev}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
-        submitLabel={isSubmitting ? "Generating Report..." : "View Alignment Report"}
+        submitLabel={submitLabel}
       />
 
       {isSubmitting && <ReportGenerationLoader persona="parent" />}

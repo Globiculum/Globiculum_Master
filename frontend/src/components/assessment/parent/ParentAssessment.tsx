@@ -94,7 +94,14 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
 
   return {
     ...defaults,
-    childName: prefillData.childName || defaults.childName,
+    // childName/childLastName: prefer the current Parent-flow keys; fall back
+    // to the Student-flow keys (studentName/studentLastName) so retaking a
+    // report that was generated via the Student path still populates names.
+    childName: prefillData.childName || prefillData.studentName || defaults.childName,
+    // childLastName was previously missing from this merge — that caused the
+    // name wizard card to show as "unanswered", validation to fail on step 0,
+    // and the wizard to jump to the empty name card (perceived as "start over").
+    childLastName: prefillData.childLastName || prefillData.studentLastName || defaults.childLastName,
     schoolStage: prefillData.schoolStage || defaults.schoolStage,
     snapshotGrade: prefillData.snapshotGrade ? String(prefillData.snapshotGrade) : defaults.snapshotGrade,
     snapshotLocation: prefillData.snapshotLocation || defaults.snapshotLocation,
@@ -147,7 +154,10 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
 };
 
 const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChangePersona = true }: ParentAssessmentProps) => {
-  const [currentStep, setCurrentStep] = useState(0);
+  const isRetake = Boolean(prefillData);
+  // Retakes land directly on the Review step so the user immediately sees all
+  // their pre-filled data and only needs to change what they want.
+  const [currentStep, setCurrentStep] = useState(() => isRetake ? PARENT_TOTAL_STEPS - 1 : 0);
   const [formData, setFormData] = useState<ParentFormData>(() => mergePrefillData(createDefaultParentFormData(), prefillData));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [validationAttempt, setValidationAttempt] = useState(0);
@@ -265,6 +275,7 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
           <ParentStep5
             formData={formData}
             prevReportId={prevReportId}
+            isRetake={isRetake}
             onPrev={goPrev}
             onValidationErrors={handleValidationErrors}
             onEditStep={goToStep}
@@ -274,6 +285,10 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
         return null;
     }
   };
+
+  // When the user edits a step during a retake, let them jump straight back to
+  // the Review without clicking Next through every intermediate step.
+  const handleSkipToReview = () => goToStep(PARENT_TOTAL_STEPS - 1);
 
   return (
     <ParentAssessmentLayout
@@ -286,6 +301,8 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
       saveStatus={saveStatus}
       isFirstStep={currentStep === 0}
       isLastStep={currentStep === PARENT_TOTAL_STEPS - 1}
+      isRetake={isRetake}
+      onSkipToReview={isRetake && currentStep < PARENT_TOTAL_STEPS - 1 ? handleSkipToReview : undefined}
     >
       <div key={currentStep} className="animate-in fade-in-0 slide-in-from-right-2 duration-300">
         {renderStep()}
