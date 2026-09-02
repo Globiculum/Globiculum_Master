@@ -122,6 +122,7 @@ const CURRICULUM_BY_STAGE: Record<string, { value: string; label: string }[]> = 
   elementary: [
     { value: "us-common-core", label: "US Common Core" },
     { value: "state-specific", label: "State-Specific Standards" },
+    { value: "ngss", label: "NGSS (Next Generation Science Standards)" },
     { value: "ib-pyp", label: "IB Middle Year Programme" },
     { value: "cambridge-primary", label: "Cambridge Primary" },
     { value: "montessori", label: "Montessori Curriculum" },
@@ -130,6 +131,7 @@ const CURRICULUM_BY_STAGE: Record<string, { value: string; label: string }[]> = 
   middle: [
     { value: "us-common-core", label: "US Common Core" },
     { value: "state-specific", label: "State-Specific Standards" },
+    { value: "ngss", label: "NGSS (Next Generation Science Standards)" },
     { value: "ib-myp", label: "IB Middle Year Programme" },
     { value: "cambridge-lower", label: "Cambridge Lower Secondary" },
     { value: "honors-advanced", label: "Honors / Advanced Programs" },
@@ -138,6 +140,7 @@ const CURRICULUM_BY_STAGE: Record<string, { value: string; label: string }[]> = 
   high: [
     { value: "us-common-core", label: "US Common Core" },
     { value: "state-specific", label: "State-Specific Standards" },
+    { value: "ngss", label: "NGSS (Next Generation Science Standards)" },
     { value: "ap", label: "AP Track (Advanced Placement)" },
     { value: "ib-dp", label: "IB DP" },
     { value: "cambridge-igcse", label: "Cambridge IGCSE" },

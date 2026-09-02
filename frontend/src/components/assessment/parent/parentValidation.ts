@@ -23,7 +23,6 @@ export const PARENT_STEP_TITLES = [
   "School Profile",
   "Academic Path",
   "Learning Profile",
-  "Support",
   "Review",
 ] as const;
 
@@ -97,12 +96,11 @@ const academicPathStepSchema = z
 // a separate "which subjects to strengthen" question that re-asked the same
 // ground as those derived subjects in different wording — removed as
 // redundant. overallPerformance moved to the Academic Path step (see above).
+// Biggest Concerns/Preferred Support/Additional Notes (formerly their own
+// Support step, was canProceedFromStep case 3) now live in this same step —
+// see ParentLearningProfileWizard.tsx.
 const learningProfileStepSchema = z.object({
   learningStyles: z.array(z.string()).min(1, "Pick at least one learning style"),
-});
-
-// Step 3: Support — was canProceedFromStep case 3.
-const supportStepSchema = z.object({
   transitionConcerns: z.array(z.string()).min(1, "Select at least one concern"),
 });
 
@@ -110,7 +108,6 @@ const PARENT_STEP_SCHEMAS: (z.ZodTypeAny | null)[] = [
   schoolProfileStepSchema,
   academicPathStepSchema,
   learningProfileStepSchema,
-  supportStepSchema,
   null, // Review — no field gate; the Generate Report button owns its own isSubmitting gate.
 ];
 

@@ -19,7 +19,15 @@ const HeroSection = () => {
           px value) so the band adapts to laptop/desktop/large-monitor heights instead
           of over- or under-filling the screen; content is centered within it so the
           adaptive height doesn't just pad out empty space below the text. */}
-      <div className="relative flex min-h-[clamp(560px,85vh,860px)] flex-col justify-center overflow-hidden py-12 sm:py-16 md:py-20">
+      {/* The 860px ceiling only binds on screens taller than ~1011px, which is
+          most desktop monitors — so on those, band height was effectively
+          fixed while width kept growing with the viewport, making the crop
+          more severe (eating into the badges/icons near the top of the
+          image) the wider/larger the screen. max(860px, 35vw) leaves normal
+          screens untouched (35vw < 860px below ~2457px wide) but raises the
+          ceiling in step with width beyond that, so very large/wide monitors
+          get a taller band instead of an ever-worse crop. */}
+      <div className="relative flex min-h-[clamp(560px,85vh,max(860px,35vw))] flex-col justify-center overflow-hidden py-12 sm:py-16 md:py-20">
         {/* Full-bleed — spans the whole section width (no max-width cap) so the
             image reaches the viewport edges on wide screens instead of leaving
             bg-primary strips on either side. Going full-bleed makes the band's

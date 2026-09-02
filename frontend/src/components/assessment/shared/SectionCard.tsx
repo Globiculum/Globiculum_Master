@@ -10,19 +10,24 @@ import InfoTooltip from "./InfoTooltip";
 type SectionIcon = LucideIcon | string;
 
 interface SectionCardProps {
-  icon: SectionIcon;
+  /** Ignored when `logo` is provided. */
+  icon?: SectionIcon;
   title: string;
   /** Shown as a hover/tap info tooltip next to the title. Omit when the step
    * already has its own always-visible description text below the title. */
   description?: string;
   /** Bobbing + orbiting-dot motion on the icon badge. Default true; set
    * false for a static badge, e.g. when an `illustration` is present and the
-   * motion would compete with it. */
+   * motion would compete with it. Ignored when `logo` is provided. */
   animated?: boolean;
   /** Optional decorative image shown to the right of the icon badge, filling
    * the otherwise-empty space next to it on wider screens. Hidden on small
    * screens to avoid crowding the title. */
   illustration?: string;
+  /** A standalone logo image shown plainly (no gradient badge, no white
+   * backing circle, no bob/orbit animation) in place of the usual icon
+   * badge — for a persona's own logo rather than a topical step icon. */
+  logo?: string;
   children: ReactNode;
 }
 
@@ -64,7 +69,7 @@ const StepIllustration = ({ icon: Icon, animated }: { icon: SectionIcon; animate
   );
 };
 
-const SectionCard = ({ icon: Icon, title, description, animated = true, illustration, children }: SectionCardProps) => (
+const SectionCard = ({ icon: Icon, title, description, animated = true, illustration, logo, children }: SectionCardProps) => (
   <motion.div
     className="rounded-2xl border border-border bg-card p-6 shadow-soft md:p-8"
     initial={{ opacity: 0, y: 16 }}
@@ -73,7 +78,11 @@ const SectionCard = ({ icon: Icon, title, description, animated = true, illustra
   >
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        <StepIllustration icon={Icon} animated={animated} />
+        {logo ? (
+          <img src={logo} className="h-20 w-20 shrink-0 object-contain" alt="" aria-hidden="true" draggable={false} />
+        ) : (
+          Icon && <StepIllustration icon={Icon} animated={animated} />
+        )}
         <div className="flex items-center gap-1.5">
           <h2 className="text-h3 text-foreground">{title}</h2>
           {description && <InfoTooltip description={description} />}

@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import profileIcon from "@/assets/icons-3d/profile.png";
+import childLogo from "@/assets/childlogo.png";
 import educationHistoryIcon from "@/assets/icons-3d/education-history.png";
-import parentKidsIllustration from "@/assets/bg-PARENT-PERSON.png";
 import type { StudentStepProps } from "./types";
 import SectionCard from "../../shared/SectionCard";
 import QuestionCard from "../../shared/QuestionCard";
@@ -44,13 +43,7 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
   };
 
   return (
-    <SectionCard
-      icon={profileIcon}
-      title="Let's get to know you."
-      description="Tell us a little about yourself before we begin."
-      illustration={parentKidsIllustration}
-      animated={false}
-    >
+    <SectionCard logo={childLogo} title="Let's get to know you." description="Tell us a little about yourself before we begin.">
       <StudentProfileWizard formData={formData} setField={setField} errors={errors} />
 
       <span id="student-profile-next-section" className="sr-only" aria-hidden="true" />
@@ -61,9 +54,7 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
         <div className="mb-4 flex items-center gap-3">
           <img src={educationHistoryIcon} className="h-9 w-9 shrink-0 object-contain" alt="" aria-hidden="true" draggable={false} />
           <div className="flex-1">
-            <h3 className="text-base font-bold text-foreground">
-              Previous Learning <span className="ml-1.5 text-xs font-normal text-muted-foreground">(Optional)</span>
-            </h3>
+            <h3 className="text-base font-bold text-foreground">Previous Learning</h3>
           </div>
         </div>
 

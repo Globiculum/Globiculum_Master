@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import academicPathIcon from "@/assets/icons-3d/academic-path.png";
+import parentLogo from "@/assets/parentlogo.png";
 import goalsAspirationsIcon from "@/assets/icons-3d/goals-aspirations.png";
 import { cn } from "@/lib/utils";
 import { GlobiculumIconTile, GlobiculumTargetIcon, GlobiculumSuccessIcon } from "@/components/icons";
@@ -104,11 +104,15 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
   // previous design. Same 4 levels as the main subject flashcards
   // (Strong/Moderate/Needs Help/Not Applicable).
   const selectedApSubjects = AP_SUBJECTS.filter((ap) => formData.academicPath.includes(ap));
-  const apAddedCount = selectedApSubjects.length + (formData.academicPath.includes("University Entrance Test Prep") ? 1 : 0);
+  const apAddedCount = selectedApSubjects.length;
   const apSectionComplete = apAddedCount > 0;
+  // Chip selection already means "applies" — deselecting the chip is how a
+  // course becomes not-applicable, so unlike the main subject flashcards,
+  // this dropdown doesn't need its own separate Not Applicable option.
+  const AP_CONFIDENCE_OPTIONS = MAIN_CONFIDENCE_LEVELS.filter((level) => level.value !== "not-applicable");
 
   return (
-    <SectionCard icon={academicPathIcon} title="Academic Path">
+    <SectionCard logo={parentLogo} title="Academic Path">
       <div className="-mt-4 text-sm text-muted-foreground">Tell us what the student studies today.</div>
 
       <AcademicPathFlashcards
@@ -126,7 +130,7 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
           moderate: "Understands most of it",
           "needs-help": "Could use more support",
         }}
-        excludeFromCustom={[...AP_SUBJECTS, "University Entrance Test Prep"]}
+        excludeFromCustom={AP_SUBJECTS}
         customCardTitle="Any other subjects?"
         customCardSubtitle="Add any subject not listed above, then note your child's confidence."
         customCardQuestion="How confident does your child seem in this subject?"
@@ -161,7 +165,7 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
                       )}
                     </span>
                     <span className="min-w-0">
-                      <span className={cn("block text-sm", apSectionComplete ? "font-medium text-secondary" : "font-bold text-primary")}>
+                      <span className={cn("block text-sm", apSectionComplete ? "font-medium text-secondary" : "font-semibold text-foreground")}>
                         AP Courses & University Prep
                       </span>
                       <span className={cn("block text-xs", apSectionComplete ? "font-medium text-secondary" : "text-muted-foreground/70")}>
@@ -198,12 +202,6 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <InputCard
-                  variant="chip"
-                  label="University Entrance Test Prep"
-                  selected={formData.academicPath.includes("University Entrance Test Prep")}
-                  onClick={() => onArrayToggle("academicPath", "University Entrance Test Prep")}
-                />
                 {AP_SUBJECTS.map((ap) => (
                   <InputCard
                     key={ap}
@@ -217,19 +215,22 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
 
               {selectedApSubjects.length > 0 && (
                 <div className="mt-5 space-y-1.5">
-                  <p className="text-center text-xs font-medium text-muted-foreground">How confident does your child seem in each?</p>
+                  <p className="text-center text-sm font-medium text-muted-foreground">How confident does your child seem in each?</p>
                   {selectedApSubjects.map((ap) => {
                     const label = ap.replace("(Advanced Placement) ", "");
                     const current = formData.subjectConfidences[ap];
                     return (
-                      <div key={ap} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3 py-2">
-                        <span className="text-sm font-semibold text-foreground">{label}</span>
+                      <div key={ap} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3 py-2.5">
+                        <span className="text-base font-bold text-foreground">{label}</span>
                         <Select value={current} onValueChange={(value) => onRecordFieldChange("subjectConfidences", ap, value)}>
-                          <SelectTrigger className="h-8 w-[150px] text-xs" aria-label={`${label} confidence`}>
+                          <SelectTrigger
+                            className="h-8 w-auto min-w-[132px] gap-1.5 rounded-full border-none bg-muted/60 px-3 text-sm font-semibold text-secondary shadow-none hover:bg-muted"
+                            aria-label={`${label} confidence`}
+                          >
                             <SelectValue placeholder="Rate confidence" />
                           </SelectTrigger>
                           <SelectContent>
-                            {MAIN_CONFIDENCE_LEVELS.map((level) => (
+                            {AP_CONFIDENCE_OPTIONS.map((level) => (
                               <SelectItem key={level.value} value={level.value}>
                                 {level.label}
                               </SelectItem>
@@ -240,6 +241,18 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
                     );
                   })}
                 </div>
+              )}
+
+              {selectedApSubjects.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    document.getElementById("language-exposure-section")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                  }
+                  className="mt-6 flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-secondary hover:underline"
+                >
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" /> Done — continue to Language Exposure →
+                </button>
               )}
             </FlashcardShell>
           </div>
@@ -260,7 +273,9 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
           />
         )}
 
-      <ParentLanguageJourneyCard formData={formData} onFieldChange={onFieldChange} onRecordFieldChange={onRecordFieldChange} />
+      <div id="language-exposure-section">
+        <ParentLanguageJourneyCard formData={formData} onFieldChange={onFieldChange} onRecordFieldChange={onRecordFieldChange} />
+      </div>
 
       {/* Same nav + FlashcardShell structure as AP Courses & University
           Prep / Language Exposure, for consistent typography and layout
@@ -284,7 +299,7 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
                       <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />
                     )}
                   </span>
-                  <span className={cn("block text-sm", formData.overallPerformance ? "font-medium text-secondary" : "font-bold text-primary")}>
+                  <span className={cn("block text-sm", formData.overallPerformance ? "font-medium text-secondary" : "font-semibold text-foreground")}>
                     Overall Performance
                   </span>
                 </div>

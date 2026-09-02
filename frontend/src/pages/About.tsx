@@ -192,7 +192,7 @@ const About = () => {
           src={bgAboutImage}
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover object-[50%_40%]"
         />
         {/* Below lg, the tall mobile min-height forces an extreme object-cover crop
             (zoomed into a narrow vertical slice), and the text/cards span the full
@@ -203,7 +203,12 @@ const About = () => {
             takes over once there's room for the image to read as a distinct visual. */}
         <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-primary/85 via-primary/60 to-primary/25 lg:bg-gradient-to-r lg:from-primary/80 lg:via-primary/20 lg:to-transparent" />
 
-        <div className="container relative mx-auto flex min-h-[600px] flex-col justify-center px-4 py-12 sm:min-h-[680px] sm:px-6 sm:py-14 lg:min-h-[760px] lg:py-16">
+        {/* lg:760px was the tallest step defined, so on screens wider than
+            lg the band height stayed fixed while width kept growing with the
+            viewport — same crop-worsens-with-width issue as the Hero image,
+            eating into the flags/badges near the top of this image on large
+            monitors. xl/2xl continue the same escalating progression. */}
+        <div className="container relative mx-auto flex min-h-[600px] flex-col justify-center px-4 py-12 sm:min-h-[680px] sm:px-6 sm:py-14 lg:min-h-[760px] lg:py-16 xl:min-h-[880px] 2xl:min-h-[1000px]">
           <motion.div
             className="max-w-xl text-center lg:text-left"
             initial="hidden"

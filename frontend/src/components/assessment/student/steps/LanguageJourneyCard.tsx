@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, Minus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GlobiculumChecklistIcon, GlobiculumEducationIcon, GlobiculumGlobeIcon, GlobiculumIconTile } from "@/components/icons";
 import InputCard from "../../shared/InputCard";
 import FlashcardShell from "../../shared/FlashcardShell";
@@ -23,11 +24,9 @@ import backIcon from "@/assets/icons-3d/back.png";
 const INDIAN_LANGUAGES = ["Hindi", "Sanskrit", "Bengali", "Tamil", "Telugu", "Kannada"];
 
 const INDIAN_LEVELS = [
-  { value: "none", label: "No Exposure" },
   { value: "beginner", label: "Beginner" },
   { value: "intermediate", label: "Intermediate" },
   { value: "fluent", label: "Fluent" },
-  { value: "native", label: "Native" },
 ];
 
 const FOREIGN_LANGUAGE_CHIPS = [
@@ -194,7 +193,7 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
                 <GlobiculumChecklistIcon size={28} />
               </GlobiculumIconTile>
             </div>
-            <h3 className="text-lg font-bold text-foreground">Language Exposure is ready.</h3>
+            <h3 className="text-lg font-bold text-foreground">Language Exposure is ready</h3>
           </div>
 
           {totalSelected === 0 ? (
@@ -276,7 +275,7 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
                     >
                       {item.status === "current" && <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />}
                     </span>
-                    <span className={cn("block truncate text-sm", item.status === "current" ? "font-bold text-primary" : "text-muted-foreground")}>{item.label}</span>
+                    <span className={cn("block truncate text-sm", item.status === "current" ? "font-semibold text-foreground" : "text-muted-foreground")}>{item.label}</span>
                   </div>
                 )}
               </li>
@@ -381,21 +380,26 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
                   )}
 
                   {formData.selectedLanguages.length > 0 && (
-                    <div className="mt-5 space-y-2">
-                      <p className="text-center text-xs font-medium text-muted-foreground">How familiar are you with each?</p>
+                    <div className="mt-5 space-y-1.5">
+                      <p className="text-center text-sm font-medium text-muted-foreground">How familiar are you with each?</p>
                       {formData.selectedLanguages.map((lang) => (
-                        <div key={lang} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card/50 px-3 py-2">
-                          <span className="text-sm font-semibold text-foreground">{lang}</span>
-                          <div role="radiogroup" aria-label={`${lang} familiarity`} className="flex flex-wrap gap-1.5">
-                            {INDIAN_LEVELS.map((level) => (
-                              <LevelButton
-                                key={level.value}
-                                label={level.label}
-                                selected={formData.languageProficiencies[lang] === level.value}
-                                onSelect={() => rateIndianLanguage(lang, level.value)}
-                              />
-                            ))}
-                          </div>
+                        <div key={lang} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3 py-2.5">
+                          <span className="text-base font-bold text-foreground">{lang}</span>
+                          <Select value={formData.languageProficiencies[lang]} onValueChange={(value) => rateIndianLanguage(lang, value)}>
+                            <SelectTrigger
+                              className="h-8 w-auto min-w-[132px] gap-1.5 rounded-full border-none bg-muted/60 px-3 text-sm font-semibold text-secondary shadow-none hover:bg-muted"
+                              aria-label={`${lang} familiarity`}
+                            >
+                              <SelectValue placeholder="Rate familiarity" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {INDIAN_LEVELS.map((level) => (
+                                <SelectItem key={level.value} value={level.value}>
+                                  {level.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       ))}
                     </div>

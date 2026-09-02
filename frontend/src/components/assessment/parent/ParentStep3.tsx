@@ -1,5 +1,5 @@
 import SectionCard from "../shared/SectionCard";
-import learningStyleIcon from "@/assets/icons-3d/learning-style.png";
+import parentLogo from "@/assets/parentlogo.png";
 import ParentLearningProfileWizard from "./ParentLearningProfileWizard";
 import type { ParentStepProps } from "./types";
 
@@ -10,14 +10,14 @@ import type { ParentStepProps } from "./types";
 // the previous static form (see ParentLearningProfileWizard.tsx), only the
 // presentation changed.
 
-const ParentStep3 = ({ formData, onArrayToggle, fieldErrors }: ParentStepProps) => {
+const ParentStep3 = ({ formData, onFieldChange, onArrayToggle, fieldErrors }: ParentStepProps) => {
   const childFirstName = formData.childName.trim();
-  const subtitle = childFirstName ? `Help us understand how ${childFirstName} learns best.` : "Help us understand your child's learning profile.";
+  const subtitle = childFirstName ? `Help us understand ${childFirstName}'s preferred learning style.` : "Help us understand your child's preferred learning style.";
 
   return (
-    <SectionCard icon={learningStyleIcon} title="Learning Profile" description="Help us understand your child's learning profile.">
+    <SectionCard logo={parentLogo} title="Learning Profile">
       <div className="-mt-4 text-sm text-muted-foreground">{subtitle}</div>
-      <ParentLearningProfileWizard formData={formData} onArrayToggle={onArrayToggle} fieldErrors={fieldErrors} />
+      <ParentLearningProfileWizard formData={formData} onFieldChange={onFieldChange} onArrayToggle={onArrayToggle} fieldErrors={fieldErrors} />
     </SectionCard>
   );
 };

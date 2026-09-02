@@ -14,7 +14,7 @@ interface SupportCardsProps {
 
 // Selectable "support need" cards replacing a raw checkbox grid — the exact
 // support-need strings (and therefore payload values) stay owned by the
-// caller (ParentStep4.tsx); this component only supplies the icon + chrome.
+// caller (ParentLearningProfileWizard.tsx); this component only supplies the icon + chrome.
 const SupportCards = ({ options, selected, onToggle }: SupportCardsProps) => (
   <div role="group" aria-label="Support Needs Priority" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
     {options.map(({ value, icon }) => {

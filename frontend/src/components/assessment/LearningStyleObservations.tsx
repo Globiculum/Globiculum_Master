@@ -35,11 +35,8 @@ export function LearningStyleObservations({ selectedStyles, onToggle }: Learning
     <div className="space-y-4">
       <div>
         <Label className="text-base font-medium">Preferred Learning Style</Label>
-        <p className="text-sm text-muted-foreground mt-1">
-          Select all that apply — this helps personalize recommendations.
-        </p>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {learningStyleOptions.map((style) => (
           <div

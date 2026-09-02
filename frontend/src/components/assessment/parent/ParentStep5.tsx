@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import reviewIcon from "@/assets/icons-3d/review.png";
+import parentLogo from "@/assets/parentlogo.png";
 import locationIcon from "@/assets/icons-3d/location.png";
 import academicPathIcon from "@/assets/icons-3d/academic-path.png";
 import learningStyleIcon from "@/assets/icons-3d/learning-style.png";
-import nervousIcon from "@/assets/icons-3d/nervous.png";
 import { toast } from "@/hooks/use-toast";
 import { submitAssessment, ValidationFailedError, deriveSubjectStrengths } from "../shared/submitAssessment";
 import ReportGenerationLoader from "../shared/ReportGenerationLoader";
@@ -124,13 +123,6 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
         { label: "Strongest Subjects", value: joinList(strongest) },
         { label: "Challenging Subjects", value: joinList(challenging) },
         { label: "Subject Confidences", value: joinRecord(formData.subjectConfidences) },
-      ],
-    },
-    {
-      stepIndex: 3,
-      title: "Support",
-      icon: nervousIcon,
-      rows: [
         { label: "Biggest Concerns", value: joinList(formData.transitionConcerns) },
         { label: "Preferred Support", value: joinList(formData.supportNeeds) },
         { label: "Additional Notes", value: formData.additionalNotes || "—" },
@@ -138,11 +130,9 @@ const ParentStep5 = ({ formData, prevReportId, onPrev, onValidationErrors, onEdi
     },
   ];
 
-  const reviewTitle = formData.childName.trim() ? `${formData.childName.trim()}'s Review` : "Review";
-
   return (
     <>
-      <SectionCard icon={reviewIcon} title={reviewTitle} description="Check your answers, then generate the AI-powered readiness report.">
+      <SectionCard logo={parentLogo} title="Assessment Summary">
         <div className="-mt-4 text-sm text-muted-foreground">Here&rsquo;s everything you&rsquo;ve shared with us — take a look, then generate the AI-powered readiness report.</div>
         <div className="space-y-4">
           {sections.map((section) => (

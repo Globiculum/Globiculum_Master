@@ -4,7 +4,7 @@ import type { StudentStepProps } from "./types";
 import SectionCard from "../../shared/SectionCard";
 import QuestionCard from "../../shared/QuestionCard";
 import VoiceInputButton from "../../shared/VoiceInputButton";
-import wrapupIcon from "@/assets/icons-3d/wrapup.png";
+import childLogo from "@/assets/childlogo.png";
 import learningStyleIcon from "@/assets/icons-3d/learning-style.png";
 import curriculumIcon from "@/assets/icons-3d/curriculum.png";
 import targetGradeIcon from "@/assets/icons-3d/target-grade.png";
@@ -119,7 +119,7 @@ const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentSte
   const title = firstName ? `Almost Done, ${firstName}!` : "Almost Done";
 
   return (
-    <SectionCard icon={wrapupIcon} title={title} description="Just a couple more friendly questions.">
+    <SectionCard logo={childLogo} title={title} description="Just a couple more friendly questions.">
       <div className="-mt-4 text-sm text-muted-foreground">We&rsquo;ve got everything we need to build your personalized roadmap.</div>
       <QuestionCard label="Which learning style suits you best?" required tooltip="This tells us how you learn best so we can tailor recommendations for you." error={errors.learningStyles}>
         <div role="group" aria-label="Which learning style suits you best?" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

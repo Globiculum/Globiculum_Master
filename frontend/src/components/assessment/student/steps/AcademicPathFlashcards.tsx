@@ -46,7 +46,7 @@ const DEFAULT_MICROCOPY: Record<ConfidenceValue, string> = {
   strong: "I feel confident",
   moderate: "I understand most of it",
   "needs-help": "I'd like more support",
-  "not-applicable": "Doesn't apply",
+  "not-applicable": "",
 };
 
 const confidenceLabel = (value?: string): string =>
@@ -157,7 +157,7 @@ const ConfidenceButton = ({
         )}
         {level.label}
       </span>
-      <span className={cn("text-[11px]", selected ? "opacity-90" : "text-muted-foreground")}>{microcopy}</span>
+      {microcopy && <span className={cn("text-[11px]", selected ? "opacity-90" : "text-muted-foreground")}>{microcopy}</span>}
     </motion.button>
   );
 };

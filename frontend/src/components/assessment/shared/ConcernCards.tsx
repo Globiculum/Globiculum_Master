@@ -14,7 +14,7 @@ interface ConcernCardsProps {
 
 // Selectable "concern" cards replacing a raw checkbox grid — the exact
 // concern strings (and therefore payload values) stay owned by the caller
-// (ParentStep4.tsx); this component only supplies the icon + card chrome.
+// (ParentLearningProfileWizard.tsx); this component only supplies the icon + card chrome.
 const ConcernCards = ({ options, selected, onToggle }: ConcernCardsProps) => (
   <div role="group" aria-label="Primary Transition Concerns" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
     {options.map(({ value, icon }) => {

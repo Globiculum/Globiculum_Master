@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import locationIcon from "@/assets/icons-3d/location.png";
+import parentLogo from "@/assets/parentlogo.png";
 import educationHistoryIcon from "@/assets/icons-3d/education-history.png";
-import parentKidsIllustration from "@/assets/bg-PARENT-PERSON.png";
 import InputCard from "../shared/InputCard";
 import SectionCard from "../shared/SectionCard";
 import QuestionCard from "../shared/QuestionCard";
@@ -42,21 +41,14 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
   };
 
   return (
-    <SectionCard
-      icon={locationIcon}
-      title="Your child's school & transition plans."
-      illustration={parentKidsIllustration}
-      animated={false}
-    >
+    <SectionCard logo={parentLogo} title="Your child's school & transition plans.">
       <ParentSchoolProfileWizard formData={formData} onFieldChange={onFieldChange} fieldErrors={fieldErrors} />
 
       <div className="mt-10 rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.06] to-transparent p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-3">
           <img src={educationHistoryIcon} className="h-9 w-9 shrink-0 object-contain" alt="" aria-hidden="true" draggable={false} />
           <div className="flex-1">
-            <h3 className="text-base font-bold text-foreground">
-              Previous Learning <span className="ml-1.5 text-xs font-normal text-muted-foreground">(Optional)</span>
-            </h3>
+            <h3 className="text-base font-bold text-foreground">Previous Learning</h3>
           </div>
         </div>
 

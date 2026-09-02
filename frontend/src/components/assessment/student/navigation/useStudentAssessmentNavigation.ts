@@ -38,17 +38,20 @@ export function useStudentAssessmentNavigation(): UseStudentAssessmentNavigation
     }
     setErrors({});
     setStepIndex((prev) => Math.min(prev + 1, STUDENT_ASSESSMENT_STEP_IDS.length - 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
     return true;
   };
 
   const goPrev = () => {
     setErrors({});
     setStepIndex((prev) => Math.max(prev - 1, 0));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const goToStep = (index: number) => {
     setErrors({});
     setStepIndex(Math.max(0, Math.min(index, STUDENT_ASSESSMENT_STEP_IDS.length - 1)));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Clears a field's error the moment the user changes it, so a message

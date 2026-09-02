@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import reviewIcon from "@/assets/icons-3d/review.png";
+import childLogo from "@/assets/childlogo.png";
 import profileIcon from "@/assets/icons-3d/profile.png";
 import academicPathIcon from "@/assets/icons-3d/academic-path.png";
 import wrapupIcon from "@/assets/icons-3d/wrapup.png";
@@ -128,11 +128,9 @@ const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors,
     },
   ];
 
-  const reviewTitle = formData.studentName.trim() ? `${formData.studentName.trim()}'s Review` : "Review";
-
   return (
     <>
-      <SectionCard icon={reviewIcon} title={reviewTitle} description="Check your answers, then generate your AI-powered readiness report.">
+      <SectionCard logo={childLogo} title="Assessment Summary">
         <div className="-mt-4 text-sm text-muted-foreground">Here&rsquo;s everything you&rsquo;ve shared with us — take a look, then generate your AI-powered readiness report.</div>
         <div className="space-y-4">
           {sections.map((section) => (

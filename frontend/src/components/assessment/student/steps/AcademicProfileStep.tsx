@@ -4,7 +4,7 @@ import QuestionCard from "../../shared/QuestionCard";
 import InputCard from "../../shared/InputCard";
 import AcademicPathFlashcards from "./AcademicPathFlashcards";
 import LanguageJourneyCard from "./LanguageJourneyCard";
-import academicPathIcon from "@/assets/icons-3d/academic-path.png";
+import childLogo from "@/assets/childlogo.png";
 
 // Mirrors Parent's Overall Performance question (see ParentStep2.tsx) —
 // same options, first-person copy, placed after Language Exposure to match
@@ -60,7 +60,7 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors }: Stu
   const activeSubjectList = isHigherSecondary ? HIGHER_SECONDARY_SUBJECTS : SUBJECTS;
   const requiredSubjects = isHigherSecondary ? new Set<string>() : REQUIRED_SUBJECTS;
   return (
-    <SectionCard icon={academicPathIcon} title="Academic Path">
+    <SectionCard logo={childLogo} title="Academic Path">
       <div className="-mt-4 text-sm text-muted-foreground">Tell us what you're studying right now.</div>
 
       <AcademicPathFlashcards

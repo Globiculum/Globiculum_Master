@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, ClipboardCheck, HeartHandshake, MapPin, User } from "lucide-react";
+import { BookOpen, ClipboardCheck, MapPin, User } from "lucide-react";
 import type { AssessmentStepperStep } from "../shared/AssessmentStepper";
 import { useScrollToFirstInvalidField } from "../shared/useScrollToFirstInvalidField";
 import ParentAssessmentLayout from "./ui/ParentAssessmentLayout";
 import ParentStep1 from "./ParentStep1";
 import ParentStep2 from "./ParentStep2";
 import ParentStep3 from "./ParentStep3";
-import ParentStep4 from "./ParentStep4";
 import ParentStep5 from "./ParentStep5";
 import { validateParentStep, PARENT_TOTAL_STEPS } from "./parentValidation";
 import type { ParentFormData } from "./parentMapper";
@@ -29,7 +28,6 @@ const STEPPER_STEPS: AssessmentStepperStep[] = [
   { id: "school-profile", title: "School Profile", icon: MapPin },
   { id: "academic-path", title: "Academic Path", icon: BookOpen },
   { id: "learning-profile", title: "Learning Profile", icon: User },
-  { id: "support", title: "Support", icon: HeartHandshake },
   { id: "review", title: "Review", icon: ClipboardCheck },
 ];
 
@@ -227,17 +225,24 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
       return;
     }
     setFieldErrors({});
-    if (currentStep < PARENT_TOTAL_STEPS - 1) setCurrentStep((prev) => prev + 1);
+    if (currentStep < PARENT_TOTAL_STEPS - 1) {
+      setCurrentStep((prev) => prev + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const goPrev = () => {
     setFieldErrors({});
-    if (currentStep > 0) setCurrentStep((prev) => prev - 1);
+    if (currentStep > 0) {
+      setCurrentStep((prev) => prev - 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const goToStep = (index: number) => {
     setFieldErrors({});
     setCurrentStep(Math.max(0, Math.min(index, PARENT_TOTAL_STEPS - 1)));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleValidationErrors = (errors: Record<string, string>) => {
@@ -256,8 +261,6 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
       case 2:
         return <ParentStep3 {...stepProps} />;
       case 3:
-        return <ParentStep4 {...stepProps} />;
-      case 4:
         return (
           <ParentStep5
             formData={formData}

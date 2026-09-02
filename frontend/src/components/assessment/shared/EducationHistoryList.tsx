@@ -21,7 +21,7 @@ interface EducationHistoryListProps {
 // user confirms prior schooling in India), so Country isn't a real choice — it's
 // fixed to keep the row shape consistent with a single always-selected value.
 const COUNTRIES = ["India"];
-const CURRICULA = ["CBSE", "ICSE", "IB", "Cambridge", "State Board", "US Common Core", "Other"];
+const CURRICULA = ["CBSE", "ICSE", "IB", "Cambridge", "State Board", "Other"];
 
 const getGradeOptions = (currentGrade?: string) => {
   const max = Math.min(parseInt(currentGrade || "", 10) || 12, 12);

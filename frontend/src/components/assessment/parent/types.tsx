@@ -1,8 +1,8 @@
 import type { ParentFormData } from "./parentMapper";
 
-// Shared prop contract for the 5 Parent step components. Not part of the
+// Shared prop contract for the 4 Parent step components. Not part of the
 // sprint's explicit file list, but a minimal necessity to avoid repeating
-// this interface 5 times (same pattern used for the Student module).
+// this interface 4 times (same pattern used for the Student module).
 export interface ParentStepProps {
   formData: ParentFormData;
   onFieldChange: <K extends keyof ParentFormData>(field: K, value: ParentFormData[K]) => void;
