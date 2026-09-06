@@ -228,6 +228,57 @@ export function languageSkillCategory(nodeName: string): 'grammar' | 'literature
   return GRAMMAR_CHAPTER_RE.test(nodeName || '') ? 'grammar' : 'literature';
 }
 
+// Maps the same chapter-title keywords used above to a short, readable
+// concept label — several distinct NCERT appendix chapters often cover the
+// same underlying skill (e.g. multiple "shabda-rupa"/word-declension
+// appendices for different noun classes), so this collapses them to ONE
+// named concept each, not one bullet per appendix.
+const GRAMMAR_CONCEPT_LABELS: [RegExp, string][] = [
+  [/धातुरूप/, 'verb conjugation (dhātu-rūpa)'],
+  [/शब्दरूप/, 'word declension (śabda-rūpa)'],
+  [/सन्धि|समास/, 'sandhi & samās (word-joining rules)'],
+  [/उपसर्ग|प्रत्यय/, 'prefixes & suffixes (upasarga-pratyaya)'],
+  [/वर्णमाला|वर्णोच्चारण|मात्रा/, 'script reading & pronunciation'],
+  [/व्याकरण/, 'grammar fundamentals'],
+];
+
+function summarizeGrammarConcepts(nodeNames: string[]): string[] {
+  const found: string[] = [];
+  for (const [re, label] of GRAMMAR_CONCEPT_LABELS) {
+    if (nodeNames.some(n => re.test(n)) && !found.includes(label)) found.push(label);
+  }
+  return found;
+}
+
+/**
+ * Builds ONE report entry representing an entire subject the source
+ * curriculum has zero content for (Hindi, Sanskrit, any other unrepresented
+ * language) — replacing what was previously every individual chapter/poem
+ * title listed one by one in Critical Gaps (30-50+ entries per subject,
+ * confirmed against production data, none independently actionable to a
+ * student with no literacy in the language yet). Rather than a bare "not
+ * taught" statement, this names the actual grammar concepts this grade's
+ * NCERT chapters cover (real chapter-title data, deduplicated across
+ * near-duplicate appendix chapters — see summarizeGrammarConcepts above),
+ * so the one entry is still concretely useful: what to start with, not just
+ * that something is missing.
+ */
+export function buildLanguageSubjectSummary(
+  subjectNodes: GapNode[],
+  subject: string,
+  sourceLabel: string
+): { topic: string; reason: string } {
+  const grammarNames = subjectNodes
+    .filter(n => languageSkillCategory(n.target_node_name || '') === 'grammar')
+    .map(n => n.target_node_name || '');
+  const concepts = summarizeGrammarConcepts(grammarNames);
+  const base = `${subject} is not taught at all in ${sourceLabel}, at any grade — this is entirely new material.`;
+  const reason = concepts.length > 0
+    ? `${base} At this grade, the curriculum expects grounding in: ${concepts.join(', ')} — start there before literature.`
+    : `${base} Start with script reading and basic vocabulary before literature.`;
+  return { topic: subject, reason };
+}
+
 /**
  * Ordering key for a subject the source curriculum has NO content for at
  * all. best_similarity in that case is pure noise — comparing e.g. a Hindi

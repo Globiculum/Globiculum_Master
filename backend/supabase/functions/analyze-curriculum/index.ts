@@ -47,6 +47,8 @@ import {
   mergeBestSourceMatch,
   getNodeSubjectLabel,
   buildGapReason,
+  canonicalSubjectDomain,
+  buildLanguageSubjectSummary,
 } from "../_shared/curriculumGaps.ts";
 
 // =============================================================================
@@ -476,22 +478,54 @@ function expandSubjectAnalysisFromRag(
       (typeof g === 'string' ? g : ((g as Record<string, unknown>).topic as string) || '').toLowerCase()
     )
   );
+  // Subjects the source curriculum has NO content for at all (Hindi,
+  // Sanskrit, or any other language never taught in the source system) mark
+  // EVERY one of their target nodes CRITICAL by design (see
+  // classifyGapsBySubject) — that's correct for severity, but wrong for this
+  // flat list: for Hindi/Sanskrit that's 30-50+ individual Devanagari
+  // chapter/poem titles, none of them independently actionable to a student
+  // with zero literacy in the language yet (unlike Math/Science/Social
+  // Science gaps, which are genuine standalone topics worth listing one by
+  // one). Confirmed against production data: a single report hit 131 total
+  // critical gaps, 79 of which were bare Hindi/Sanskrit chapter names,
+  // burying the ~52 gaps that actually differ topic-to-topic.
+  //
+  // Collapse each such subject to ONE entry — but first collect ALL of its
+  // nodes (not just the first one seen) so buildLanguageSubjectSummary can
+  // name every distinct grammar concept this grade's chapters actually
+  // cover, deduplicated across near-identical appendix chapters. Emitted
+  // after the main loop below, once every subject's full node set is known.
+  const languageDomainNodes = new Map<string, GapNode[]>();
   for (const gap of ragGaps.filter(g => g._severity === 'CRITICAL')) {
     const topic = gap.target_node_name;
+    const subject = getNodeSubjectLabel(gap);
+    const domain = canonicalSubjectDomain(subject);
+    const isUnrepresentedLanguage = domain === 'hindi' || domain === 'sanskrit' || domain === 'other-language';
+
+    if (isUnrepresentedLanguage) {
+      if (!languageDomainNodes.has(subject)) languageDomainNodes.set(subject, []);
+      languageDomainNodes.get(subject)!.push(gap);
+      continue;
+    }
+
     if (criticalSet.has(topic.toLowerCase())) continue;
     const meta = (gap.target_metadata || {}) as Record<string, unknown>;
     const url = (meta.url as string) || (meta.source_url as string);
     // subject and reason are attached explicitly here (not just inferrable
     // from keyGaps above) because keyGaps only ever holds each subject's
     // first 6 gaps, while criticalGaps can hold every CRITICAL gap for a
-    // subject — for Hindi/Sanskrit that's dozens more than 6, and without
-    // these fields the frontend had no way to give the 7th+ gap a correct,
-    // specific reason.
-    const subject = getNodeSubjectLabel(gap);
+    // subject, and without these fields the frontend had no way to give the
+    // 7th+ gap a correct, specific reason.
     const domainCovered = domainCoveredBySubject.get(subject) ?? true;
     const reason = buildGapReason(gap, domainCovered, sourceLabel);
     criticalGaps.push({ topic, subject, reason, ...(url ? { resourceUrl: url } : {}) });
     criticalSet.add(topic.toLowerCase());
+  }
+  for (const [subject, nodes] of languageDomainNodes) {
+    if (criticalSet.has(subject.toLowerCase())) continue;
+    const { topic, reason } = buildLanguageSubjectSummary(nodes, subject, sourceLabel);
+    criticalGaps.push({ topic, subject, reason });
+    criticalSet.add(subject.toLowerCase());
   }
   if (criticalGaps.length > 0) analysisData.criticalGaps = criticalGaps;
 

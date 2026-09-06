@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -453,7 +454,7 @@ const buildTopicSubjectMap = (analysis: AnalysisData): Map<string, string> => {
 
 const buildCriticalGapsTable = (
   analysis: AnalysisData
-): { priority: "High" | "Medium" | "Low"; topic: string; url?: string; description: string; weeks: number }[] => {
+): { priority: "High" | "Medium" | "Low"; subject: string; topic: string; url?: string; description: string; weeks: number }[] => {
   const gaps = analysis.criticalGaps;
   const total = gaps.length;
   if (total === 0) return [];
@@ -476,9 +477,9 @@ const buildCriticalGapsTable = (
     // Prefer the subject the backend attaches directly (covers every
     // critical gap); fall back to the keyGaps-derived map for older/LLM-only
     // entries that predate that field (only covers each subject's first 6).
-    const subject = getGapSubject(gap) ?? topicSubjectMap.get(topic.toLowerCase().trim()) ?? "";
+    const subject = getGapSubject(gap) ?? topicSubjectMap.get(topic.toLowerCase().trim()) ?? "General";
     const weeks = Math.max(1, Math.round((CRITICAL_GAP_PRIORITY_WEIGHT[priority] / weightSum) * totalWeeks));
-    return { priority, topic, url: getGapUrl(gap), description: getGapDescription(gap, subject), weeks };
+    return { priority, subject, topic, url: getGapUrl(gap), description: getGapDescription(gap, subject), weeks };
   });
 };
 
@@ -1752,9 +1753,15 @@ const ReportPreview = () => {
                 })()}
 
                 {/* E2. Critical Gaps Prioritised by Academic Impact — grouped by
-                    priority into collapsible sections (High expanded by default,
-                    Medium/Low collapsed) so a long gap list doesn't force one
-                    long scroll, mirroring the Subject-wise Gap Analysis pattern. */}
+                    SUBJECT as tabs, priority-sorted within each tab. Previously
+                    grouped by priority tier only, which interleaved every
+                    subject's gaps into one long High/Medium/Low list — for a
+                    report with 5-6 subjects, that meant scrolling through
+                    Math, Science, Social Science, Hindi, and Sanskrit gaps
+                    mixed together with no way to see just one subject's list.
+                    Subject is real data on every gap already (attached
+                    backend-side); this just uses it for navigation instead of
+                    discarding it. */}
                 {analysis && (() => {
                   const criticalGapsTable = buildCriticalGapsTable(analysis);
                   if (criticalGapsTable.length === 0) return null;
@@ -1764,9 +1771,30 @@ const ReportPreview = () => {
                     Medium: "bg-accent/10 text-accent-contrast",
                     Low: "bg-muted text-muted-foreground",
                   };
-                  const priorityGroups = (["High", "Medium", "Low"] as const)
-                    .map((priority) => ({ priority, gaps: criticalGapsTable.filter((g) => g.priority === priority) }))
-                    .filter((group) => group.gaps.length > 0);
+                  const priorityRank: Record<"High" | "Medium" | "Low", number> = { High: 0, Medium: 1, Low: 2 };
+                  const priorityDotStyle: Record<"High" | "Medium" | "Low", string> = {
+                    High: "bg-destructive",
+                    Medium: "bg-accent",
+                    Low: "bg-muted-foreground",
+                  };
+
+                  const subjectOrder: string[] = [];
+                  const bySubject = new Map<string, typeof criticalGapsTable>();
+                  for (const g of criticalGapsTable) {
+                    if (!bySubject.has(g.subject)) {
+                      bySubject.set(g.subject, []);
+                      subjectOrder.push(g.subject);
+                    }
+                    bySubject.get(g.subject)!.push(g);
+                  }
+                  const subjectGroups = subjectOrder.map((subject) => {
+                    const gaps = [...bySubject.get(subject)!].sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority]);
+                    const worstPriority = gaps.reduce<"High" | "Medium" | "Low">(
+                      (worst, g) => (priorityRank[g.priority] < priorityRank[worst] ? g.priority : worst),
+                      "Low"
+                    );
+                    return { subject, gaps, worstPriority };
+                  });
 
                   return (
                     <div className="rounded-xl border border-border bg-muted/20 p-4">
@@ -1779,51 +1807,51 @@ const ReportPreview = () => {
                           {criticalGapsTable.length} Gap{criticalGapsTable.length === 1 ? "" : "s"} Total · {highCount} High Priority
                         </span>
                       </div>
-                      <div className="space-y-2.5">
-                        {priorityGroups.map(({ priority, gaps }) => (
-                          <Collapsible
-                            key={priority}
-                            defaultOpen={priority === "High"}
-                            className="overflow-hidden rounded-lg border border-border bg-background"
-                          >
-                            <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-left">
-                              <div className="flex items-center gap-2">
-                                <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${priorityStyle[priority]}`}>
-                                  {priority}
-                                </span>
-                                <span className="text-xs font-semibold text-foreground">
-                                  {gaps.length} Gap{gaps.length === 1 ? "" : "s"}
-                                </span>
-                              </div>
-                              <ChevronDown
-                                className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
-                                aria-hidden="true"
-                              />
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="divide-y divide-border border-t border-border">
+                      <Tabs defaultValue={subjectGroups[0]?.subject}>
+                        <TabsList className="mb-3 flex h-auto w-full flex-wrap justify-start gap-1.5 bg-transparent p-0">
+                          {subjectGroups.map(({ subject, gaps, worstPriority }) => (
+                            <TabsTrigger
+                              key={subject}
+                              value={subject}
+                              className="gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold data-[state=active]:border-secondary data-[state=active]:bg-secondary/10 data-[state=active]:text-secondary data-[state=active]:shadow-none"
+                            >
+                              <span className={`inline-block h-1.5 w-1.5 rounded-full ${priorityDotStyle[worstPriority]}`} aria-hidden="true" />
+                              {subject}
+                              <span className="text-muted-foreground">({gaps.length})</span>
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+                        {subjectGroups.map(({ subject, gaps }) => (
+                          <TabsContent key={subject} value={subject} className="mt-0 overflow-hidden rounded-lg border border-border bg-background">
+                            <div className="max-h-[28rem] divide-y divide-border overflow-y-auto">
                               {gaps.map((g, i) => (
                                 <div key={i} className="px-3 py-2.5 text-xs">
                                   <div className="flex items-start justify-between gap-3">
-                                    <span className="font-semibold text-foreground">
-                                      {g.url ? (
-                                        <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
-                                          {g.topic}
-                                        </a>
-                                      ) : (
-                                        g.topic
-                                      )}
-                                    </span>
+                                    <div className="flex items-start gap-2">
+                                      <span className={`mt-0.5 inline-block shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${priorityStyle[g.priority]}`}>
+                                        {g.priority}
+                                      </span>
+                                      <span className="font-semibold text-foreground">
+                                        {g.url ? (
+                                          <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
+                                            {g.topic}
+                                          </a>
+                                        ) : (
+                                          g.topic
+                                        )}
+                                      </span>
+                                    </div>
                                     <span className="shrink-0 rounded-full bg-secondary/10 px-2 py-0.5 text-[10px] font-semibold text-secondary">
                                       {g.weeks} Week{g.weeks === 1 ? "" : "s"}
                                     </span>
                                   </div>
-                                  <p className="mt-1 text-muted-foreground">{g.description}</p>
+                                  <p className="mt-1 pl-[calc(1.5rem+0.5rem)] text-muted-foreground">{g.description}</p>
                                 </div>
                               ))}
-                            </CollapsibleContent>
-                          </Collapsible>
+                            </div>
+                          </TabsContent>
                         ))}
-                      </div>
+                      </Tabs>
                     </div>
                   );
                 })()}
