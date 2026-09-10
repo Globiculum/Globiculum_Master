@@ -74,7 +74,7 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
       title: "Access Denied",
       description: "You don't have permission to access this page.",
     });
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

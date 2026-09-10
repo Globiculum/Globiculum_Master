@@ -72,12 +72,37 @@ const humanizeUSState = (code?: string): string => {
   return US_STATE_NAMES[code.toUpperCase()] || humanizeSlug(code);
 };
 
+// Mirrors the option labels in ParentSchoolProfileWizard.tsx / StudentProfileWizard.tsx
+// (and shared/reviewFormatting.ts's curriculumLabel) — the report never shows
+// the raw DB-facing value "regular-us", and known curricula get their exact
+// selected wording rather than humanizeSlug's generic title-casing.
+const CURRICULUM_LABELS: Record<string, string> = {
+  "regular-us": "Regular U.S. school curriculum",
+  "ib-pyp": "IB Primary Years Programme",
+  "ib-myp": "IB Middle Years Programme",
+  "ib-dp": "IB DP",
+  "cambridge-primary": "Cambridge Primary",
+  "cambridge-lower": "Cambridge Lower Secondary",
+  "cambridge-igcse": "Cambridge IGCSE",
+  "honors-advanced": "Honors / Advanced Program",
+  "montessori": "Montessori Curriculum",
+  "ap": "AP Track (Advanced Placement)",
+  "a-levels": "A-Levels",
+};
+
+const curriculumValueLabel = (value: string, usState?: string): string => {
+  if (value === "regular-us" && usState && usState !== "other" && US_STATE_NAMES[usState.toUpperCase()]) {
+    return `${US_STATE_NAMES[usState.toUpperCase()]} State Curriculum`;
+  }
+  return CURRICULUM_LABELS[value] || humanizeSlug(value);
+};
+
 // currentCurriculum moved from a single string to a list; older saved
 // reports (pre-migration assessment_data) may still store it as a plain
 // string, so this accepts either shape.
-const humanizeCurriculumList = (value: unknown): string => {
+const humanizeCurriculumList = (value: unknown, usState?: string): string => {
   const list = Array.isArray(value) ? value : typeof value === "string" && value ? [value] : [];
-  return list.map((v) => humanizeSlug(v)).filter(Boolean).join(", ");
+  return list.map((v) => curriculumValueLabel(v, usState)).filter(Boolean).join(", ");
 };
 
 // targetGrade is stored relative to snapshotGrade ("same" | "next") — this only
@@ -105,7 +130,7 @@ const buildTransitionSummary = (formData: any): string => {
   const currentState = formData.snapshotLocation === "us" && formData.usState
     ? (formData.usState === "other" ? (formData.usStateOther || "") : humanizeUSState(formData.usState))
     : "";
-  const currentCurriculum = humanizeCurriculumList(formData.currentCurriculum);
+  const currentCurriculum = humanizeCurriculumList(formData.currentCurriculum, formData.usState);
   const currentGrade = formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "";
   const currentDetail = [currentState, currentCurriculum, currentGrade].filter(Boolean).join(", ");
   const currentLabel = currentDetail ? `${currentCountry} (${currentDetail})` : currentCountry;
@@ -134,7 +159,7 @@ const buildProfileGrid = (formData: any): { label: string; value: string }[] => 
   const age = formData.snapshotAge ? ` (Age ${formData.snapshotAge})` : "";
 
   const originGrade = formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "";
-  const originCurriculum = humanizeCurriculumList(formData.currentCurriculum);
+  const originCurriculum = humanizeCurriculumList(formData.currentCurriculum, formData.usState);
   const originLabel = [originCurriculum, originGrade].filter(Boolean).join(" – ") || "—";
 
   const targetGradeLabel = computeTargetGradeLabel(formData.snapshotGrade, formData.targetGrade);

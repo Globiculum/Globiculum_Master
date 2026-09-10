@@ -11,26 +11,28 @@ import type { AssessmentFormData } from "../../shared/types";
 import SectionCard from "../../shared/SectionCard";
 import ReviewActionBar from "../../shared/ReviewActionBar";
 import ReviewSection from "../../shared/ReviewSection";
-import { prettify, targetGradeLabel, joinList, joinPrettyList, joinRecord } from "../../shared/reviewFormatting";
+import { prettify, targetGradeLabel, joinList, joinPrettyList, joinRecord, curriculumLabel } from "../../shared/reviewFormatting";
 
 // Step 4: Review.
 // Mirrors ParentStep5's Review pattern (editable summary + per-section Edit
 // links + a single final submit button) instead of generating immediately.
 // Submission itself is unchanged — still the same shared/submitAssessment.ts
 // pipeline (validate-student-data -> assessments insert -> analyze-curriculum
-// -> diagnostics-engine -> diagnostic_results insert -> /report-preview) that
-// GenerateReportStep used to call directly; it now only fires from here,
-// after the student has had a chance to review and edit their answers.
+// -> /report-preview) that GenerateReportStep used to call directly; it now
+// only fires from here, after the student has had a chance to review and
+// edit their answers.
 
 interface StudentReviewStepProps {
   formData: AssessmentFormData;
   prevReportId?: string;
+  /** True when the user arrived via the "Retake" button from Reports History. */
+  isRetake?: boolean;
   onPrev: () => void;
   onValidationErrors: (errors: Record<string, string>) => void;
   onEditStep: (index: number) => void;
 }
 
-const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors, onEditStep }: StudentReviewStepProps) => {
+const StudentReviewStep = ({ formData, prevReportId, isRetake = false, onPrev, onValidationErrors, onEditStep }: StudentReviewStepProps) => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -88,8 +90,8 @@ const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors,
         },
         {
           label: "Current Curriculum",
-          value: joinPrettyList(
-            formData.currentCurriculum.map((c) => (c === "other" ? formData.currentCurriculumOther || "other" : c))
+          value: joinList(
+            formData.currentCurriculum.map((c) => (c === "other" ? formData.currentCurriculumOther || "Other" : curriculumLabel(c, formData.usState)))
           ),
         },
         { label: "Target Indian Board", value: prettify(formData.targetGoal) },
@@ -128,10 +130,32 @@ const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors,
     },
   ];
 
+  // Mirrors ParentStep5's reviewTitle/submitLabel pattern exactly, so retake
+  // reads identically regardless of which flow generated the report.
+  const reviewTitle = formData.studentName.trim() ? `${formData.studentName.trim()}'s Review` : "Assessment Summary";
+  const submitLabel = isSubmitting
+    ? "Generating Report..."
+    : isRetake
+      ? "Regenerate Report"
+      : "Generate My Report";
+
   return (
     <>
-      <SectionCard logo={childLogo} title="Assessment Summary">
-        <div className="-mt-4 text-sm text-muted-foreground">Here&rsquo;s everything you&rsquo;ve shared with us — take a look, then generate your AI-powered readiness report.</div>
+      <SectionCard logo={childLogo} title={reviewTitle}>
+        {isRetake && (
+          <div className="-mt-2 mb-4 flex items-start gap-2 rounded-xl border border-secondary/25 bg-secondary/5 px-4 py-3 text-sm">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-bold text-secondary-foreground">↺</span>
+            <p className="text-muted-foreground">
+              <span className="font-semibold text-foreground">Retaking this assessment.</span>{" "}
+              All fields below are pre-filled from your previous submission. Click the pencil icon on any section to edit just that part, then hit <span className="font-semibold">Regenerate Report</span>.
+            </p>
+          </div>
+        )}
+        <div className="-mt-4 text-sm text-muted-foreground">
+          {isRetake
+            ? "Confirm your answers below or make changes before regenerating."
+            : "Here’s everything you’ve shared with us — take a look, then generate your AI-powered readiness report."}
+        </div>
         <div className="space-y-4">
           {sections.map((section) => (
             <ReviewSection key={section.title} section={section} onEditStep={onEditStep} />
@@ -143,7 +167,7 @@ const StudentReviewStep = ({ formData, prevReportId, onPrev, onValidationErrors,
         onPrev={onPrev}
         onSubmit={handleGenerate}
         isSubmitting={isSubmitting}
-        submitLabel={isSubmitting ? "Generating Report..." : "Generate My Report"}
+        submitLabel={submitLabel}
       />
 
       {isSubmitting && <ReportGenerationLoader persona="student" />}

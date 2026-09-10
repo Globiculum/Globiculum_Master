@@ -14,6 +14,9 @@ import {
   getNodeSubjectLabel,
   classifyGapsBySubject,
   mergeBestSourceMatch,
+  resolveSourceCurriculum,
+  fetchUSStateAwareSourceGaps,
+  SubjectSourceAuditEntry,
 } from "../_shared/curriculumGaps.ts";
 
 interface DiagnosticsRequest {
@@ -21,6 +24,15 @@ interface DiagnosticsRequest {
   assessmentId?: string;
   diagnosticType: 'full' | 'quick' | 'subject-specific';
   subjects?: string[];
+  // Live values from the assessment that was just submitted — preferred over
+  // student_profiles.previous_curriculum/current_curriculum/target_curriculum,
+  // which are a coarse 4-value enum ('US'|'Indian'|'IB'|'Other') with no
+  // state column at all. See the comment on runDiagnostics' liveOverrides
+  // param for the full rationale.
+  snapshotLocation?: string;
+  usState?: string;
+  currentCurriculum?: string;
+  targetCurriculum?: string;
 }
 
 interface DiagnosticResult {
@@ -114,7 +126,7 @@ serve(async (req) => {
       );
     }
 
-    const { studentId, assessmentId, diagnosticType, subjects } = requestData;
+    const { studentId, assessmentId, diagnosticType, subjects, snapshotLocation, usState, currentCurriculum, targetCurriculum } = requestData;
 
     // Validate required fields
     if (!studentId) {
@@ -177,7 +189,8 @@ serve(async (req) => {
       studentProfile,
       assessmentData,
       diagnosticType,
-      subjects
+      subjects,
+      { snapshotLocation, usState, currentCurriculum, targetCurriculum }
     );
 
     logger.info('Diagnostics completed', { 
@@ -250,91 +263,154 @@ async function runDiagnostics(
   studentProfile: Record<string, unknown>,
   assessmentData: Record<string, unknown> | null,
   diagnosticType: string,
-  subjects?: string[]
+  subjects?: string[],
+  // Values from the assessment that was just submitted, passed straight
+  // through by submitAssessment.ts. Preferred over
+  // student_profiles.previous_curriculum/current_curriculum/target_curriculum
+  // — that table stores a coarse 4-value enum ('US'|'Indian'|'IB'|'Other')
+  // with no state column at all, so it can never resolve to a specific
+  // state's dataset the way analyze-curriculum's resolveSourceCurriculum
+  // does. When a caller doesn't pass these (e.g. a re-run triggered without
+  // formData), this degrades to the same DB-enum lookup as before, which was
+  // already falling through to buildFallbackSubjectScores since the raw enum
+  // values never matched a registry entry — so this is purely additive, not
+  // a regression for that path.
+  liveOverrides?: { snapshotLocation?: string; usState?: string; currentCurriculum?: string; targetCurriculum?: string }
 ): Promise<DiagnosticResult> {
   const gradeLevel = studentProfile.grade_level as number || (studentProfile.current_grade as number) || 9;
-  const sourceCurriculumRaw = (studentProfile.previous_curriculum as string) || (studentProfile.current_curriculum as string) || 'unknown';
-  const targetCurriculumRaw = (studentProfile.target_curriculum as string) || 'unknown';
+  const sourceCurriculumRaw = liveOverrides?.currentCurriculum || (studentProfile.previous_curriculum as string) || (studentProfile.current_curriculum as string) || 'unknown';
+  const targetCurriculumRaw = liveOverrides?.targetCurriculum || (studentProfile.target_curriculum as string) || 'unknown';
+  const snapshotLocation = liveOverrides?.snapshotLocation;
+  const usState = liveOverrides?.usState;
 
   const subjectsToAnalyze = subjects || ['math', 'science', 'english', 'social_studies'];
 
-  logger.debug('Analyzing subjects (RAG-based)', { subjects: subjectsToAnalyze, gradeLevel, source: sourceCurriculumRaw, target: targetCurriculumRaw });
+  logger.debug('Analyzing subjects (RAG-based)', { subjects: subjectsToAnalyze, gradeLevel, source: sourceCurriculumRaw, target: targetCurriculumRaw, usState });
 
-  const sourceEntry = normalizeToDBEntry(sourceCurriculumRaw);
+  // Same resolution analyze-curriculum uses: US + a recognised state + a
+  // "regular US curriculum" selection routes to that state's own dataset as
+  // the primary source; everything else (non-US, IB, Cambridge, Honors/
+  // Advanced-without-a-state, or a US state we haven't recognised) falls
+  // back to mapToDBEntry's existing single-curriculum lookup.
+  const sourceResolution = resolveSourceCurriculum(sourceCurriculumRaw, snapshotLocation, usState);
+  const sourceEntry: CurriculumEntry | null =
+    sourceResolution.mode === 'us-state'
+      ? { dbSystem: sourceResolution.stateSystem!, nodeType: 'standard', label: sourceResolution.stateLabel! }
+      : sourceResolution.fallbackEntry;
   const targetEntry = normalizeToDBEntry(targetCurriculumRaw);
 
   let subjectScores: Record<string, SubjectDiagnostic>;
+  // Pooled covered/total node counts across every REAL (RAG-classified,
+  // non-placeholder) subject — used below to compute overallScore the same
+  // way analyze-curriculum computes its headline readiness number
+  // (Math.round(sum(covered)/sum(total)*100)), instead of averaging each
+  // subject's own already-rounded percentage. Those two formulas diverge
+  // whenever subjects have different pool sizes (e.g. Math with 90/100 and
+  // Social Studies with 5/10 average to 70%, but pool to 86%) — this was a
+  // real, documented inconsistency between the Guardian Dashboard's score
+  // and the parent/student report's score for the same student.
+  let pooledCovered = 0;
+  let pooledTotal = 0;
 
   if (sourceEntry && targetEntry && sourceEntry.dbSystem !== targetEntry.dbSystem) {
     const gradeMin = Math.max(1, gradeLevel - 1);
     const gradeMax = Math.min(12, gradeLevel + 1);
 
-    const rpcParams = {
-      source_curriculum: sourceEntry.dbSystem,
-      target_curriculum: targetEntry.dbSystem,
-      grade_min: gradeMin,
-      grade_max: gradeMax,
-      similarity_threshold: 0.0,
-      result_limit: 300,
-      source_node_type: sourceEntry.nodeType,
-      target_node_type_filter: targetEntry.nodeType,
-      // Only for grades 11-12 — see the matching comment in
-      // analyze-curriculum's rpcParams. For grades 1-10 the generic
-      // subject list can't represent a target-only mandatory subject like
-      // Hindi/Sanskrit, so filtering there would hide exactly the gaps a
-      // cross-curriculum report needs to surface.
-      target_subjects: gradeLevel >= 11 ? expandSubjectFilter(subjectsToAnalyze) ?? null : null,
-      // Cumulative source grade window — see the matching comment in
-      // analyze-curriculum's rpcParams. The target band stays narrow
-      // (grade±1); the source band spans grade 1 through grade+1 so a
-      // student's earlier-grade prior knowledge actually counts as coverage.
-      source_grade_min: 1,
-      source_grade_max: gradeMax,
-    };
+    let gapRows: GapNode[] = [];
+    let sourceSystemsQueried: string[] = [];
+    let rpcError: { message: string } | null = null;
+    let unavailableSubjectKeys: string[] = [];
+    let subjectSourceAudit: Record<string, SubjectSourceAuditEntry> = {};
 
-    const { data: primaryRows, error: rpcError } = await logger.measureRetrieval(
-      'find_curriculum_gaps_rag',
-      async () => supabase.rpc('find_curriculum_gaps_rag', rpcParams)
-    );
+    if (sourceResolution.mode === 'us-state') {
+      // Subject-scoped, parallel retrieval against the student's own state
+      // data — see _shared/curriculumGaps.ts. Avoids scanning a whole state
+      // pool (17k-75k nodes) as one source, which times out at 20s.
+      const stateResult = await fetchUSStateAwareSourceGaps({
+        rpc: (params) => supabase.rpc('find_curriculum_gaps_rag', params),
+        stateSystem: sourceEntry.dbSystem,
+        stateLabel: sourceEntry.label,
+        targetCurriculum: targetEntry.dbSystem,
+        targetNodeType: targetEntry.nodeType,
+        gradeMin, gradeMax,
+        sourceGradeMin: 1,
+        sourceGradeMax: gradeMax,
+        onDebug: (step, message, data) => logger.debug(message, { step, ...data }),
+      });
+      gapRows = stateResult.allTargetNodes;
+      sourceSystemsQueried = stateResult.sourceSystemsQueried;
+      subjectSourceAudit = stateResult.subjectSourceAudit;
+      unavailableSubjectKeys = stateResult.unavailableSubjectKeys;
+    } else {
+      const rpcParams = {
+        source_curriculum: sourceEntry.dbSystem,
+        target_curriculum: targetEntry.dbSystem,
+        grade_min: gradeMin,
+        grade_max: gradeMax,
+        similarity_threshold: 0.0,
+        result_limit: 300,
+        source_node_type: sourceEntry.nodeType,
+        target_node_type_filter: targetEntry.nodeType,
+        // Only for grades 11-12 — see the matching comment in
+        // analyze-curriculum's rpcParams. For grades 1-10 the generic
+        // subject list can't represent a target-only mandatory subject like
+        // Hindi/Sanskrit, so filtering there would hide exactly the gaps a
+        // cross-curriculum report needs to surface.
+        target_subjects: gradeLevel >= 11 ? expandSubjectFilter(subjectsToAnalyze) ?? null : null,
+        // Cumulative source grade window — see the matching comment in
+        // analyze-curriculum's rpcParams. The target band stays narrow
+        // (grade±1); the source band spans grade 1 through grade+1 so a
+        // student's earlier-grade prior knowledge actually counts as coverage.
+        source_grade_min: 1,
+        source_grade_max: gradeMax,
+      };
 
-    let gapRows: GapNode[] = primaryRows || [];
-
-    // Merge in NGSS as an additional TARGET curriculum when going TO the US
-    // (Common Core alone only covers Math/ELA) — this function previously
-    // had no NGSS handling at all, unlike analyze-curriculum/alignment-engine.
-    if (!rpcError && targetEntry.dbSystem === 'us-common-core') {
-      const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
-      const { data: ngssTargetGaps, error: ngssTargetError } = await logger.measureRetrieval(
-        'find_curriculum_gaps_rag:ngss_target',
-        async () => supabase.rpc('find_curriculum_gaps_rag', { ...rpcParams, target_curriculum: ngssEntry.dbSystem, target_node_type_filter: ngssEntry.nodeType })
+      const { data: primaryRows, error: primaryError } = await logger.measureRetrieval(
+        'find_curriculum_gaps_rag',
+        async () => supabase.rpc('find_curriculum_gaps_rag', rpcParams)
       );
-      if (ngssTargetError) {
-        logger.warn('NGSS target-merge error (non-fatal)', { error: ngssTargetError.message });
-      } else if (ngssTargetGaps && ngssTargetGaps.length > 0) {
-        gapRows = [...gapRows, ...ngssTargetGaps];
-      }
-    }
+      rpcError = primaryError;
+      gapRows = primaryRows || [];
+      sourceSystemsQueried = [sourceEntry.dbSystem];
 
-    // Merge in NGSS as an additional SOURCE curriculum when coming FROM the
-    // US — otherwise a student's real science background never counts as
-    // coverage for Science-domain target topics, which instead get compared
-    // only against irrelevant Math/ELA text (verified against production
-    // data). sourceSystemsQueried tracks which source systems actually
-    // contributed rows, so classifyGapsBySubject's domain gate correctly
-    // falls back if this merge errors or times out.
-    const sourceSystemsQueried: string[] = [sourceEntry.dbSystem];
-    if (!rpcError && sourceEntry.dbSystem === 'us-common-core') {
-      const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
-      const { data: ngssSourceGaps, error: ngssSourceError } = await logger.measureRetrieval(
-        'find_curriculum_gaps_rag:ngss_source',
-        async () => supabase.rpc('find_curriculum_gaps_rag', { ...rpcParams, source_curriculum: ngssEntry.dbSystem, source_node_type: ngssEntry.nodeType })
-      );
-      if (ngssSourceError) {
-        logger.warn('NGSS source-merge error (non-fatal)', { error: ngssSourceError.message });
-      } else if (ngssSourceGaps && ngssSourceGaps.length > 0) {
-        gapRows = mergeBestSourceMatch(gapRows, ngssSourceGaps as GapNode[]);
-        sourceSystemsQueried.push('ngss');
+      // Merge in NGSS as an additional TARGET curriculum when going TO the US
+      // (Common Core alone only covers Math/ELA).
+      if (!rpcError && targetEntry.dbSystem === 'us-common-core') {
+        const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
+        const { data: ngssTargetGaps, error: ngssTargetError } = await logger.measureRetrieval(
+          'find_curriculum_gaps_rag:ngss_target',
+          async () => supabase.rpc('find_curriculum_gaps_rag', { ...rpcParams, target_curriculum: ngssEntry.dbSystem, target_node_type_filter: ngssEntry.nodeType })
+        );
+        if (ngssTargetError) {
+          logger.warn('NGSS target-merge error (non-fatal)', { error: ngssTargetError.message });
+        } else if (ngssTargetGaps && ngssTargetGaps.length > 0) {
+          gapRows = [...gapRows, ...ngssTargetGaps];
+        }
       }
+
+      // Merge in NGSS as an additional SOURCE curriculum when coming FROM the
+      // US — otherwise a student's real science background never counts as
+      // coverage for Science-domain target topics, which instead get compared
+      // only against irrelevant Math/ELA text (verified against production
+      // data). sourceSystemsQueried tracks which source systems actually
+      // contributed rows, so classifyGapsBySubject's domain gate correctly
+      // falls back if this merge errors or times out.
+      if (!rpcError && sourceEntry.dbSystem === 'us-common-core') {
+        const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
+        const { data: ngssSourceGaps, error: ngssSourceError } = await logger.measureRetrieval(
+          'find_curriculum_gaps_rag:ngss_source',
+          async () => supabase.rpc('find_curriculum_gaps_rag', { ...rpcParams, source_curriculum: ngssEntry.dbSystem, source_node_type: ngssEntry.nodeType })
+        );
+        if (ngssSourceError) {
+          logger.warn('NGSS source-merge error (non-fatal)', { error: ngssSourceError.message });
+        } else if (ngssSourceGaps && ngssSourceGaps.length > 0) {
+          gapRows = mergeBestSourceMatch(gapRows, ngssSourceGaps as GapNode[]);
+          sourceSystemsQueried.push('ngss');
+        }
+      }
+      // Note: no state social-studies merge here — this branch only runs
+      // when sourceResolution.mode !== 'us-state', i.e. there's no
+      // recognised state to merge in.
     }
 
     if (rpcError || !gapRows || gapRows.length === 0) {
@@ -365,6 +441,9 @@ async function runDiagnostics(
           continue;
         }
 
+        pooledCovered += covered.length;
+        pooledTotal += totalSubj;
+
         const score = Math.round((covered.length / totalSubj) * 100);
         subjectScores[subject] = {
           score,
@@ -373,6 +452,32 @@ async function runDiagnostics(
           conceptsMissing: gaps.slice(0, 10).map((r) => r.target_node_name),
           gradeEquivalent: calculateGradeEquivalent(score, gradeLevel),
         };
+      }
+
+      // Subjects with no viable source at all (state data too thin/missing
+      // and no fallback exists — currently only reachable for Social
+      // Studies) must not be scored as a 0%-covered gap. Overwrite with a
+      // neutral score (same "50 = unassessed" convention as
+      // buildFallbackSubjectScores) so it lands in neither gapAreas (<60)
+      // nor strengthAreas (>=80) below, and note why in conceptsMissing so
+      // the raw subject_scores JSON is still auditable.
+      for (const stateKey of unavailableSubjectKeys) {
+        const audit = subjectSourceAudit[stateKey];
+        if (!audit) continue;
+        const auditNorm = audit.subject.toLowerCase();
+        const matchedSubject = subjectsToAnalyze.find(s => {
+          const norm = s.toLowerCase().replace(/_/g, ' ').trim();
+          return norm === auditNorm || auditNorm.includes(norm) || norm.includes(auditNorm);
+        });
+        if (!matchedSubject) continue;
+        subjectScores[matchedSubject] = {
+          score: 50,
+          conceptsMastered: [],
+          conceptsInProgress: [],
+          conceptsMissing: [`${audit.subject}: no ${sourceEntry.label} data available for this subject yet — not assessed, not a student gap.`],
+          gradeEquivalent: calculateGradeEquivalent(50, gradeLevel),
+        };
+        logger.debug('Subject unavailable — scored neutral, excluded from gap/strength buckets', { subject: matchedSubject, audit });
       }
     }
   } else {
@@ -396,11 +501,17 @@ async function runDiagnostics(
     else if (diagnostic.score < 60) gapAreas.push(subject);
   }
 
-  // Calculate overall score
+  // Calculate overall score — pooled covered/total across every real,
+  // RAG-classified subject when we have one (same formula the report and
+  // Alignment Overview use), falling back to a mean of subjectScores only
+  // for the no-RAG-data estimate paths (buildFallbackSubjectScores /
+  // curricula-not-in-DB), where there's no real pool to sum.
   const scores = Object.values(subjectScores).map(s => s.score);
-  const overallScore = scores.length > 0
-    ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-    : 0;
+  const overallScore = pooledTotal > 0
+    ? Math.round((pooledCovered / pooledTotal) * 100)
+    : scores.length > 0
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+      : 0;
 
   // Determine readiness level
   let readinessLevel: 'ready' | 'needs-bridging' | 'significant-gaps';

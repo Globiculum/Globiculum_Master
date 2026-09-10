@@ -104,35 +104,56 @@ const US_STATES: { value: string; label: string }[] = [
   ["DC", "District of Columbia"],
 ].map(([value, name]) => ({ value, label: `${name} (${value})` }));
 
+// US-country students no longer choose between Common Core / State-Specific
+// Standards / NGSS as separate technical options — those three collapse into
+// a single "Regular U.S. school curriculum" choice (US_REGULAR_CURRICULUM_OPTION,
+// prepended only for US-country users in getCurriculumOptions below). The
+// actual state standards are resolved server-side from the state already
+// collected in the "usState" step — see resolveSourceCurriculum in
+// backend/supabase/functions/_shared/curriculumGaps.ts. Non-US and IB/
+// Cambridge/Honors/Other choices are unaffected.
 const CURRICULUM_BY_STAGE: Record<string, { value: string; label: string }[]> = {
   elementary: [
-    { value: "us-common-core", label: "US Common Core" },
-    { value: "state-specific", label: "State-Specific Standards" },
-    { value: "ngss", label: "NGSS (Next Generation Science Standards)" },
-    { value: "ib-pyp", label: "IB Middle Year Programme" },
+    { value: "ib-pyp", label: "IB Primary Years Programme" },
     { value: "cambridge-primary", label: "Cambridge Primary" },
     { value: "montessori", label: "Montessori Curriculum" },
     { value: "other", label: "Other" },
   ],
   middle: [
-    { value: "us-common-core", label: "US Common Core" },
-    { value: "state-specific", label: "State-Specific Standards" },
-    { value: "ngss", label: "NGSS (Next Generation Science Standards)" },
-    { value: "ib-myp", label: "IB Middle Year Programme" },
+    { value: "ib-myp", label: "IB Middle Years Programme" },
     { value: "cambridge-lower", label: "Cambridge Lower Secondary" },
-    { value: "honors-advanced", label: "Honors / Advanced Programs" },
+    { value: "honors-advanced", label: "Honors / Advanced Program" },
     { value: "other", label: "Other" },
   ],
   high: [
-    { value: "us-common-core", label: "US Common Core" },
-    { value: "state-specific", label: "State-Specific Standards" },
-    { value: "ngss", label: "NGSS (Next Generation Science Standards)" },
     { value: "ap", label: "AP Track (Advanced Placement)" },
     { value: "ib-dp", label: "IB DP" },
     { value: "cambridge-igcse", label: "Cambridge IGCSE" },
     { value: "a-levels", label: "A-Levels" },
     { value: "other", label: "Other" },
   ],
+};
+
+const US_REGULAR_CURRICULUM_OPTION = { value: "regular-us", label: "Regular U.S. school curriculum" };
+
+const getCurriculumOptions = (schoolStage: string, snapshotLocation: string): { value: string; label: string }[] => {
+  const base = CURRICULUM_BY_STAGE[schoolStage] || [];
+  return snapshotLocation === "us" ? [US_REGULAR_CURRICULUM_OPTION, ...base] : base;
+};
+
+// A student never sees the DB identifier "us-state-california" — they picked
+// "California" in the State step and "Regular U.S. school curriculum" here;
+// this turns that pair into "California State Curriculum" for display only
+// (the stored currentCurriculum value stays "regular-us" either way, and the
+// backend resolves the actual DB system from usState).
+const resolveCurriculumOptionLabel = (value: string, baseLabel: string, formData: AssessmentFormData): string => {
+  if (value !== "regular-us" || formData.snapshotLocation !== "us" || !formData.usState) {
+    return baseLabel;
+  }
+  const stateEntry = US_STATES.find((s) => s.value === formData.usState);
+  if (!stateEntry) return baseLabel;
+  const stateName = stateEntry.label.replace(/\s*\([^)]*\)\s*$/, "");
+  return `${stateName} State Curriculum`;
 };
 
 const TARGET_BOARDS = [
@@ -277,7 +298,9 @@ const buildCardSequence = (formData: AssessmentFormData): ProfileCard[] => {
     milestone: "Your School",
     navLabel: "Curriculum",
     title: "What curriculum do you follow?",
-    hint: "The curriculum or academic standards you currently follow at school.",
+    hint: formData.snapshotLocation === "us"
+      ? "Your state and school information help us identify the relevant U.S. academic standards automatically."
+      : "The curriculum or academic standards you currently follow at school.",
     errorField: "currentCurriculum",
   });
 
@@ -398,9 +421,12 @@ const displayValue = (id: ProfileFieldId, formData: AssessmentFormData): string 
     case "countryOther":
       return formData.snapshotLocationOther || undefined;
     case "curriculum": {
-      const options = CURRICULUM_BY_STAGE[formData.schoolStage] || [];
+      const options = getCurriculumOptions(formData.schoolStage, formData.snapshotLocation);
       const labels = formData.currentCurriculum
-        .map((v) => options.find((c) => c.value === v)?.label)
+        .map((v) => {
+          const opt = options.find((c) => c.value === v);
+          return opt ? resolveCurriculumOptionLabel(opt.value, opt.label, formData) : undefined;
+        })
         .filter((l): l is string => !!l);
       return labels.length > 0 ? labels.join(", ") : undefined;
     }
@@ -437,10 +463,13 @@ const buildSummarySections = (formData: AssessmentFormData): SummarySection[] =>
       ? displayValue("countryOther", formData)
       : [displayValue("country", formData), stateLabel].filter(Boolean).join(" · ") || undefined;
 
-  const curriculumOptions = CURRICULUM_BY_STAGE[formData.schoolStage] || [];
+  const curriculumOptions = getCurriculumOptions(formData.schoolStage, formData.snapshotLocation);
   const curriculumLabels = formData.currentCurriculum
     .filter((v) => v !== "other")
-    .map((v) => curriculumOptions.find((c) => c.value === v)?.label)
+    .map((v) => {
+      const opt = curriculumOptions.find((c) => c.value === v);
+      return opt ? resolveCurriculumOptionLabel(opt.value, opt.label, formData) : undefined;
+    })
     .filter((l): l is string => !!l);
   if (formData.currentCurriculum.includes("other") && formData.currentCurriculumOther) {
     curriculumLabels.push(formData.currentCurriculumOther);
@@ -750,7 +779,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
     const nextId = nextCardId(
       currentCard.id,
       currentCard.id === "country" ? (value as string) : formData.snapshotLocation,
-      formData.currentCurriculum
+      currentCard.id === "curriculum" ? (value as string[]) : formData.currentCurriculum
     );
     advanceTo(nextId);
   };
@@ -758,16 +787,6 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
   const continueFromText = () => {
     if (isTransitioning) return;
     advanceTo(nextCardId(currentCard.id, formData.snapshotLocation, formData.currentCurriculum));
-  };
-
-  const continueFromCurriculum = () => {
-    if (isTransitioning || formData.currentCurriculum.length === 0) return;
-    advanceTo(nextCardId("curriculum", formData.snapshotLocation, formData.currentCurriculum));
-  };
-
-  const toggleCurriculum = (value: string) => {
-    const current = formData.currentCurriculum;
-    setField("currentCurriculum", current.includes(value) ? current.filter((v) => v !== value) : [...current, value]);
   };
 
   const continueFromName = () => {
@@ -1059,34 +1078,18 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "curriculum" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.currentCurriculum}>
-                <div role="group" aria-label={currentCard.title} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {(CURRICULUM_BY_STAGE[formData.schoolStage] || []).map((c) => (
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.currentCurriculum} editing={editingSingleCard} onFinishEditing={finishEditing}>
+                <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {getCurriculumOptions(formData.schoolStage, formData.snapshotLocation).map((c) => (
                     <InputCard
                       key={c.value}
                       variant="large"
-                      mode="checkbox"
-                      label={c.label}
-                      selected={formData.currentCurriculum.includes(c.value)}
-                      onClick={() => toggleCurriculum(c.value)}
+                      mode="radio"
+                      label={resolveCurriculumOptionLabel(c.value, c.label, formData)}
+                      selected={formData.currentCurriculum[0] === c.value}
+                      onClick={() => selectChoice("currentCurriculum", [c.value])}
                     />
                   ))}
-                </div>
-                <p className="mt-4 text-center text-xs font-medium text-muted-foreground">
-                  {formData.currentCurriculum.length} selected
-                </p>
-                <div className="mt-3 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={continueFromCurriculum}
-                    disabled={formData.currentCurriculum.length === 0}
-                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-                  >
-                    Done
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
                 </div>
               </CardFrame>
             )}

@@ -10,13 +10,12 @@ import ReportGenerationLoader from "../shared/ReportGenerationLoader";
 import SectionCard from "../shared/SectionCard";
 import ReviewActionBar from "../shared/ReviewActionBar";
 import ReviewSection from "../shared/ReviewSection";
-import { prettify, targetGradeLabel, joinList, joinPrettyList, joinRecord } from "../shared/reviewFormatting";
+import { prettify, targetGradeLabel, joinList, joinPrettyList, joinRecord, curriculumLabel } from "../shared/reviewFormatting";
 import type { ParentFormData } from "./parentMapper";
 
 // Step 5: Review. Submits through the same shared/submitAssessment.ts
 // pipeline the Student flow uses (validate-student-data -> assessments
-// insert -> analyze-curriculum fire-and-forget -> diagnostics-engine ->
-// diagnostic_results insert -> /report-preview). ParentFormData's payload
+// insert -> analyze-curriculum -> /report-preview). ParentFormData's payload
 // fields (schoolStage, snapshotGrade, academicPath, etc.) match
 // AssessmentFormData's field-for-field, so the wire payload sent to
 // validate-student-data / analyze-curriculum is unchanged; the full
@@ -94,8 +93,8 @@ const ParentStep5 = ({ formData, prevReportId, isRetake = false, onPrev, onValid
         },
         {
           label: "Current Curriculum",
-          value: joinPrettyList(
-            formData.currentCurriculum.map((c) => (c === "other" ? formData.currentCurriculumOther || "other" : c))
+          value: joinList(
+            formData.currentCurriculum.map((c) => (c === "other" ? formData.currentCurriculumOther || "Other" : curriculumLabel(c, formData.usState)))
           ),
         },
         { label: "Target Indian Board", value: prettify(formData.targetGoal) },

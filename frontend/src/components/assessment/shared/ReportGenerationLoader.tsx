@@ -171,10 +171,10 @@ interface ReportGenerationLoaderProps {
 }
 
 // Full-screen premium loading experience shown while the report-generation
-// pipeline (validate-student-data -> assessments insert -> analyze-curriculum
-// -> diagnostics-engine -> diagnostic_results insert) runs. Mounted directly
-// by ParentStep5 / StudentReviewStep whenever their submission is in flight;
-// unmounts automatically the moment they navigate away or the call fails.
+// pipeline (validate-student-data -> assessments insert -> analyze-curriculum)
+// runs. Mounted directly by ParentStep5 / StudentReviewStep whenever their
+// submission is in flight; unmounts automatically the moment they navigate
+// away or the call fails.
 const ReportGenerationLoader = ({ persona }: ReportGenerationLoaderProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const messages = persona === "student" ? STUDENT_MESSAGES : PARENT_MESSAGES;

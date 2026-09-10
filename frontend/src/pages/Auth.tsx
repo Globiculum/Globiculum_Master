@@ -178,7 +178,7 @@ const Auth = () => {
           title: "Welcome!",
           description: "Your account is ready.",
         });
-        navigate("/dashboard", { replace: true });
+        navigate("/", { replace: true });
         return;
       }
 
@@ -219,7 +219,7 @@ const Auth = () => {
 
       if (error) throw error;
 
-      navigate("/dashboard", { replace: true });
+      navigate("/", { replace: true });
     } catch (error: unknown) {
       if (error instanceof ZodError) {
         setSignInErrors(zodErrorsByField(error));

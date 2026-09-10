@@ -35,8 +35,12 @@ interface StudentAssessmentControllerProps {
 }
 
 const StudentAssessmentController = ({ prefillData, prevReportId, onChangePersona }: StudentAssessmentControllerProps) => {
+  // Mirrors ParentAssessment.tsx's retake behavior: arriving with prefillData
+  // (from the Reports History "Retake" button) means jump straight to the
+  // Review step instead of Stage 1, since everything is already filled in.
+  const isRetake = Boolean(prefillData);
   const { formData, setField, toggleArrayField, setRecordField } = useStudentAssessmentState(prefillData);
-  const navigation = useStudentAssessmentNavigation();
+  const navigation = useStudentAssessmentNavigation(isRetake ? STEPS.length - 1 : 0);
 
   useScrollToFirstInvalidField(navigation.validationAttempt);
 
@@ -79,6 +83,7 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
           <StudentReviewStep
             formData={formData}
             prevReportId={prevReportId}
+            isRetake={isRetake}
             onPrev={navigation.goPrev}
             onValidationErrors={() => navigation.goToStep(0)}
             onEditStep={navigation.goToStep}
@@ -89,6 +94,10 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
     }
   };
 
+  // Lets a retake user jump straight back to Review from any intermediate
+  // step they opened to edit, instead of clicking Next through the rest.
+  const handleSkipToReview = () => navigation.goToStep(STEPS.length - 1);
+
   return (
     <AssessmentLayout
       onChangePersona={onChangePersona}
@@ -98,6 +107,8 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
       onNext={() => navigation.goNext(formData)}
       isFirstStep={navigation.isFirstStep}
       isLastStep={navigation.isLastStep}
+      isRetake={isRetake}
+      onSkipToReview={isRetake && !navigation.isLastStep ? handleSkipToReview : undefined}
     >
       {renderStep()}
     </AssessmentLayout>

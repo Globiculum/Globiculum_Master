@@ -45,6 +45,26 @@ const ChangePersonaLink = ({ onClick }: { onClick: () => void }) => (
   </button>
 );
 
+// Mirrors ParentAssessmentLayout.tsx's RetakeBar exactly, so the retake
+// experience reads the same regardless of which flow generated the report.
+const RetakeBar = ({ onSkipToReview }: { onSkipToReview: () => void }) => (
+  <div className="mb-4 flex items-center justify-between rounded-xl border border-secondary/25 bg-secondary/5 px-4 py-2.5">
+    <div className="flex items-center gap-2 text-sm">
+      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-bold text-secondary-foreground">↺</span>
+      <span className="text-muted-foreground">
+        <span className="font-semibold text-foreground">Retake mode</span> — your previous answers are pre-filled. Edit what you need, then regenerate.
+      </span>
+    </div>
+    <button
+      type="button"
+      onClick={onSkipToReview}
+      className="ml-4 shrink-0 text-sm font-semibold text-secondary transition-colors hover:text-secondary/80"
+    >
+      Back to Review →
+    </button>
+  </div>
+);
+
 const StudentAssessmentHeader = ({ onChangePersona, title, subtitle }: { onChangePersona: () => void; title: string; subtitle: string }) => (
   <div className="min-w-0 flex-1">
     <ChangePersonaLink onClick={onChangePersona} />
@@ -138,6 +158,10 @@ interface AssessmentLayoutProps {
   onNext: () => void;
   isFirstStep: boolean;
   isLastStep: boolean;
+  /** True when the user arrived from the Reports History "Retake" button. */
+  isRetake?: boolean;
+  /** When set (retake + not on last step), a "Back to Review" shortcut appears. */
+  onSkipToReview?: () => void;
   children: ReactNode;
 }
 
@@ -154,6 +178,8 @@ const AssessmentLayout = ({
   onNext,
   isFirstStep,
   isLastStep,
+  isRetake = false,
+  onSkipToReview,
   children,
 }: AssessmentLayoutProps) => (
   <div className="relative">
@@ -163,11 +189,17 @@ const AssessmentLayout = ({
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <StudentAssessmentHeader
           onChangePersona={onChangePersona}
-          title="Student Assessment"
-          subtitle="Answer a few questions to generate your personalized readiness report."
+          title={isRetake ? "Update & Retake" : "Student Assessment"}
+          subtitle={
+            isRetake
+              ? "Your previous answers are pre-filled — change what you need, then regenerate the report."
+              : "Answer a few questions to generate your personalized readiness report."
+          }
         />
         <StudentAssessmentStepper steps={steps} currentIndex={currentIndex} />
       </div>
+      {/* Retake banner with "Back to Review" shortcut — only on non-review steps */}
+      {isRetake && !isLastStep && onSkipToReview && <RetakeBar onSkipToReview={onSkipToReview} />}
       <AnimatePresence mode="wait">
         <motion.div
           key={steps[currentIndex]?.id}

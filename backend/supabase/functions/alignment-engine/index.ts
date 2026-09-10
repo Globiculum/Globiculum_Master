@@ -13,6 +13,8 @@ import {
   getNodeSubjectLabel,
   classifyGapsBySubject,
   mergeBestSourceMatch,
+  resolveSourceCurriculum,
+  fetchUSStateAwareSourceGaps,
 } from "../_shared/curriculumGaps.ts";
 
 interface AlignmentRequest {
@@ -20,6 +22,14 @@ interface AlignmentRequest {
   targetCurriculum: string;
   gradeLevel: number;
   subjects?: string[];
+  // Live values from the student's latest assessment (see useAlignmentData.ts)
+  // — preferred over the bare `sourceCurriculum` string when present, since
+  // that string is usually student_profiles.previous_curriculum, a coarse
+  // 'US'/'Indian'/'IB'/'Other' enum with no state info. Mirrors the same
+  // fix already applied to diagnostics-engine.
+  snapshotLocation?: string;
+  usState?: string;
+  currentCurriculum?: string;
 }
 
 interface AlignmentResult {
@@ -139,7 +149,7 @@ serve(async (req) => {
       );
     }
 
-    const { sourceCurriculum, targetCurriculum, gradeLevel, subjects } = requestData;
+    const { sourceCurriculum, targetCurriculum, gradeLevel, subjects, snapshotLocation, usState, currentCurriculum } = requestData;
 
     // Validate inputs
     if (!sourceCurriculum || !targetCurriculum) {
@@ -174,7 +184,8 @@ serve(async (req) => {
       sourceCurriculum,
       targetCurriculum,
       gradeLevel,
-      subjects || ['math', 'science', 'english', 'social_studies']
+      subjects || ['math', 'science', 'english', 'social_studies'],
+      { snapshotLocation, usState, currentCurriculum }
     );
 
     logger.info('Alignment completed', { 
@@ -304,6 +315,7 @@ async function runAlignmentRAG(
   targetEntry: { dbSystem: string; nodeType: string | null },
   gradeLevel: number,
   subjects: string[],
+  isUSStateSource: boolean,
 ): Promise<AlignmentResult> {
   const gradeMin = Math.max(1, gradeLevel - 1);
   const gradeMax = Math.min(12, gradeLevel + 1);
@@ -330,50 +342,77 @@ async function runAlignmentRAG(
     source_grade_max: gradeMax,
   };
 
-  const { data: primaryData, error } = await logger.measureRetrieval(
-    'find_curriculum_gaps_rag',
-    async () => supabase.rpc('find_curriculum_gaps_rag', baseParams)
-  );
+  let rawData: GapNode[];
+  let sourceSystemsQueried: string[];
 
-  if (error || !primaryData || primaryData.length === 0) {
-    logger.warn('RAG data unavailable', { error: error?.message });
-    return buildEstimatedAlignment(sourceEntry.dbSystem, targetEntry.dbSystem, gradeLevel, ['math', 'english', 'science']);
-  }
-
-  // US Common Core only covers Math/ELA — merge in NGSS (Science) gaps so a
-  // "us-common-core" target also reflects Science alignment.
-  let rawData: GapNode[] = primaryData;
-  if (targetEntry.dbSystem === 'us-common-core') {
-    const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
-    const { data: ngssData, error: ngssError } = await logger.measureRetrieval(
-      'find_curriculum_gaps_rag:ngss',
-      async () => supabase.rpc('find_curriculum_gaps_rag', { ...baseParams, target_curriculum: ngssEntry.dbSystem, target_node_type_filter: ngssEntry.nodeType })
-    );
-    if (ngssError) {
-      logger.warn('NGSS RAG merge error (non-fatal)', { error: ngssError.message });
-    } else if (ngssData && ngssData.length > 0) {
-      rawData = [...rawData, ...ngssData];
+  // State-primary path: same subject-scoped, parallel retrieval as
+  // analyze-curriculum/diagnostics-engine — see _shared/curriculumGaps.ts.
+  // A whole state pool is too large to scan as a single source (this is
+  // exactly the query shape that used to time out before that fix existed).
+  if (isUSStateSource) {
+    const stateResult = await fetchUSStateAwareSourceGaps({
+      rpc: (params) => supabase.rpc('find_curriculum_gaps_rag', params),
+      stateSystem: sourceEntry.dbSystem,
+      stateLabel: sourceEntry.dbSystem,
+      targetCurriculum: targetEntry.dbSystem,
+      targetNodeType: targetEntry.nodeType,
+      gradeMin, gradeMax,
+      sourceGradeMin: 1,
+      sourceGradeMax: gradeMax,
+      onDebug: (step, message, data) => logger.debug(message, { step, ...data }),
+    });
+    rawData = stateResult.allTargetNodes;
+    sourceSystemsQueried = stateResult.sourceSystemsQueried;
+    if (rawData.length === 0) {
+      logger.warn('State-aware RAG data unavailable', { source: sourceEntry.dbSystem });
+      return buildEstimatedAlignment(sourceEntry.dbSystem, targetEntry.dbSystem, gradeLevel, ['math', 'english', 'science']);
     }
-  }
-
-  // Merge in NGSS as an additional SOURCE curriculum when coming FROM the US
-  // — otherwise a student's real science background never counts as coverage
-  // for Science-domain target topics, which instead get compared only
-  // against irrelevant Math/ELA text (verified against production data).
-  // sourceSystemsQueried tracks which source systems actually contributed
-  // rows, so the domain gate below correctly falls back if this errors/times out.
-  const sourceSystemsQueried: string[] = [sourceEntry.dbSystem];
-  if (sourceEntry.dbSystem === 'us-common-core') {
-    const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
-    const { data: ngssSourceData, error: ngssSourceError } = await logger.measureRetrieval(
-      'find_curriculum_gaps_rag:ngss_source',
-      async () => supabase.rpc('find_curriculum_gaps_rag', { ...baseParams, source_curriculum: ngssEntry.dbSystem, source_node_type: ngssEntry.nodeType })
+  } else {
+    const { data: primaryData, error } = await logger.measureRetrieval(
+      'find_curriculum_gaps_rag',
+      async () => supabase.rpc('find_curriculum_gaps_rag', baseParams)
     );
-    if (ngssSourceError) {
-      logger.warn('NGSS source-merge error (non-fatal)', { error: ngssSourceError.message });
-    } else if (ngssSourceData && ngssSourceData.length > 0) {
-      rawData = mergeBestSourceMatch(rawData, ngssSourceData as GapNode[]);
-      sourceSystemsQueried.push('ngss');
+
+    if (error || !primaryData || primaryData.length === 0) {
+      logger.warn('RAG data unavailable', { error: error?.message });
+      return buildEstimatedAlignment(sourceEntry.dbSystem, targetEntry.dbSystem, gradeLevel, ['math', 'english', 'science']);
+    }
+
+    // US Common Core only covers Math/ELA — merge in NGSS (Science) gaps so a
+    // "us-common-core" target also reflects Science alignment.
+    rawData = primaryData;
+    if (targetEntry.dbSystem === 'us-common-core') {
+      const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
+      const { data: ngssData, error: ngssError } = await logger.measureRetrieval(
+        'find_curriculum_gaps_rag:ngss',
+        async () => supabase.rpc('find_curriculum_gaps_rag', { ...baseParams, target_curriculum: ngssEntry.dbSystem, target_node_type_filter: ngssEntry.nodeType })
+      );
+      if (ngssError) {
+        logger.warn('NGSS RAG merge error (non-fatal)', { error: ngssError.message });
+      } else if (ngssData && ngssData.length > 0) {
+        rawData = [...rawData, ...ngssData];
+      }
+    }
+
+    // Merge in NGSS as an additional SOURCE curriculum when coming FROM the US
+    // — otherwise a student's real science background never counts as coverage
+    // for Science-domain target topics, which instead get compared only
+    // against irrelevant Math/ELA text (verified against production data).
+    // sourceSystemsQueried tracks which source systems actually contributed
+    // rows, so the domain gate below correctly falls back if this errors/times out.
+    sourceSystemsQueried = [sourceEntry.dbSystem];
+    if (sourceEntry.dbSystem === 'us-common-core') {
+      const ngssEntry = CURRICULUM_DB_REGISTRY['ngss'];
+      const { data: ngssSourceData, error: ngssSourceError } = await logger.measureRetrieval(
+        'find_curriculum_gaps_rag:ngss_source',
+        async () => supabase.rpc('find_curriculum_gaps_rag', { ...baseParams, source_curriculum: ngssEntry.dbSystem, source_node_type: ngssEntry.nodeType })
+      );
+      if (ngssSourceError) {
+        logger.warn('NGSS source-merge error (non-fatal)', { error: ngssSourceError.message });
+      } else if (ngssSourceData && ngssSourceData.length > 0) {
+        rawData = mergeBestSourceMatch(rawData, ngssSourceData as GapNode[]);
+        sourceSystemsQueried.push('ngss');
+      }
     }
   }
 
@@ -469,14 +508,29 @@ async function runAlignment(
   sourceCurriculum: string,
   targetCurriculum: string,
   gradeLevel: number,
-  subjects: string[]
+  subjects: string[],
+  // Live values from the student's latest assessment, when the caller has
+  // them (see useAlignmentData.ts) — preferred over the bare sourceCurriculum
+  // string, which is normally student_profiles.previous_curriculum: a coarse
+  // 'US'/'Indian'/'IB'/'Other' enum that never resolves to a specific state.
+  // Mirrors diagnostics-engine's same fix; see its runDiagnostics for the
+  // full rationale.
+  liveOverrides?: { snapshotLocation?: string; usState?: string; currentCurriculum?: string }
 ): Promise<AlignmentResult> {
-  const sourceEntry = normalizeToDBEntry(sourceCurriculum);
+  const sourceResolution = resolveSourceCurriculum(
+    liveOverrides?.currentCurriculum || sourceCurriculum,
+    liveOverrides?.snapshotLocation,
+    liveOverrides?.usState
+  );
+  const sourceEntry: CurriculumEntry | null =
+    sourceResolution.mode === 'us-state'
+      ? { dbSystem: sourceResolution.stateSystem!, nodeType: 'standard', label: sourceResolution.stateLabel! }
+      : sourceResolution.fallbackEntry ?? normalizeToDBEntry(sourceCurriculum);
   const targetEntry = normalizeToDBEntry(targetCurriculum);
 
   if (sourceEntry && targetEntry && sourceEntry.dbSystem !== targetEntry.dbSystem) {
-    logger.info('RAG alignment', { source: sourceEntry.dbSystem, target: targetEntry.dbSystem });
-    return runAlignmentRAG(supabase, logger, sourceEntry, targetEntry, gradeLevel, subjects);
+    logger.info('RAG alignment', { source: sourceEntry.dbSystem, target: targetEntry.dbSystem, isUSState: sourceResolution.mode === 'us-state' });
+    return runAlignmentRAG(supabase, logger, sourceEntry, targetEntry, gradeLevel, subjects, sourceResolution.mode === 'us-state');
   }
 
   logger.info('Curricula not in DB or same, returning estimate', { sourceCurriculum, targetCurriculum });

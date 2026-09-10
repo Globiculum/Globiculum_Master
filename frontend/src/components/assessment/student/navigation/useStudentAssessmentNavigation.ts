@@ -22,8 +22,10 @@ export interface UseStudentAssessmentNavigationResult {
   clearError: (field: string) => void;
 }
 
-export function useStudentAssessmentNavigation(): UseStudentAssessmentNavigationResult {
-  const [stepIndex, setStepIndex] = useState(0);
+export function useStudentAssessmentNavigation(initialStepIndex = 0): UseStudentAssessmentNavigationResult {
+  const [stepIndex, setStepIndex] = useState(() =>
+    Math.max(0, Math.min(initialStepIndex, STUDENT_ASSESSMENT_STEP_IDS.length - 1))
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [validationAttempt, setValidationAttempt] = useState(0);
 

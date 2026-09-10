@@ -115,13 +115,17 @@ const Header = ({ children }: HeaderProps = {}) => {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => navigate("/dashboard")}
-              className="cursor-pointer"
-            >
-              <LayoutDashboard className="mr-2 h-4 w-4" />
-              Dashboard
-            </DropdownMenuItem>
+            {/* Dashboard is disabled for now — not part of this release.
+                Re-enable by uncommenting once /dashboard is routed again. */}
+            {false && (
+              <DropdownMenuItem
+                onClick={() => navigate("/dashboard")}
+                className="cursor-pointer"
+              >
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                Dashboard
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={() => navigate("/reports")}
               className="cursor-pointer"

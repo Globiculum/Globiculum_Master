@@ -3,10 +3,20 @@ import { logAuditEvent } from "@/lib/logAuditEvent";
 
 /**
  * Shared submission pipeline used by both the Parent and Student flows:
- * validate-student-data -> save `assessments` row -> fire-and-forget
- * analyze-curriculum -> run diagnostics-engine -> save `diagnostic_results`
+ * validate-student-data -> save `assessments` row -> analyze-curriculum
  * -> hand back where to navigate. Intentionally UI-agnostic (no toast/
  * navigate calls) so it can be driven by either flow's own step components.
+ *
+ * diagnostics-engine used to run here too (in parallel with
+ * analyze-curriculum) and save a `diagnostic_results` row. It's no longer
+ * called: its only consumer was the Guardian Dashboard, which is disabled
+ * (see App.tsx's /dashboard route), and its own readiness-score formula
+ * differed from analyze-curriculum's (fixed once, but the two were never
+ * meant to be two independently-computed sources of truth for the same
+ * number). analyze-curriculum's RAG-grounded overallAlignment.percentage is
+ * now the only readiness score in the product. diagnostics-engine's code is
+ * untouched and still deployed — only this call site was removed — so it
+ * can be wired back in if a dashboard returns.
  *
  * Generic over `T` rather than importing AssessmentFormData directly: the
  * Parent and Student flows keep their own formData shapes (e.g. `childName`
@@ -174,49 +184,47 @@ export async function submitAssessment<T extends SubmittableFormData>({
     newData: { student_profile_id: studentProfile.id, status: "completed" },
   });
 
-  // analyze-curriculum and diagnostics-engine both only need the assessment
-  // that was just saved, so they run concurrently rather than one waiting on
-  // the other. analyze-curriculum used to be fire-and-forget here AND called
-  // again, synchronously, by ReportPreview.tsx — two full Gemini + RAG round
-  // trips for one report. It's now awaited (alongside diagnostics-engine, not
-  // after it) and its result is threaded through to ReportPreview via
-  // navigation state (see `prefetchedAnalysis` below), which checks for it
-  // before making its own call.
+  // analyze-curriculum used to be fire-and-forget here AND called again,
+  // synchronously, by ReportPreview.tsx — two full Gemini + RAG round trips
+  // for one report. It's now awaited here and its result is threaded through
+  // to ReportPreview via navigation state (see `prefetchedAnalysis` below),
+  // which checks for it before making its own call.
   const { strongest, challenging } = deriveSubjectStrengths(formData.subjectConfidences);
-  const [analysisSettled, diagSettled] = await Promise.all([
-    supabase.functions
-      .invoke("analyze-curriculum", {
-        body: {
-          formData: {
-            schoolStage: formData.schoolStage,
-            snapshotGrade: parseInt(formData.snapshotGrade, 10) || undefined,
-            snapshotLocation: formData.snapshotLocation || undefined,
-            usState: formData.usState || undefined,
-            previousCountry: formData.previousLocation || undefined,
-            currentCurriculum: formData.currentCurriculum || undefined,
-            targetCurriculum: formData.targetGoal || formData.curriculumType || undefined,
-            targetGoal: formData.targetGoal || undefined,
-            academicPath: formData.academicPath.length > 0 ? formData.academicPath : undefined,
-            strongestSubjects: strongest.length > 0 ? strongest : undefined,
-            challengingAreas: challenging.length > 0 ? challenging : undefined,
-            languagesSpoken: formData.selectedLanguages.length > 0 ? formData.selectedLanguages : undefined,
-            transitionTimeline: formData.timeline || undefined,
-          },
-        },
-        headers: { "X-API-Version": "v1" },
-      })
-      .catch((err) => {
-        console.error("[submitAssessment] analyze-curriculum error:", err);
-        return null;
-      }),
-    supabase.functions.invoke("diagnostics-engine", {
+  const analysisSettled = await supabase.functions
+    .invoke("analyze-curriculum", {
       body: {
-        studentId: studentProfile.id,
-        assessmentId: assessment.id,
-        diagnosticType: "full",
+        formData: {
+          schoolStage: formData.schoolStage,
+          snapshotGrade: parseInt(formData.snapshotGrade, 10) || undefined,
+          snapshotLocation: formData.snapshotLocation || undefined,
+          usState: formData.usState || undefined,
+          previousCountry: formData.previousLocation || undefined,
+          // Joined to a string, not passed as the raw array: analyze-curriculum's
+          // schema declares currentCurriculum as `type: 'string'`, and its
+          // validator does a strict `typeof value === 'string'` check — so
+          // sending the array failed validation with a 400 on EVERY submission.
+          // That error was swallowed by the .catch() below, leaving
+          // prefetchedAnalysis null and forcing ReportPreview to redo the whole
+          // analyze-curriculum call itself (it joins the same way, via
+          // resolveCurriculumList).
+          currentCurriculum: formData.currentCurriculum.length > 0
+            ? formData.currentCurriculum.join(", ")
+            : undefined,
+          targetCurriculum: formData.targetGoal || formData.curriculumType || undefined,
+          targetGoal: formData.targetGoal || undefined,
+          academicPath: formData.academicPath.length > 0 ? formData.academicPath : undefined,
+          strongestSubjects: strongest.length > 0 ? strongest : undefined,
+          challengingAreas: challenging.length > 0 ? challenging : undefined,
+          languagesSpoken: formData.selectedLanguages.length > 0 ? formData.selectedLanguages : undefined,
+          transitionTimeline: formData.timeline || undefined,
+        },
       },
-    }),
-  ]);
+      headers: { "X-API-Version": "v1" },
+    })
+    .catch((err) => {
+      console.error("[submitAssessment] analyze-curriculum error:", err);
+      return null;
+    });
 
   // Same unwrap shape ReportPreview.tsx uses for its own analyze-curriculum
   // response — { success, data: { analysis, validation, _meta } } — so
@@ -240,40 +248,10 @@ export async function submitAssessment<T extends SubmittableFormData>({
       });
   }
 
-  const { data: diagResponse, error: diagError } = diagSettled;
-
-  if (diagError || !diagResponse?.success) {
-    return { ...fallbackResult(formData, prevReportId), warnings };
-  }
-
-  const diagResult = diagResponse.data;
-
-  const { data: savedDiag, error: saveError } = await supabase
-    .from("diagnostic_results" as any)
-    .insert({
-      user_id: userId,
-      student_profile_id: studentProfile.id,
-      assessment_id: assessment.id,
-      overall_score: diagResult.overallScore,
-      subject_scores: diagResult.subjectScores,
-      strength_areas: diagResult.strengthAreas,
-      gap_areas: diagResult.gapAreas,
-      readiness_level: diagResult.readinessLevel,
-      recommendations: diagResult.recommendations,
-      diagnostic_type: "full",
-    } as any)
-    .select("id")
-    .single();
-
-  if (saveError || !savedDiag) {
-    return { ...fallbackResult(formData, prevReportId), warnings };
-  }
-
   return {
-    path: `/report-preview?diagnosticId=${(savedDiag as any).id}`,
+    path: "/report-preview",
     state: {
       formData,
-      diagnosticResultId: (savedDiag as any).id,
       assessmentId: assessment.id,
       prevReportId,
       prefetchedAnalysis,

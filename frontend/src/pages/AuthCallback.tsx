@@ -182,8 +182,8 @@ const AuthCallback = () => {
               <CardDescription>{state.message}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full" onClick={() => navigate("/dashboard", { replace: true })}>
-                Continue to Dashboard
+              <Button className="w-full" onClick={() => navigate("/", { replace: true })}>
+                Continue to Home
               </Button>
             </CardContent>
           </>

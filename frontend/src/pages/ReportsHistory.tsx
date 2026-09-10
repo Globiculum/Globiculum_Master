@@ -39,6 +39,19 @@ interface SavedReportAnalysis {
   };
 }
 
+// Student and Parent are separate assessment flows (StudentAssessment.tsx /
+// BeginJourney.tsx+ParentAssessment) with their own form shapes, but a saved
+// report doesn't carry an explicit "which flow made this" marker — Retake
+// was hardcoded to always reopen the Parent flow, so a student-originated
+// report's retake silently dropped the student into the parent's intake
+// form instead of back into their own. The two shapes do differ reliably,
+// though: Parent's formData always has childName/childLastName (see
+// parentMapper.ts — submitted as-is, no field renaming), Student's always
+// has studentName instead (see assessment/shared/types.ts) — no schema
+// change needed, this key is already present on every saved report.
+const isParentOriginated = (formData: Record<string, unknown>): boolean =>
+  typeof formData?.childName === "string";
+
 interface SavedReport {
   id: string;
   title: string;
@@ -410,7 +423,15 @@ const ReportsHistory = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              navigate("/begin-journey", {
+                              const isParent = isParentOriginated(report.form_data);
+                              // Keeps sessionStorage's persona marker in sync
+                              // with where we're actually sending the user —
+                              // otherwise navigating back to /begin-journey
+                              // later in the same session could show a stale
+                              // (or entirely absent) persona choice.
+                              sessionStorage.setItem("globiculum-selected-persona", isParent ? "parent" : "student");
+                              const destination = isParent ? "/begin-journey" : "/student-assessment";
+                              navigate(destination, {
                                 state: {
                                   prefillFormData: report.form_data,
                                   prevReportId: report.id,

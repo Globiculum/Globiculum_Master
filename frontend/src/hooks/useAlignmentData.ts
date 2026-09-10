@@ -94,12 +94,40 @@ export const useAlignmentData = () => {
         // Parse grade level number from string like "Grade 10" or "10"
         const gradeLevel = parseInt(profile.current_grade.replace(/\D/g, ""), 10) || 8;
 
+        // student_profiles.previous_curriculum is a coarse 'US'/'Indian'/'IB'/
+        // 'Other' enum with no state info, so it can never resolve to a
+        // specific state's dataset. The assessment the student actually
+        // submitted has the real usState/currentCurriculum in its stored
+        // assessment_data JSON — fetch the latest one (best-effort: if this
+        // fails or there's no assessment yet, alignment-engine falls back to
+        // the same enum-only estimate it already used).
+        let liveOverrides: { snapshotLocation?: string; usState?: string; currentCurriculum?: string } = {};
+        const { data: latestAssessment } = await supabase
+          .from("assessments")
+          .select("assessment_data")
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const assessmentData = (latestAssessment as any)?.assessment_data;
+        if (assessmentData) {
+          const currentCurriculum = Array.isArray(assessmentData.currentCurriculum)
+            ? assessmentData.currentCurriculum.join(", ")
+            : assessmentData.currentCurriculum;
+          liveOverrides = {
+            snapshotLocation: assessmentData.snapshotLocation || undefined,
+            usState: assessmentData.usState || undefined,
+            currentCurriculum: currentCurriculum || undefined,
+          };
+        }
+
         // Call alignment-engine edge function
         const { data, error } = await supabase.functions.invoke("alignment-engine", {
           body: {
             sourceCurriculum: profile.previous_curriculum,
             targetCurriculum: profile.target_curriculum,
             gradeLevel: Math.min(Math.max(gradeLevel, 1), 12),
+            ...liveOverrides,
           },
         });
 

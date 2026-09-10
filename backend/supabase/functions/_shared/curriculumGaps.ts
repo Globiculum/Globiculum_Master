@@ -53,6 +53,18 @@ export const CURRICULUM_DB_REGISTRY: Record<string, CurriculumEntry> = {
   'common_core':   { dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Common Core' },
   'us-common-core':{ dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Common Core' },
   'us':            { dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Common Core' },
+  // "State-Specific Standards" and "Honors / Advanced" both resolve to Common
+  // Core as their BASE pool, because that's what they actually are: a state's
+  // own math/ELA standards are Common Core-derived in ~41 states (California's
+  // are literally published as "California Common Core State Standards"), and
+  // honors/advanced is the same content accelerated, not different standards.
+  // What genuinely differs per state — social studies — is layered on top via
+  // the state social-studies merge in analyze-curriculum, keyed off the state
+  // the form already collects. Before these entries existed, picking
+  // "State-Specific Standards" on its own resolved to nothing, which skipped
+  // RAG entirely and produced a generic LLM-only report.
+  'state-specific':  { dbSystem: 'us-common-core', nodeType: 'standard', label: 'US State Standards' },
+  'honors-advanced': { dbSystem: 'us-common-core', nodeType: 'standard', label: 'US Honors / Advanced' },
   // ── NGSS (US Science) — Common Core only covers Math/ELA, so this is a
   // separate standards framework merged in alongside 'us-common-core',
   // whichever side of the transition it's on. See mergeBestSourceMatch().
@@ -148,6 +160,201 @@ export const SOURCE_SYSTEM_DOMAINS: Record<string, SubjectDomain[] | null> = {
   'ngss': ['science'],
 };
 
+// The DB holds all 51 US state curricula in full (math, ELA, science, social
+// studies, health, PE, arts), but a whole state pool is too large to scan per
+// target row — measured: California's 17,262 in-range nodes time out at 20s,
+// vs ~2s for us-common-core's 3,279. Every subject-scoped slice, though, is
+// the same scale as us-common-core (800-6,500 nodes) — see
+// fetchUSStateAwareSourceGaps below, which is how a state system is now used
+// as the PRIMARY source for all four core subjects, not just social studies.
+const US_STATE_SYSTEM_PREFIX = 'us-state-';
+// A state system can legitimately contribute any of the four core domains —
+// which one(s) it actually did for a given request is tracked per-subject in
+// SubjectSourceAudit, not assumed here. This constant is the fail-open upper
+// bound used by effectiveSourceDomains() when a state system appears in
+// sourceSystemsQueried at all.
+const US_STATE_CONTRIBUTED_DOMAINS: SubjectDomain[] = ['mathematics', 'english', 'science', 'social-science'];
+
+// The assessment form stores usState as the 2-letter code ("CA"), while the
+// ingested systems are slugged full names ("us-state-california"), so a naive
+// slug of the form value would produce a nonexistent "us-state-ca" and
+// silently skip every state merge. Both forms are accepted here.
+const US_STATE_CODE_TO_NAME: Record<string, string> = {
+  al: 'alabama', ak: 'alaska', az: 'arizona', ar: 'arkansas', ca: 'california',
+  co: 'colorado', ct: 'connecticut', de: 'delaware', fl: 'florida', ga: 'georgia',
+  hi: 'hawaii', id: 'idaho', il: 'illinois', in: 'indiana', ia: 'iowa',
+  ks: 'kansas', ky: 'kentucky', la: 'louisiana', me: 'maine', md: 'maryland',
+  ma: 'massachusetts', mi: 'michigan', mn: 'minnesota', ms: 'mississippi', mo: 'missouri',
+  mt: 'montana', ne: 'nebraska', nv: 'nevada', nh: 'new-hampshire', nj: 'new-jersey',
+  nm: 'new-mexico', ny: 'new-york', nc: 'north-carolina', nd: 'north-dakota', oh: 'ohio',
+  ok: 'oklahoma', or: 'oregon', pa: 'pennsylvania', ri: 'rhode-island', sc: 'south-carolina',
+  sd: 'south-dakota', tn: 'tennessee', tx: 'texas', ut: 'utah', vt: 'vermont',
+  va: 'virginia', wa: 'washington', wv: 'west-virginia', wi: 'wisconsin', wy: 'wyoming',
+  dc: 'district-of-columbia',
+};
+
+/** Maps a form's usState value — either the 2-letter code the assessment
+ * actually stores ("CA") or a full name ("California") — to its ingested
+ * curriculum_system slug. Returns null for empty/unknown input so callers skip
+ * the state merge rather than querying a curriculum_system that doesn't exist. */
+export function usStateToCurriculumSystem(usState?: string | null): string | null {
+  const raw = (usState || '').trim().toLowerCase();
+  if (!raw) return null;
+
+  const byCode = US_STATE_CODE_TO_NAME[raw];
+  if (byCode) return `${US_STATE_SYSTEM_PREFIX}${byCode}`;
+
+  const slug = raw.replace(/[^a-z\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-');
+  if (!slug) return null;
+  // Only return a system we know was ingested — an unrecognised free-text
+  // state ("other") must not produce a query for a nonexistent system.
+  const known = Object.values(US_STATE_CODE_TO_NAME).includes(slug);
+  return known ? `${US_STATE_SYSTEM_PREFIX}${slug}` : null;
+}
+
+const US_STATE_DISPLAY_NAMES: Record<string, string> = {
+  alabama: 'Alabama', alaska: 'Alaska', arizona: 'Arizona', arkansas: 'Arkansas', california: 'California',
+  colorado: 'Colorado', connecticut: 'Connecticut', delaware: 'Delaware', florida: 'Florida', georgia: 'Georgia',
+  hawaii: 'Hawaii', idaho: 'Idaho', illinois: 'Illinois', indiana: 'Indiana', iowa: 'Iowa',
+  kansas: 'Kansas', kentucky: 'Kentucky', louisiana: 'Louisiana', maine: 'Maine', maryland: 'Maryland',
+  massachusetts: 'Massachusetts', michigan: 'Michigan', minnesota: 'Minnesota', mississippi: 'Mississippi', missouri: 'Missouri',
+  montana: 'Montana', nebraska: 'Nebraska', nevada: 'Nevada', 'new-hampshire': 'New Hampshire', 'new-jersey': 'New Jersey',
+  'new-mexico': 'New Mexico', 'new-york': 'New York', 'north-carolina': 'North Carolina', 'north-dakota': 'North Dakota', ohio: 'Ohio',
+  oklahoma: 'Oklahoma', oregon: 'Oregon', pennsylvania: 'Pennsylvania', 'rhode-island': 'Rhode Island', 'south-carolina': 'South Carolina',
+  'south-dakota': 'South Dakota', tennessee: 'Tennessee', texas: 'Texas', utah: 'Utah', vermont: 'Vermont',
+  virginia: 'Virginia', washington: 'Washington', 'west-virginia': 'West Virginia', wisconsin: 'Wisconsin', wyoming: 'Wyoming',
+  'district-of-columbia': 'District of Columbia',
+};
+
+/** "us-state-new-york" -> "New York". Used for prompt/report labels and the
+ * audit log, not for the parent-facing UI (which has its own copy in
+ * ParentSchoolProfileWizard.tsx / StudentProfileWizard.tsx's
+ * resolveCurriculumOptionLabel(), since it renders before any backend call
+ * happens). */
+export function usStateSystemToDisplayName(stateSystem: string): string {
+  const slug = stateSystem.replace(US_STATE_SYSTEM_PREFIX, '');
+  return US_STATE_DISPLAY_NAMES[slug] || slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// =============================================================================
+// SOURCE CURRICULUM RESOLUTION
+// =============================================================================
+//
+// The parent-facing curriculum question used to offer US Common Core / NGSS /
+// State-Specific Standards as separate technical choices — a false choice for
+// most US students, since a state's own math/ELA standards typically ARE
+// Common Core (California's are literally published as "California Common
+// Core State Standards"). It's now a single "Regular U.S. school curriculum"
+// option (see the frontend curriculum wizards), and this function is what
+// turns that + the state already collected at Stage 1 into an actual source
+// plan — no second question, no exposed database identifiers.
+
+export type SourceResolutionMode = 'us-state' | 'fallback-entry' | 'none';
+
+export interface SourceResolution {
+  mode: SourceResolutionMode;
+  /** "Honors / Advanced" is a rigor modifier, not a different curriculum —
+   * both 'regular-us' and 'honors-advanced' resolve the SAME way (state-
+   * primary when possible); this just flags it so the LLM prompt can frame
+   * gaps as "accelerate into" rather than "catch up to". */
+  isHonorsOrAdvanced: boolean;
+  /** Set when mode === 'us-state'. */
+  stateSystem: string | null;
+  stateLabel: string | null;
+  /** Set when mode === 'fallback-entry' — the pre-existing single-dbSystem
+   * resolution path (Common Core, or null/LLM-only for IB/Cambridge/Other,
+   * which aren't ingested yet). */
+  fallbackEntry: CurriculumEntry | null;
+}
+
+// Legacy values from BEFORE the option list was collapsed still need to
+// resolve correctly on retake — old saved_reports and in-flight sessions can
+// carry 'us-common-core'/'state-specific'/'ngss' as the selection. All of
+// them mean the same thing under the new model: "regular US schooling."
+const REGULAR_US_SELECTION_VALUES = new Set([
+  'regular-us', 'regular_us', 'regular',
+  'us-common-core', 'common-core', 'common_core',
+  'state-specific', 'state_specific',
+  'ngss',
+]);
+const HONORS_SELECTION_VALUES = new Set(['honors-advanced', 'honors_advanced', 'honors', 'advanced']);
+
+/**
+ * Resolves the SOURCE curriculum plan from the student's raw
+ * currentCurriculum selection(s) + location + state. Accepts either the new
+ * array shape or the comma-joined string the wire payload actually sends
+ * (see submitAssessment.ts) so this is safe to call from either an edge
+ * function's parsed body or a re-split string.
+ */
+export function resolveSourceCurriculum(
+  currentCurriculum: string[] | string | undefined,
+  snapshotLocation: string | undefined,
+  usState: string | undefined
+): SourceResolution {
+  const values = Array.isArray(currentCurriculum)
+    ? currentCurriculum
+    : (currentCurriculum || '').split(',').map(s => s.trim()).filter(Boolean);
+  const normalized = values.map(v => v.toLowerCase().trim());
+
+  const isHonorsOrAdvanced = normalized.some(v => HONORS_SELECTION_VALUES.has(v));
+  const isRegularUS = normalized.some(v => REGULAR_US_SELECTION_VALUES.has(v)) || isHonorsOrAdvanced;
+  const isUS = (snapshotLocation || '').toLowerCase() === 'us';
+
+  if (isUS && isRegularUS) {
+    const stateSystem = usStateToCurriculumSystem(usState);
+    if (stateSystem) {
+      return {
+        mode: 'us-state',
+        isHonorsOrAdvanced,
+        stateSystem,
+        stateLabel: `${usStateSystemToDisplayName(stateSystem)} State Curriculum`,
+        fallbackEntry: null,
+      };
+    }
+    // US + regular curriculum but state unknown/unrecognised (e.g. picked
+    // "Other" for state, or a brand-new territory not yet ingested) — fall
+    // back to the pre-state-aware behavior instead of failing outright.
+    return {
+      mode: 'fallback-entry',
+      isHonorsOrAdvanced,
+      stateSystem: null,
+      stateLabel: null,
+      fallbackEntry: CURRICULUM_DB_REGISTRY['us-common-core'],
+    };
+  }
+
+  // IB / Cambridge / Other / non-US: existing single-entry resolution.
+  // mapToDBEntry does substring matching, so try each selected value in turn
+  // (a multi-value legacy string might have "ib-myp, other" — take whichever
+  // one actually resolves).
+  let entry: CurriculumEntry | null = null;
+  for (const v of normalized) {
+    entry = mapToDBEntry(v);
+    if (entry) break;
+  }
+  return { mode: entry ? 'fallback-entry' : 'none', isHonorsOrAdvanced, stateSystem: null, stateLabel: null, fallbackEntry: entry };
+}
+
+// ILIKE patterns (not exact names) because states name the subject
+// differently: "History-Social Science (1998-)" (CA), "Social Studies
+// (2010-2018)" (TX), "Social Studies (2012-2018)" (OH). Deliberately does NOT
+// use a bare '%social%', which would also match California's
+// "Social-Emotional Development".
+export const STATE_SOCIAL_STUDIES_PATTERNS = [
+  '%social studies%',
+  // A state that names it just "Social Science" (no "History"/"Studies")
+  // wasn't observed in the 12-state sample audited, but nothing before this
+  // covered that spelling defensively — add it rather than rely on every
+  // state also using "History" alongside it (California/Massachusetts do;
+  // a future ingestion might not).
+  '%social science%',
+  '%history%',
+  '%civic%',
+  '%geograph%',
+  '%government%',
+  '%economic%',
+];
+
 /**
  * Union of domains covered by every source curriculum system actually
  * contributing rows to this request (e.g. ['us-common-core', 'ngss'] once
@@ -160,12 +367,256 @@ export function effectiveSourceDomains(sourceSystemsQueried: string[]): Set<Subj
   const domains = new Set<SubjectDomain>();
   for (const sys of sourceSystemsQueried) {
     const key = sys.toLowerCase();
+    if (key.startsWith(US_STATE_SYSTEM_PREFIX)) {
+      US_STATE_CONTRIBUTED_DOMAINS.forEach(x => domains.add(x));
+      continue;
+    }
     if (!(key in SOURCE_SYSTEM_DOMAINS)) return null;
     const d = SOURCE_SYSTEM_DOMAINS[key];
     if (d === null) return null;
     d.forEach(x => domains.add(x));
   }
   return domains;
+}
+
+// =============================================================================
+// SUBJECT-SCOPED STATE SOURCE RETRIEVAL
+// =============================================================================
+//
+// Runs 4 parallel find_curriculum_gaps_rag calls, one per broad subject, each
+// scoped on BOTH sides: source_subjects narrows the state pool to just that
+// subject's slice (the thing that makes a whole-state query feasible at all —
+// see the module header), and target_subjects narrows which NCERT/target
+// nodes that slice is even compared against, so the 4 calls' results are
+// disjoint by target node and can be concatenated directly, no merge-by-
+// best-similarity needed (contrast with mergeBestSourceMatch, which is for
+// re-querying the SAME target nodes against a second source).
+//
+// Math/English/Science all have a fallback (Common Core or NGSS) for when a
+// state's own data for that subject is missing or too sparse to trust —
+// falling silently back to the pre-state-aware source rather than reporting
+// a fake gap. Social Studies has NO fallback (neither Common Core nor NGSS
+// contains any), so a missing/sparse state pool there is reported as
+// "state data unavailable", not scored as a gap at all — see
+// analyze-curriculum's use of `unavailableSubjectKeys` below.
+
+export interface SubjectSourceQuery {
+  key: 'mathematics' | 'english' | 'science' | 'social-science';
+  label: string;
+  /** NCERT/target-side metadata.subject values this query is scoped to. */
+  targetSubjects: string[];
+  /** ILIKE patterns matched against the STATE's own metadata.subject naming. */
+  stateSourceSubjects: string[];
+  /** ILIKE patterns to exclude from the state match — e.g. Science's pattern
+   * would otherwise also match "History-Social Science". */
+  stateSourceExclude?: string[];
+  fallbackSystem: 'us-common-core' | 'ngss' | null;
+  fallbackNodeType: string | null;
+  fallbackLabel: string;
+}
+
+export const US_STATE_SUBJECT_QUERIES: SubjectSourceQuery[] = [
+  {
+    key: 'mathematics',
+    label: 'Mathematics',
+    targetSubjects: ['Mathematics', 'Math'],
+    stateSourceSubjects: ['%math%'],
+    fallbackSystem: 'us-common-core',
+    fallbackNodeType: 'standard',
+    fallbackLabel: 'US Common Core',
+  },
+  {
+    key: 'english',
+    label: 'English / ELA',
+    targetSubjects: ['English', 'English / Language Arts', 'English Language Arts & Literacy'],
+    stateSourceSubjects: ['%english%', '%language arts%', '%reading%', '%literacy%'],
+    fallbackSystem: 'us-common-core',
+    fallbackNodeType: 'standard',
+    fallbackLabel: 'US Common Core',
+  },
+  {
+    key: 'science',
+    label: 'Science',
+    targetSubjects: ['Science'],
+    // '%science%' (not just a 'Science%' prefix) — verified against live
+    // production data across 12 states: prefix-only missed real rows like
+    // New York's "Math, Science & Technology (1996-2005)" and Virginia's
+    // "Expanded High School Science (2025-)". A bare '%science%' also
+    // matches "History-Social Science" (California) and "Computer Science"
+    // (FL/VA/WA/MA/SC/NC all have this as its own elective subject) — both
+    // excluded below rather than relying on prefix-anchoring to avoid them.
+    stateSourceSubjects: ['%science%', '%physical science%', '%life science%', '%earth science%', '%biology%', '%chemistry%', '%physics%'],
+    stateSourceExclude: ['%social%', '%history%', '%computer%'],
+    fallbackSystem: 'ngss',
+    fallbackNodeType: 'standard',
+    fallbackLabel: 'US NGSS (Science)',
+  },
+  {
+    key: 'social-science',
+    label: 'Social Studies',
+    targetSubjects: ['Social Science', 'Social Studies'],
+    stateSourceSubjects: STATE_SOCIAL_STUDIES_PATTERNS,
+    fallbackSystem: null, // no fallback exists — see module header
+    fallbackNodeType: null,
+    fallbackLabel: '',
+  },
+];
+
+// Below this many rows, a state's subject-scoped pool is treated as too thin
+// to trust rather than a genuine "the state teaches almost nothing here."
+export const MIN_VIABLE_SOURCE_ROWS = 15;
+
+export interface SubjectSourceAuditEntry {
+  subject: string;
+  source: string;
+  sourceLabel: string;
+  status: 'state' | 'fallback' | 'unavailable' | 'error';
+  rowCount: number;
+}
+
+export interface StateAwareSourceGapsResult {
+  allTargetNodes: GapNode[];
+  sourceSystemsQueried: string[];
+  /** Keyed by SubjectSourceQuery.key — one entry per subject, always 4,
+   * regardless of outcome. Log this on the response so a report can be
+   * audited against exactly which source produced each subject's numbers. */
+  subjectSourceAudit: Record<string, SubjectSourceAuditEntry>;
+  /** Subject keys where NO source (state or fallback) could be used —
+   * callers must NOT run these through classifyGapsBySubject, since that
+   * would score "we have no data" as "0% covered = full gap", which is a
+   * data problem, not a curriculum finding. */
+  unavailableSubjectKeys: string[];
+}
+
+export interface RpcCaller {
+  (params: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }>;
+}
+
+export interface DebugLogger {
+  (step: string, message: string, data?: Record<string, unknown>): void;
+}
+
+/**
+ * Fetches gap rows for all 4 core subjects using the student's state as the
+ * primary source, in parallel, with per-subject fallback. See the section
+ * header above for the full rationale.
+ */
+export async function fetchUSStateAwareSourceGaps(opts: {
+  rpc: RpcCaller;
+  stateSystem: string;
+  stateLabel: string;
+  targetCurriculum: string;
+  targetNodeType: string | null;
+  gradeMin: number;
+  gradeMax: number;
+  sourceGradeMin: number;
+  sourceGradeMax: number;
+  resultLimitPerSubject?: number;
+  onDebug?: DebugLogger;
+}): Promise<StateAwareSourceGapsResult> {
+  const {
+    rpc, stateSystem, stateLabel, targetCurriculum, targetNodeType,
+    gradeMin, gradeMax, sourceGradeMin, sourceGradeMax,
+    resultLimitPerSubject = 300, onDebug,
+  } = opts;
+  const debug = onDebug ?? (() => {});
+
+  const perSubject = await Promise.all(US_STATE_SUBJECT_QUERIES.map(async (q): Promise<{
+    key: string; rows: GapNode[]; audit: SubjectSourceAuditEntry;
+  }> => {
+    const baseParams = {
+      target_curriculum: targetCurriculum,
+      target_node_type_filter: targetNodeType,
+      target_subjects: q.targetSubjects,
+      grade_min: gradeMin,
+      grade_max: gradeMax,
+      source_grade_min: sourceGradeMin,
+      source_grade_max: sourceGradeMax,
+      similarity_threshold: 0.0,
+      result_limit: resultLimitPerSubject,
+    };
+
+    const { data: stateRows, error: stateError } = await rpc({
+      ...baseParams,
+      source_curriculum: stateSystem,
+      source_node_type: 'standard',
+      source_subjects: q.stateSourceSubjects,
+      source_subjects_exclude: q.stateSourceExclude ?? null,
+    });
+
+    if (!stateError && Array.isArray(stateRows) && stateRows.length >= MIN_VIABLE_SOURCE_ROWS) {
+      debug('rag_state_subject_query', `State data used for ${q.label}`, {
+        subject: q.key, source: stateSystem, rowCount: stateRows.length,
+      });
+      return {
+        key: q.key,
+        rows: stateRows as GapNode[],
+        audit: { subject: q.label, source: stateSystem, sourceLabel: stateLabel, status: 'state', rowCount: stateRows.length },
+      };
+    }
+
+    if (stateError) {
+      debug('rag_state_subject_error', `State query failed for ${q.label} (non-fatal)`, { subject: q.key, error: stateError.message });
+    } else {
+      debug('rag_state_subject_thin', `State data too thin for ${q.label}`, { subject: q.key, rowCount: Array.isArray(stateRows) ? stateRows.length : 0 });
+    }
+
+    if (q.fallbackSystem) {
+      const { data: fbRows, error: fbError } = await rpc({
+        ...baseParams,
+        source_curriculum: q.fallbackSystem,
+        source_node_type: q.fallbackNodeType,
+        source_subjects: null,
+        source_subjects_exclude: null,
+      });
+      if (!fbError && Array.isArray(fbRows)) {
+        debug('rag_state_subject_fallback', `Fell back to ${q.fallbackLabel} for ${q.label}`, {
+          subject: q.key, source: q.fallbackSystem, rowCount: fbRows.length,
+        });
+        return {
+          key: q.key,
+          rows: fbRows as GapNode[],
+          audit: { subject: q.label, source: q.fallbackSystem, sourceLabel: q.fallbackLabel, status: 'fallback', rowCount: fbRows.length },
+        };
+      }
+      debug('rag_state_subject_fallback_error', `Fallback also failed for ${q.label}`, { subject: q.key, error: fbError?.message });
+    }
+
+    // No fallback exists (social studies) or the fallback also failed —
+    // genuinely unavailable. Return an empty row set; the caller must skip
+    // scoring this subject as a gap.
+    return {
+      key: q.key,
+      rows: [],
+      audit: {
+        subject: q.label, source: stateSystem, sourceLabel: stateLabel,
+        status: stateError ? 'error' : 'unavailable',
+        rowCount: 0,
+      },
+    };
+  }));
+
+  const allTargetNodes: GapNode[] = [];
+  const sourceSystemsQueried = new Set<string>();
+  const subjectSourceAudit: Record<string, SubjectSourceAuditEntry> = {};
+  const unavailableSubjectKeys: string[] = [];
+
+  for (const { key, rows, audit } of perSubject) {
+    subjectSourceAudit[key] = audit;
+    if (audit.status === 'unavailable' || audit.status === 'error') {
+      unavailableSubjectKeys.push(key);
+      continue;
+    }
+    allTargetNodes.push(...rows);
+    sourceSystemsQueried.add(audit.source);
+  }
+
+  return {
+    allTargetNodes,
+    sourceSystemsQueried: [...sourceSystemsQueried],
+    subjectSourceAudit,
+    unavailableSubjectKeys,
+  };
 }
 
 // =============================================================================
@@ -557,6 +1008,21 @@ export function buildGapReason(gap: GapNode, domainCovered: boolean, sourceLabel
     return `Closest match in your ${sourceLabel} coursework was "${match}" — only about ${pct}% conceptually related, so "${topic}" introduces meaningfully new content beyond what you've studied.`;
   }
   return `No closely related topic was found in your ${sourceLabel} coursework — "${topic}" introduces new content.`;
+}
+
+/**
+ * Message for a subject that couldn't be assessed at all — e.g. a state's
+ * social-studies standards weren't found or returned too few rows, and there
+ * is no fallback source to compare against. Deliberately does NOT say
+ * anything resembling "gap" or "not covered": the honest statement is that
+ * this is a data limitation, not a finding about the student. Callers using
+ * this should also avoid a 0%-looking score — see analyze-curriculum's
+ * handling of `unavailableSubjectKeys` for the numeric-display convention
+ * (a neutral 50%, matching the existing "fallback, not computed" convention
+ * already used elsewhere in this codebase for the same reason).
+ */
+export function buildUnavailableSubjectReason(subjectLabel: string, stateLabel: string): string {
+  return `We don't yet have ${stateLabel}'s standards data for ${subjectLabel} in our system, so this subject could not be assessed this time. This is a data gap on our side, not a finding about the student — please don't read the score below as a curriculum gap.`;
 }
 
 /**
