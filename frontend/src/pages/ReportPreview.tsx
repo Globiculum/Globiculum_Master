@@ -27,6 +27,7 @@ import ReportGenerationLoader, { type LoaderPersona } from "@/components/assessm
 import globiculumLogo from "@/assets/globiculum-logo.png";
 import { entryGrade, targetStreamLabel } from "@/hooks/useCurriculumSubjects";
 import { ALL_COURSES, courseLabel } from "@/components/assessment/shared/highSchoolCourses";
+import { useLearningResources, type LearningResource } from "@/hooks/useLearningResources";
 
 const PERSONA_STORAGE_KEY = "globiculum-selected-persona";
 const getPersona = (): LoaderPersona => (sessionStorage.getItem(PERSONA_STORAGE_KEY) === "parent" ? "parent" : "student");
@@ -333,12 +334,13 @@ const buildSubjectStrengths = (subject: SubjectAnalysis): string[] => {
   return bullets;
 };
 
-// Only gaps that already carry a real resourceUrl (from the curriculum
-// database, via keyGaps) become resource links — nothing is invented.
-const buildSubjectResources = (subject: SubjectAnalysis): { label: string; url: string }[] =>
-  subject.keyGaps
-    .map((gap) => ({ label: getGapTopic(gap), url: getGapUrl(gap) }))
-    .filter((r): r is { label: string; url: string } => !!r.url);
+// Subject "Resources" come from the verified learning_resources catalogue
+// (useLearningResources). They used to repeat the Missing Topics links above.
+const RESOURCE_TYPE_LABEL: Record<LearningResource["resource_type"], string> = {
+  textbook: "Textbook",
+  video: "Video",
+  practice: "Practice",
+};
 
 // Three metrics from ONLY existing fields: readiness is the existing overall
 // percentage; academic risk is its direct complement; transition risk is the
@@ -883,6 +885,11 @@ const ReportPreview = () => {
   const [isSaved, setIsSaved] = useState(!!initialSavedAnalysis);
   const [redirecting, setRedirecting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+  // Study resources for the board and the grade being entered.
+  const learning = useLearningResources(
+    formData?.targetGoal,
+    formData ? entryGrade(String(formData.snapshotGrade), formData.targetGrade) : undefined
+  );
   const analysisStartedRef = useRef(false);
   const [previousReport, setPreviousReport] = useState<{ analysis_data: AnalysisData; created_at: string } | null>(null);
   // The saved_reports row id for this report, if known — seeded from
@@ -1627,7 +1634,7 @@ const ReportPreview = () => {
                       return { topic, url: getGapUrl(gap), reason: getGapDescription(gap, subject.subject), classTag: gapClassTag(gap, entry) };
                     });
                     const strengths = buildSubjectStrengths(subject);
-                    const resources = buildSubjectResources(subject);
+                    const resources = learning.forSubject(subject.subject);
                     const difficulty = SUBJECT_DIFFICULTY[subject.alignmentLevel];
                     const accentBorder = SUBJECT_ACCENT_BORDER[subjectIndex % SUBJECT_ACCENT_BORDER.length];
 
@@ -1721,9 +1728,12 @@ const ReportPreview = () => {
                                   {resources.map((r, i) => (
                                     <li key={i} className="flex gap-1.5">
                                       <span className="text-secondary" aria-hidden="true">•</span>
-                                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
-                                        {r.label}
-                                      </a>
+                                      <span>
+                                        <a href={r.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
+                                          {r.title}
+                                        </a>
+                                        <span className="ml-1 text-[10px] text-muted-foreground">{RESOURCE_TYPE_LABEL[r.resource_type]}</span>
+                                      </span>
                                     </li>
                                   ))}
                                 </ul>
@@ -2157,27 +2167,34 @@ const ReportPreview = () => {
                       <div>
                         <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">Learning Resources</h4>
                         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                          <div className="rounded-md border border-border bg-muted/20 p-2.5">
-                            <h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
-                              <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                              eBooks
-                            </h5>
-                            <p className="text-xs text-muted-foreground">No eBooks available yet.</p>
-                          </div>
-                          <div className="rounded-md border border-border bg-muted/20 p-2.5">
-                            <h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
-                              <Youtube className="h-3.5 w-3.5" aria-hidden="true" />
-                              YouTube Channels
-                            </h5>
-                            <p className="text-xs text-muted-foreground">No YouTube channels available yet.</p>
-                          </div>
-                          <div className="rounded-md border border-border bg-muted/20 p-2.5">
-                            <h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
-                              <FileQuestion className="h-3.5 w-3.5" aria-hidden="true" />
-                              Question Banks
-                            </h5>
-                            <p className="text-xs text-muted-foreground">No question banks available yet.</p>
-                          </div>
+                          {([
+                            { type: "textbook", title: "eBooks", Icon: BookOpen, empty: "No eBooks available yet." },
+                            { type: "video", title: "Video Lessons", Icon: Youtube, empty: "No video lessons available yet." },
+                            { type: "practice", title: "Question Banks", Icon: FileQuestion, empty: "No question banks available yet." },
+                          ] as const).map(({ type, title, Icon, empty }) => {
+                            const items = learning.ofType(type, analysis.subjectAnalysis.map((s) => s.subject));
+                            return (
+                              <div key={type} className="rounded-md border border-border bg-muted/20 p-2.5">
+                                <h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                                  {title}
+                                </h5>
+                                {items.length > 0 ? (
+                                  <ul className="space-y-1 text-xs text-foreground/90">
+                                    {items.map((r) => (
+                                      <li key={r.url}>
+                                        <a href={r.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary no-print">
+                                          {r.title}
+                                        </a>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground">{empty}</p>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 

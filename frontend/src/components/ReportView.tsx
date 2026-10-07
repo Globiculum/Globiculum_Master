@@ -18,6 +18,7 @@ import { getGapReason } from "@/lib/gapExplanations";
 import globiculumLogo from "@/assets/globiculum-logo.png";
 import { entryGrade, targetStreamLabel } from "@/hooks/useCurriculumSubjects";
 import { ALL_COURSES, courseLabel } from "@/components/assessment/shared/highSchoolCourses";
+import { useLearningResources, type LearningResource } from "@/hooks/useLearningResources";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -263,9 +264,9 @@ const buildSubjectStrengths = (subject: SubjectAnalysis): string[] => {
   return bullets;
 };
 
-const buildSubjectResources = (subject: SubjectAnalysis): { label: string; url: string }[] =>
-  subject.keyGaps.map((gap) => ({ label: getGapTopic(gap), url: getGapUrl(gap) }))
-    .filter((r): r is { label: string; url: string } => !!r.url);
+// Subject "Resources" come from the verified learning_resources catalogue;
+// they used to repeat the Missing Topics links.
+const RESOURCE_TYPE_LABEL: Record<LearningResource["resource_type"], string> = { textbook: "Textbook", video: "Video", practice: "Practice" };
 
 const deriveRiskMetrics = (analysis: AnalysisData) => {
   const readiness = Math.max(0, Math.min(100, analysis.overallAlignment.percentage));
@@ -448,6 +449,7 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
   const gradeNum = parseInt(formData.snapshotGrade) || 0;
   const isFoundation = gradeNum >= 2 && gradeNum <= 10;
   const entry = entryGrade(String(gradeNum), formData.targetGrade);
+  const learning = useLearningResources(formData.targetGoal, entry);
 
   const subjectsToRender = analysis.subjectAnalysis.filter((s) => s.totalTopics > 0 || s.keyGaps.length > 0);
 
@@ -458,7 +460,7 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
       : subject.keyGaps;
     const gapRows = rawGaps.slice(0, 4).map((gap) => ({ topic: getGapTopic(gap), url: getGapUrl(gap), reason: getGapDescription(gap, subject.subject), classTag: gapClassTag(gap, entry) }));
     const strengths = buildSubjectStrengths(subject);
-    const resources = buildSubjectResources(subject);
+    const resources = learning.forSubject(subject.subject);
     const difficulty = SUBJECT_DIFFICULTY[subject.alignmentLevel];
     const accentBorder = SUBJECT_ACCENT_BORDER[subjectIndex % SUBJECT_ACCENT_BORDER.length];
 
@@ -510,7 +512,7 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
                 <h5 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-secondary">Resources</h5>
                 {resources.length > 0 ? (
                   <ul className="space-y-1 text-xs text-foreground/90">
-                    {resources.map((r, i) => <li key={i} className="flex gap-1.5"><span className="text-secondary" aria-hidden="true">•</span><a href={r.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary">{r.label}</a></li>)}
+                    {resources.map((r, i) => <li key={i} className="flex gap-1.5"><span className="text-secondary" aria-hidden="true">•</span><span><a href={r.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary">{r.title}</a><span className="ml-1 text-[10px] text-muted-foreground">{RESOURCE_TYPE_LABEL[r.resource_type]}</span></span></li>)}
                   </ul>
                 ) : <p className="text-xs text-muted-foreground">No resources available yet for this subject.</p>}
               </div>
@@ -843,9 +845,21 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
           <div>
             <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">Learning Resources</h4>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-              <div className="rounded-md border border-border bg-muted/20 p-2.5"><h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary"><BookOpen className="h-3.5 w-3.5" />eBooks</h5><p className="text-xs text-muted-foreground">No eBooks available yet.</p></div>
-              <div className="rounded-md border border-border bg-muted/20 p-2.5"><h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary"><Youtube className="h-3.5 w-3.5" />YouTube Channels</h5><p className="text-xs text-muted-foreground">No YouTube channels available yet.</p></div>
-              <div className="rounded-md border border-border bg-muted/20 p-2.5"><h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary"><FileQuestion className="h-3.5 w-3.5" />Question Banks</h5><p className="text-xs text-muted-foreground">No question banks available yet.</p></div>
+              {([
+                { type: "textbook", title: "eBooks", Icon: BookOpen, empty: "No eBooks available yet." },
+                { type: "video", title: "Video Lessons", Icon: Youtube, empty: "No video lessons available yet." },
+                { type: "practice", title: "Question Banks", Icon: FileQuestion, empty: "No question banks available yet." },
+              ] as const).map(({ type, title, Icon, empty }) => {
+                const items = learning.ofType(type, analysis.subjectAnalysis.map((s) => s.subject));
+                return (
+                  <div key={type} className="rounded-md border border-border bg-muted/20 p-2.5">
+                    <h5 className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-secondary"><Icon className="h-3.5 w-3.5" />{title}</h5>
+                    {items.length > 0
+                      ? <ul className="space-y-1 text-xs text-foreground/90">{items.map((r) => <li key={r.url}><a href={r.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary">{r.title}</a></li>)}</ul>
+                      : <p className="text-xs text-muted-foreground">{empty}</p>}
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div>
