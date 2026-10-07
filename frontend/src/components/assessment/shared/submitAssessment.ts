@@ -37,6 +37,8 @@ export interface SubmittableFormData {
   usState: string;
   previousLocation: string;
   targetGoal: string;
+  targetStream: string;
+  targetGrade: string;
   curriculumType: string;
   academicPath: string[];
   strongestSubjects: string[];
@@ -212,6 +214,13 @@ export async function submitAssessment<T extends SubmittableFormData>({
             : undefined,
           targetCurriculum: formData.targetGoal || formData.curriculumType || undefined,
           targetGoal: formData.targetGoal || undefined,
+          // Classes XI-XII only. Lets the backend narrow gap analysis to the
+          // subjects the student will actually sit, instead of every subject the
+          // target board offers.
+          targetStream: formData.targetStream || undefined,
+          // "same" | "next": the grade entered in India. Gaps are measured
+          // against that grade, not the current one.
+          targetGrade: formData.targetGrade || undefined,
           academicPath: formData.academicPath.length > 0 ? formData.academicPath : undefined,
           strongestSubjects: strongest.length > 0 ? strongest : undefined,
           challengingAreas: challenging.length > 0 ? challenging : undefined,

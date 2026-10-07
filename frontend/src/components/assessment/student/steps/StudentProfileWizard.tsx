@@ -34,6 +34,7 @@ import VoiceInputButton from "../../shared/VoiceInputButton";
 import TimelineSelector, { type TimelineOption } from "../../shared/TimelineSelector";
 import { targetGradeLabel } from "../../shared/reviewFormatting";
 import type { AssessmentFormData } from "../../shared/types";
+import { TARGET_STREAMS, gradeHasStream, normalizeTargetStream, targetStreamLabel } from "@/hooks/useCurriculumSubjects";
 
 // The reusable Globiculum icon family (frontend/src/components/icons)
 // replaces generic Lucide glyphs for the 8 explicitly-requested card-badge
@@ -187,6 +188,7 @@ type ProfileFieldId =
   | "curriculumOther"
   | "targetBoard"
   | "targetGrade"
+  | "targetStream"
   | "timeline";
 
 // Static forward order for the 8 base cards — conditional cards (usState /
@@ -201,6 +203,7 @@ const BASE_ORDER: ProfileFieldId[] = [
   "curriculum",
   "targetBoard",
   "targetGrade",
+  "targetStream",
   "timeline",
 ];
 
@@ -335,6 +338,17 @@ const buildCardSequence = (formData: AssessmentFormData): ProfileCard[] => {
       title: "Same grade, or move up?",
       errorField: "targetGrade",
     },
+    // Classes XI-XII on CBSE / ICSE only (see gradeHasStream).
+    ...(gradeHasStream(formData.snapshotGrade, formData.targetGoal, formData.targetGrade) ? [{
+      id: "targetStream" as const,
+      icon: GlobiculumTargetIcon,
+      tileColor: "violet" as TileColor,
+      milestone: "Your Goal" as Milestone,
+      navLabel: "Stream",
+      title: "Which stream will you take?",
+      hint: "Indian boards split Classes XI-XII into streams. This decides which subjects your report analyses.",
+      errorField: "targetStream" as const,
+    }] : []),
     {
       id: "timeline",
       icon: GlobiculumTimelineIcon,
@@ -354,7 +368,14 @@ const buildCardSequence = (formData: AssessmentFormData): ProfileCard[] => {
 // formData hasn't re-rendered yet at the moment a selection is made. This
 // sidesteps the race that array-index-based "next" would hit when a
 // selection itself changes which conditional card comes next.
-const nextCardId = (id: ProfileFieldId, snapshotLocation: string, currentCurriculum: string[]): ProfileFieldId | null => {
+const nextCardId = (
+  id: ProfileFieldId,
+  snapshotLocation: string,
+  currentCurriculum: string[],
+  snapshotGrade: string,
+  targetGoal: string,
+  targetGrade: string
+): ProfileFieldId | null => {
   if (id === "country") {
     if (snapshotLocation === "us") return "usState";
     if (snapshotLocation === "other") return "countryOther";
@@ -367,7 +388,12 @@ const nextCardId = (id: ProfileFieldId, snapshotLocation: string, currentCurricu
   if (id === "curriculumOther") return "targetBoard";
 
   const idx = BASE_ORDER.indexOf(id);
-  return idx === -1 || idx === BASE_ORDER.length - 1 ? null : BASE_ORDER[idx + 1];
+  if (idx === -1 || idx === BASE_ORDER.length - 1) return null;
+  const next = BASE_ORDER[idx + 1];
+  if (next === "targetStream" && !gradeHasStream(snapshotGrade, targetGoal, targetGrade)) {
+    return BASE_ORDER[idx + 2] ?? null;
+  }
+  return next;
 };
 
 const cardHasError = (card: ProfileCard, errors: Record<string, string>): boolean => {
@@ -397,6 +423,8 @@ const isCardAnswered = (card: ProfileCard, formData: AssessmentFormData): boolea
       return !!formData.targetGoal;
     case "targetGrade":
       return !!formData.targetGrade;
+    case "targetStream":
+      return !!formData.targetStream;
     case "timeline":
       return !!formData.timeline;
     default:
@@ -436,6 +464,8 @@ const displayValue = (id: ProfileFieldId, formData: AssessmentFormData): string 
       return TARGET_BOARDS.find((b) => b.value === formData.targetGoal)?.label;
     case "targetGrade":
       return TARGET_GRADE_OPTIONS.find((g) => g.value === formData.targetGrade)?.label;
+    case "targetStream":
+      return targetStreamLabel(formData.targetStream);
     case "timeline":
       return TIMELINES.find((t) => t.value === formData.timeline)?.label;
     default:
@@ -487,6 +517,11 @@ const buildSummarySections = (formData: AssessmentFormData): SummarySection[] =>
     { key: "location", icon: GlobiculumGlobeIcon, tileColor: "teal", label: "Location", value: locationValue, editCardId: "country" },
     { key: "curriculum", icon: BookOpen, tileColor: "violet", label: "Curriculum", value: curriculumValue, editCardId: "curriculum" },
     { key: "goal", icon: GlobiculumTargetIcon, tileColor: "amber", label: "Goal", value: goalValue, editCardId: "targetBoard" },
+    // Its own row so the stream can be edited directly; the Goal row's edit
+    // opens the board card, which never leads on to the stream when editing.
+    ...(gradeHasStream(formData.snapshotGrade, formData.targetGoal, formData.targetGrade)
+      ? [{ key: "stream", icon: GlobiculumTargetIcon, tileColor: "violet" as TileColor, label: "Stream", value: displayValue("targetStream", formData), editCardId: "targetStream" as const }]
+      : []),
     { key: "timeline", icon: GlobiculumTimelineIcon, tileColor: "teal", label: "Timeline", value: displayValue("timeline", formData), editCardId: "timeline" },
   ];
 };
@@ -721,7 +756,12 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
   const shouldReduceMotion = useReducedMotion() ?? false;
   const sequence = buildCardSequence(formData);
 
-  const hasExistingAnswers = BASE_ORDER.some((id) => isCardAnswered(sequence.find((c) => c.id === id)!, formData));
+  // targetStream is in BASE_ORDER but not always in the sequence, so a
+  // missing card counts as unanswered instead of crashing the page.
+  const hasExistingAnswers = BASE_ORDER.some((id) => {
+    const card = sequence.find((c) => c.id === id);
+    return card ? isCardAnswered(card, formData) : false;
+  });
   const firstUnansweredId = (): ProfileFieldId => {
     for (const card of sequence) {
       if (!isCardAnswered(card, formData)) return card.id;
@@ -756,12 +796,14 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [errors]);
 
-  const advanceTo = (nextId: ProfileFieldId | null) => {
+  // continueEditing: stay on the cards after a single-card edit, for an edit
+  // that makes another answer newly required (see selectChoice).
+  const advanceTo = (nextId: ProfileFieldId | null, continueEditing = false) => {
     setIsTransitioning(true);
     window.setTimeout(
       () => {
         setIsTransitioning(false);
-        if (nextId === null || editingSingleCard) {
+        if (nextId === null || (editingSingleCard && !continueEditing)) {
           setEditingSingleCard(false);
           setPhase("summary");
         } else {
@@ -779,20 +821,35 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
     const nextId = nextCardId(
       currentCard.id,
       currentCard.id === "country" ? (value as string) : formData.snapshotLocation,
-      currentCard.id === "curriculum" ? (value as string[]) : formData.currentCurriculum
+      currentCard.id === "curriculum" ? (value as string[]) : formData.currentCurriculum,
+      currentCard.id === "grade" ? (value as string) : formData.snapshotGrade,
+      currentCard.id === "targetBoard" ? (value as string) : formData.targetGoal,
+      currentCard.id === "targetGrade" ? (value as string) : formData.targetGrade
     );
-    advanceTo(nextId);
+    // Editing the grade, board or same/next answer from the summary can make a
+    // stream required (Grade 10 -> 11, IB -> CBSE, Grade 10 moving up). Ask for
+    // it now rather than returning to a summary that fails validation on Continue.
+    const streamNowNeeded =
+      editingSingleCard &&
+      (currentCard.id === "grade" || currentCard.id === "targetBoard" || currentCard.id === "targetGrade") &&
+      gradeHasStream(
+        currentCard.id === "grade" ? (value as string) : formData.snapshotGrade,
+        currentCard.id === "targetBoard" ? (value as string) : formData.targetGoal,
+        currentCard.id === "targetGrade" ? (value as string) : formData.targetGrade
+      ) &&
+      !normalizeTargetStream(formData.targetStream);
+    advanceTo(streamNowNeeded ? "targetStream" : nextId, streamNowNeeded);
   };
 
   const continueFromText = () => {
     if (isTransitioning) return;
-    advanceTo(nextCardId(currentCard.id, formData.snapshotLocation, formData.currentCurriculum));
+    advanceTo(nextCardId(currentCard.id, formData.snapshotLocation, formData.currentCurriculum, formData.snapshotGrade, formData.targetGoal, formData.targetGrade));
   };
 
   const continueFromName = () => {
     if (isTransitioning) return;
     if (!formData.studentName.trim() || !formData.studentLastName.trim()) return;
-    advanceTo(nextCardId("name", formData.snapshotLocation, formData.currentCurriculum));
+    advanceTo(nextCardId("name", formData.snapshotLocation, formData.currentCurriculum, formData.snapshotGrade, formData.targetGoal, formData.targetGrade));
   };
 
   const goBackOneCard = () => {
@@ -1146,6 +1203,24 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
                       label={option.label}
                       selected={formData.targetGrade === option.value}
                       onClick={() => selectChoice("targetGrade", option.value)}
+                    />
+                  ))}
+                </div>
+              </CardFrame>
+            )}
+
+            {currentCard.id === "targetStream" && (
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetStream} editing={editingSingleCard} onFinishEditing={finishEditing}>
+                <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-1 gap-3">
+                  {TARGET_STREAMS.map((stream) => (
+                    <InputCard
+                      key={stream.value}
+                      variant="large"
+                      mode="radio"
+                      label={stream.label}
+                      description={stream.hint}
+                      selected={formData.targetStream === stream.value}
+                      onClick={() => selectChoice("targetStream", stream.value)}
                     />
                   ))}
                 </div>

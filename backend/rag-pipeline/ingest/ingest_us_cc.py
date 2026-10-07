@@ -29,7 +29,7 @@ from config import (
     CURRICULUM_US_CC,
     INSERT_BATCH_SIZE,
 )
-from db.supabase_client import get_client, batch_insert, get_existing_source_ids
+from db.supabase_client import get_client, batch_insert, get_existing_source_ids, refresh_subject_index
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -238,6 +238,7 @@ def ingest_us_cc(fresh: bool = False) -> None:
         batch_insert(client, "curriculum_edges", edges, INSERT_BATCH_SIZE)
         print("  Done.")
 
+    refresh_subject_index(client)
     print(f"\n[OK] US Common Core ingestion complete.")
     print(f"  Standard nodes: {len(inserted)}")
     print(f"  Edges created:  {len(edges)}")

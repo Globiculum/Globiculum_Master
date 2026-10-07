@@ -13,7 +13,17 @@ import FieldError from "../shared/FieldError";
 import { HighSchoolMathDeepDive } from "../HighSchoolMathDeepDive";
 import AcademicPathFlashcards, { MAIN_CONFIDENCE_LEVELS } from "../student/steps/AcademicPathFlashcards";
 import ParentLanguageJourneyCard from "./ParentLanguageJourneyCard";
+import { ALL_COURSES, AP_COURSES, HIGH_SCHOOL_COURSES, courseLabel } from "../shared/highSchoolCourses";
 import type { ParentStepProps } from "./types";
+import {
+  useCurriculumSubjects,
+  useCanonicalSubjects,
+  usStateSourceSystem,
+  targetBoardToCurriculumSystem,
+  normalizeTargetStream,
+  targetStreamLabel,
+  entryGrade,
+} from "@/hooks/useCurriculumSubjects";
 
 // Step 2: Academic Path — current subjects, per-subject confidence, AP
 // courses + math track (High School only), language exposure for Indian
@@ -29,11 +39,9 @@ const EXTRACURRICULARS = [
   "Sports & Athletics", "Music & Arts", "Debate & Public Speaking", "Science Olympiad",
   "Math Competitions", "Robotics & Coding", "Community Service", "Cultural Activities",
 ];
-const AP_SUBJECTS = [
-  "AP (Advanced Placement) Calculus", "AP (Advanced Placement) Physics", "AP (Advanced Placement) Chemistry",
-  "AP (Advanced Placement) Biology", "AP (Advanced Placement) Computer Science Principles",
-  "AP (Advanced Placement) English", "AP (Advanced Placement) US History",
-];
+// High-school and AP courses (see shared/highSchoolCourses.ts): the gap engine
+// credits what these courses teach on top of the state standards.
+const AP_SUBJECTS = ALL_COURSES;
 
 // Moved here from the Learning Profile step, where it sat alongside a
 // near-duplicate "Typical Grade Range" question asking essentially the same
@@ -45,15 +53,18 @@ const OVERALL_PERFORMANCE_OPTIONS = [
   { value: "needs-support", label: "Needs Support" },
 ];
 
-// Grades 11-12 see one unified higher-secondary subject list instead of the
-// curriculum-based list below — same academicPath array field either way.
+// Grades 11-12 read their subject list from the curriculum database, filtered by
+// the stream chosen in Step 1 (see useCurriculumSubjects). It used to be a
+// hardcoded array here, which drifted from the data in two ways: it offered
+// Psychology and Sociology, which are not ingested — so the gap engine had
+// nothing to compare them against and they rendered as permanent "0% aligned"
+// cards in the report — and it had no notion of stream, so Commerce students
+// were shown Physics/Chemistry/Biology.
 const HIGHER_SECONDARY_GRADES = [11, 12];
 
-const HIGHER_SECONDARY_SUBJECTS = [
-  "Physics", "Chemistry", "Biology", "Mathematics", "Computer Science",
-  "Accountancy", "Economics", "Business Studies", "English",
-  "History", "Political Science", "Geography", "Psychology", "Sociology",
-];
+// Canonical core subjects, matching subject_mappings. Only shown if the
+// database lookup fails for a US student.
+const US_CORE_FALLBACK = ["Mathematics", "English", "Science", "Social Studies", "Computer Science"];
 
 const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string[], gradeNumber: number) => {
   if (schoolStage === "elementary" && (gradeNumber === 1 || gradeNumber === 2)) {
@@ -94,7 +105,55 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
   const gradeNumber = parseInt(formData.snapshotGrade, 10);
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(gradeNumber);
   const subjects = getSubjectsByGradeBand(formData.schoolStage, formData.currentCurriculum, gradeNumber);
-  const activeSubjectList = isHigherSecondary ? HIGHER_SECONDARY_SUBJECTS : subjects;
+
+  const usSourceSystem = usStateSourceSystem(formData.snapshotLocation, formData.usState, formData.currentCurriculum);
+  // Non-US students in Classes XI-XII are shown the target board's subjects,
+  // filtered by stream. ICSE resolves to ISC at 11-12 (same rule as the backend).
+  // For a US student the board's subjects only feed the comparison note, so they
+  // are read at the grade being entered (a Grade 10 student moving up -> Class 11).
+  const boardGrade = usSourceSystem ? entryGrade(formData.snapshotGrade, formData.targetGrade) ?? gradeNumber : gradeNumber;
+  const boardIsHigherSecondary = HIGHER_SECONDARY_GRADES.includes(boardGrade);
+  const curriculumSystem = targetBoardToCurriculumSystem(formData.targetGoal, boardGrade);
+  const showTargetList = isHigherSecondary && !usSourceSystem;
+  const { subjects: dbSubjects, loading: subjectsLoading, error: subjectsError } =
+    useCurriculumSubjects({
+      curriculumSystem,
+      grade: boardGrade,
+      stream: normalizeTargetStream(formData.targetStream) || null,
+      enabled: boardIsHigherSecondary && !!curriculumSystem,
+    });
+
+  // For a US student the list below is what they study now; the board's stream
+  // subjects are what the report compares them with. Saying so keeps parents
+  // from expecting Physics or Accountancy in this list.
+  const boardLabel = formData.targetGoal === "icse" ? (boardIsHigherSecondary ? "ISC" : "ICSE") : formData.targetGoal?.toUpperCase();
+  const streamName = targetStreamLabel(formData.targetStream);
+  const streamLabel = streamName ? `${streamName} stream` : "subjects";
+  const comparisonNote =
+    usSourceSystem && boardIsHigherSecondary && dbSubjects.length > 0
+      ? `These are the subjects your child studies now. The report compares them with the ${boardLabel} Class ${boardGrade} ${streamLabel}: ${dbSubjects.map((s) => s.subject).join(", ")}.`
+      : null;
+
+  // A student on the regular US curriculum gets their own state's subjects at
+  // every grade, as canonical names resolved by subject_mappings. These are the
+  // subjects they study today, which is what this step asks, and the gap engine
+  // reads them back to decide which source domains the student has covered.
+  // (The target subjects for Classes XI-XII now come from the stream chosen in
+  // Step 1, so this list no longer has to stand in for them.)
+  const { subjects: usSubjects, loading: usLoading, error: usError } = useCanonicalSubjects({
+    curriculumSystem: usSourceSystem,
+    grade: gradeNumber,
+    enabled: !!usSourceSystem,
+  });
+  // Same vocabulary as the database, used only if the lookup fails, so a
+  // network error never strands the form without a subject list.
+  const usSubjectList = usSubjects.length > 0 ? usSubjects.map((s) => s.subject) : US_CORE_FALLBACK;
+
+  const activeSubjectList = usSourceSystem
+    ? usSubjectList
+    : isHigherSecondary
+      ? dbSubjects.map((s) => s.subject)
+      : subjects;
 
   // Same two-step pattern as the Foreign Language / Indian Languages cards
   // in ParentLanguageJourneyCard.tsx: pick which apply from the chip grid
@@ -115,27 +174,65 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
     <SectionCard logo={parentLogo} title="Academic Path">
       <div className="-mt-4 text-sm text-muted-foreground">Tell us what the student studies today.</div>
 
-      <AcademicPathFlashcards
-        activeSubjectList={activeSubjectList}
-        requiredSubjects={NO_REQUIRED_SUBJECTS}
-        academicPath={formData.academicPath}
-        subjectConfidences={formData.subjectConfidences}
-        setAcademicPath={(value) => onFieldChange("academicPath", value)}
-        setConfidence={(subject, value) => onRecordFieldChange("subjectConfidences", subject, value)}
-        error={fieldErrors.academicPath}
-        navTitle="Your Child's Academic Path"
-        navSubtitle="See how your child is doing in each subject."
-        microcopy={{
-          strong: "Seems confident",
-          moderate: "Understands most of it",
-          "needs-help": "Could use more support",
-        }}
-        excludeFromCustom={AP_SUBJECTS}
-        customCardTitle="Any other subjects?"
-        customCardSubtitle="Add any subject not listed above, then note your child's confidence."
-        customCardQuestion="How confident does your child seem in this subject?"
-        summaryTitle="Your Child's Academic Path is ready."
-      />
+      {comparisonNote && (
+        <div className="rounded-lg border border-secondary/30 bg-secondary/5 px-4 py-3 text-sm text-foreground">
+          {comparisonNote}
+        </div>
+      )}
+
+      {usSourceSystem && usLoading && (
+        <div className="text-sm text-muted-foreground">Loading your state&apos;s subjects…</div>
+      )}
+      {usSourceSystem && !usLoading && usError && (
+        <div className="text-sm text-muted-foreground">
+          Showing core subjects. Your state&apos;s full subject list couldn&apos;t be loaded.
+        </div>
+      )}
+      {showTargetList && subjectsLoading && (
+        <div className="text-sm text-muted-foreground">Loading subjects for this board and stream…</div>
+      )}
+      {showTargetList && !subjectsLoading && !curriculumSystem && (
+        <div className="text-sm text-muted-foreground">
+          Pick a target board in the previous step to see its Class {gradeNumber} subjects.
+        </div>
+      )}
+      {showTargetList && !subjectsLoading && curriculumSystem && !normalizeTargetStream(formData.targetStream) && (
+        <div className="text-sm text-muted-foreground">
+          Choose a stream in the previous step to narrow these subjects.
+        </div>
+      )}
+      {showTargetList && !subjectsLoading && subjectsError && (
+        <div className="text-sm text-destructive">
+          Couldn&apos;t load the subject list ({subjectsError}). You can continue — subjects can be
+          confirmed later.
+        </div>
+      )}
+
+      {/* Held back until the state's list arrives, so the cards don't open on
+          the five-subject fallback and then change under the parent. */}
+      {!(usSourceSystem && usLoading) && (
+        <AcademicPathFlashcards
+          activeSubjectList={activeSubjectList}
+          requiredSubjects={NO_REQUIRED_SUBJECTS}
+          academicPath={formData.academicPath}
+          subjectConfidences={formData.subjectConfidences}
+          setAcademicPath={(value) => onFieldChange("academicPath", value)}
+          setConfidence={(subject, value) => onRecordFieldChange("subjectConfidences", subject, value)}
+          error={fieldErrors.academicPath}
+          navTitle="Your Child's Academic Path"
+          navSubtitle="See how your child is doing in each subject."
+          microcopy={{
+            strong: "Seems confident",
+            moderate: "Understands most of it",
+            "needs-help": "Could use more support",
+          }}
+          excludeFromCustom={AP_SUBJECTS}
+          customCardTitle="Any other subjects?"
+          customCardSubtitle="Add any subject not listed above, then note your child's confidence."
+          customCardQuestion="How confident does your child seem in this subject?"
+          summaryTitle="Your Child's Academic Path is ready."
+        />
+      )}
 
       <span id="academic-path-next-section" className="sr-only" aria-hidden="true" />
 
@@ -146,9 +243,9 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
         // right, for visual consistency between the two sections — even
         // though AP Courses is a single card, not a multi-card sequence.
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <nav aria-label="AP courses progress" className="hidden lg:block lg:w-[232px] lg:shrink-0">
+          <nav aria-label="Courses progress" className="hidden lg:block lg:w-[232px] lg:shrink-0">
             <div className="lg:sticky lg:top-4">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">AP Courses</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Courses</h3>
               <ol className="mt-3">
                 <li className="pb-3 last:pb-0">
                   <div className="relative z-10 flex items-center gap-2.5 rounded-lg p-0.5">
@@ -166,7 +263,7 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
                     </span>
                     <span className="min-w-0">
                       <span className={cn("block text-sm", apSectionComplete ? "font-medium text-secondary" : "font-semibold text-foreground")}>
-                        AP Courses & University Prep
+                        High School & AP Courses
                       </span>
                       <span className={cn("block text-xs", apSectionComplete ? "font-medium text-secondary" : "text-muted-foreground/70")}>
                         {apSectionComplete ? `${apAddedCount} added` : "None added"}
@@ -193,7 +290,8 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
                     <GlobiculumTargetIcon size={34} />
                   </GlobiculumIconTile>
                 </div>
-                <h4 className="text-xl font-bold text-foreground">AP Courses & University Prep</h4>
+                <h4 className="text-xl font-bold text-foreground">High School & AP Courses</h4>
+                <p className="mt-1 text-sm text-muted-foreground">Courses your child has taken or is taking. State standards are a minimum; these tell us what was actually covered.</p>
                 {apAddedCount > 0 && (
                   <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-secondary">
                     <Check className="h-3.5 w-3.5" aria-hidden="true" /> {apAddedCount} added
@@ -201,23 +299,31 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
                 )}
               </div>
 
-              <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {AP_SUBJECTS.map((ap) => (
-                  <InputCard
-                    key={ap}
-                    variant="chip"
-                    label={ap.replace("(Advanced Placement) ", "")}
-                    selected={formData.academicPath.includes(ap)}
-                    onClick={() => onArrayToggle("academicPath", ap)}
-                  />
-                ))}
-              </div>
+              {[
+                { title: "Courses", courses: HIGH_SCHOOL_COURSES },
+                { title: "AP courses", courses: AP_COURSES },
+              ].map(({ title, courses }) => (
+                <div key={title} className="mt-5">
+                  <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h5>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {courses.map((ap) => (
+                      <InputCard
+                        key={ap}
+                        variant="chip"
+                        label={courseLabel(ap)}
+                        selected={formData.academicPath.includes(ap)}
+                        onClick={() => onArrayToggle("academicPath", ap)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
 
               {selectedApSubjects.length > 0 && (
                 <div className="mt-5 space-y-1.5">
                   <p className="text-center text-sm font-medium text-muted-foreground">How confident does your child seem in each?</p>
                   {selectedApSubjects.map((ap) => {
-                    const label = ap.replace("(Advanced Placement) ", "");
+                    const label = courseLabel(ap);
                     const current = formData.subjectConfidences[ap];
                     return (
                       <div key={ap} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3 py-2.5">

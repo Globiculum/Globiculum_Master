@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ParentFormData } from "./parentMapper";
+import { gradeHasStream, normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
 
 // parentValidation.ts
 //
@@ -48,6 +49,7 @@ const schoolProfileStepSchema = z
     currentCurriculumOther: z.string().optional(),
     targetGoal: z.string().min(1, "Please select a target Indian board"),
     targetGrade: z.string().min(1, "Please select a target grade"),
+    targetStream: z.string().optional(),
     timeline: z.string().min(1, "Please select a transition timeline"),
   })
   .superRefine((data, ctx) => {
@@ -62,6 +64,9 @@ const schoolProfileStepSchema = z
     }
     if (data.currentCurriculum.includes("other") && !data.currentCurriculumOther) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please specify the curriculum", path: ["currentCurriculumOther"] });
+    }
+    if (gradeHasStream(data.snapshotGrade, data.targetGoal, data.targetGrade) &&!normalizeTargetStream(data.targetStream)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please choose a stream", path: ["targetStream"] });
     }
   });
 

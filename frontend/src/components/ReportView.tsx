@@ -16,11 +16,19 @@ import {
 import { mergeWithBaseline } from "@/lib/gradeBaselineTopics";
 import { getGapReason } from "@/lib/gapExplanations";
 import globiculumLogo from "@/assets/globiculum-logo.png";
+import { entryGrade, targetStreamLabel } from "@/hooks/useCurriculumSubjects";
+import { ALL_COURSES, courseLabel } from "@/components/assessment/shared/highSchoolCourses";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-export type GapItem = string | { topic: string; resourceUrl?: string; subject?: string; reason?: string };
+export type GapItem = string | { topic: string; resourceUrl?: string; subject?: string; reason?: string; grade?: number };
+
+// A gap from a class before the one the student enters is a foundation.
+const gapClassTag = (g: GapItem, entry: number | undefined): string | undefined => {
+  const grade = typeof g === "string" ? undefined : g.grade;
+  return grade && entry && grade < entry ? `Class ${grade} foundation` : undefined;
+};
 export type ResourceItem = string | { name: string; url?: string };
 
 export interface SubjectAnalysis {
@@ -148,9 +156,16 @@ const buildProfileGrid = (formData: any): { label: string; value: string }[] => 
     { label: "Student Name", value: `${name}${age}` },
     { label: "Target Board", value: targetLabel },
     { label: "School Stage", value: schoolStageLabel },
-    { label: "Transition Timeline", value: timelineLabel },
+    // The family's own plan; "Estimated Prep Time" below is our estimate.
+    { label: "Planned Move", value: timelineLabel },
     { label: "Origin Curriculum", value: originLabel },
     { label: "Language(s)", value: languages },
+    // Shown only when chosen: the report credits these courses' content.
+    ...(() => {
+      const path: unknown = formData.academicPath;
+      const taken = Array.isArray(path) ? ALL_COURSES.filter((c) => path.includes(c)) : [];
+      return taken.length > 0 ? [{ label: "Courses Taken", value: taken.map(courseLabel).join(", ") }] : [];
+    })(),
   ];
 };
 
@@ -234,8 +249,17 @@ const getResUrl = (r: ResourceItem): string | undefined => typeof r === "string"
 
 const buildSubjectStrengths = (subject: SubjectAnalysis): string[] => {
   const bullets: string[] = [`${subject.topicsCovered} of ${subject.totalTopics} target topics already covered.`];
-  if (subject.alignmentLevel === "strong") bullets.push("No significant gaps identified in this subject.");
+  // "Strong" subjects can still list missing topics; saying "no gaps" above
+  // that list contradicted it.
+  if (subject.alignmentLevel === "strong") bullets.push(subject.keyGaps.length === 0
+    ? "No significant gaps identified in this subject."
+    : "Only a few narrow gaps remain, listed below.");
   else if (subject.keyGaps.length === 0) bullets.push("No specific gap topics flagged for this subject yet.");
+  // Coverage is measured by topic, not depth: 100% means every topic appears
+  // in the current curriculum, not that the student is exam-ready for it.
+  if (subject.totalTopics > 0 && subject.topicsCovered / subject.totalTopics >= 0.9) {
+    bullets.push("Topics match, but the Indian board may cover them in more depth — practise with past board papers.");
+  }
   return bullets;
 };
 
@@ -256,8 +280,10 @@ const deriveRiskMetrics = (analysis: AnalysisData) => {
   ];
 };
 
+// The estimate first: the model copies the prompt's example phase durations,
+// so reading the phase first gave an 8-month plan under a "3-6 months" estimate.
 const extractMonthCount = (analysis: AnalysisData): number => {
-  const candidates = [analysis.bridgeTimeline?.phase3?.duration, analysis.overallAlignment?.estimatedDuration].filter((v): v is string => !!v);
+  const candidates = [analysis.overallAlignment?.estimatedDuration, analysis.bridgeTimeline?.phase3?.duration].filter((v): v is string => !!v);
   for (const text of candidates) {
     const numbers = (text.match(/\d+/g) ?? []).map(Number);
     if (numbers.length > 0) return Math.max(1, ...numbers);
@@ -285,7 +311,11 @@ const buildMonthlyBridgePlan = (analysis: AnalysisData) => {
     if (nums.length === 1) return [nums[0], nums[0]];
     return null;
   });
-  const phaseSpans: [number, number][] = parsedRanges.every((r): r is [number, number] => r !== null)
+  // The model's own ranges are used only when they fit the estimate; otherwise
+  // the months are split evenly across the three phases.
+  const rangesFit = parsedRanges.every((r): r is [number, number] => r !== null)
+    && (parsedRanges as [number, number][])[2][1] === monthCount;
+  const phaseSpans: [number, number][] = rangesFit
     ? (parsedRanges as [number, number][])
     : (() => {
         const base = Math.floor(monthCount / 3); const remainder = monthCount % 3; let cursor = 1;
@@ -318,6 +348,8 @@ const buildWhyStartNow = (analysis: AnalysisData): string[] => {
 };
 
 const CRITICAL_GAP_PRIORITY_WEIGHT: Record<"High" | "Medium" | "Low", number> = { High: 3, Medium: 2, Low: 1 };
+// Roughly one textbook chapter; no single gap is shown as needing longer.
+const MAX_WEEKS_PER_GAP = 4;
 
 const buildTopicSubjectMap = (analysis: AnalysisData): Map<string, string> => {
   const map = new Map<string, string>();
@@ -326,7 +358,7 @@ const buildTopicSubjectMap = (analysis: AnalysisData): Map<string, string> => {
   return map;
 };
 
-const buildCriticalGapsTable = (analysis: AnalysisData) => {
+const buildCriticalGapsTable = (analysis: AnalysisData, entry?: number) => {
   const gaps = analysis.criticalGaps; const total = gaps.length;
   if (total === 0) return [];
   const topicSubjectMap = buildTopicSubjectMap(analysis);
@@ -338,8 +370,9 @@ const buildCriticalGapsTable = (analysis: AnalysisData) => {
   return tiered.map(({ gap, priority }) => {
     const topic = getGapTopic(gap);
     const subject = getGapSubject(gap) ?? topicSubjectMap.get(topic.toLowerCase().trim()) ?? "";
-    const weeks = Math.max(1, Math.round((CRITICAL_GAP_PRIORITY_WEIGHT[priority] / weightSum) * totalWeeks));
-    return { priority, topic, url: getGapUrl(gap), description: getGapDescription(gap, subject), weeks };
+    // Capped: with few critical gaps the whole plan was split between them.
+    const weeks = Math.min(MAX_WEEKS_PER_GAP, Math.max(1, Math.round((CRITICAL_GAP_PRIORITY_WEIGHT[priority] / weightSum) * totalWeeks)));
+    return { priority, topic, url: getGapUrl(gap), description: getGapDescription(gap, subject), weeks, classTag: gapClassTag(gap, entry) };
   });
 };
 
@@ -364,7 +397,9 @@ const buildParentFAQ = (analysis: AnalysisData) => {
   const { critical } = summarizeSubjects(analysis);
   const duration = analysis.overallAlignment.estimatedDuration;
   const risk = deriveRiskLevel(analysis.overallAlignment.percentage);
-  const phase1Name = analysis.bridgeTimeline.phase1.name;
+  // The model sometimes names it "Foundation Phase"; drop the trailing word so
+  // the sentence below doesn't read "the Foundation Phase phase".
+  const phase1Name = analysis.bridgeTimeline.phase1.name.replace(/\s+phase$/i, "");
   return [
     { question: "Do we need a tutor?", answer: critical.length > 0 ? `Not required, but recommended for ${critical[0].subject} specifically.` : "Not required based on the current assessment — self-guided study should be sufficient." },
     { question: "What if we start late?", answer: `Still workable — compress the ${phase1Name} phase and consider a tutor if the timeline shortens further.` },
@@ -412,6 +447,7 @@ interface ReportViewProps {
 const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportViewProps) => {
   const gradeNum = parseInt(formData.snapshotGrade) || 0;
   const isFoundation = gradeNum >= 2 && gradeNum <= 10;
+  const entry = entryGrade(String(gradeNum), formData.targetGrade);
 
   const subjectsToRender = analysis.subjectAnalysis.filter((s) => s.totalTopics > 0 || s.keyGaps.length > 0);
 
@@ -420,7 +456,7 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
     const rawGaps = isFoundation
       ? mergeWithBaseline(gradeNum, subject.subject, subject.keyGaps.map(getGapTopic), { maxTopics: 6 }).map(t => subject.keyGaps.find(g => getGapTopic(g) === t) ?? t)
       : subject.keyGaps;
-    const gapRows = rawGaps.slice(0, 4).map((gap) => ({ topic: getGapTopic(gap), url: getGapUrl(gap), reason: getGapDescription(gap, subject.subject) }));
+    const gapRows = rawGaps.slice(0, 4).map((gap) => ({ topic: getGapTopic(gap), url: getGapUrl(gap), reason: getGapDescription(gap, subject.subject), classTag: gapClassTag(gap, entry) }));
     const strengths = buildSubjectStrengths(subject);
     const resources = buildSubjectResources(subject);
     const difficulty = SUBJECT_DIFFICULTY[subject.alignmentLevel];
@@ -455,7 +491,7 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
                       <tbody>
                         {gapRows.map((g, i) => (
                           <tr key={i} className={i % 2 === 1 ? "bg-muted/40" : undefined}>
-                            <td className="border-t border-border px-2 py-1 align-top font-medium">{g.url ? <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary">{g.topic}</a> : g.topic}</td>
+                            <td className="border-t border-border px-2 py-1 align-top font-medium">{g.url ? <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary">{g.topic}</a> : g.topic}{g.classTag && <span className="ml-1 whitespace-nowrap rounded bg-muted px-1 py-0.5 text-[9px] font-semibold text-muted-foreground">{g.classTag}</span>}</td>
                             <td className="border-t border-border px-2 py-1 align-top text-muted-foreground">{g.reason}</td>
                           </tr>
                         ))}
@@ -489,7 +525,7 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
   const monthlyPlan = buildMonthlyBridgePlan(analysis);
   const whyStartNow = buildWhyStartNow(analysis);
   const immediateActions = buildImmediateActions(analysis);
-  const criticalGapsTable = buildCriticalGapsTable(analysis);
+  const criticalGapsTable = buildCriticalGapsTable(analysis, entry);
   const studentChecklist = buildStudentChecklist(analysis);
   const teacherRecommendations = buildTeacherRecommendations(analysis);
   const culturalTips = analysis.recommendations.culturalLanguage;
@@ -566,7 +602,7 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
           </div>
           <div className="flex items-center gap-2.5 rounded-md border-t-2 border-violet bg-violet/10 px-4 py-2.5">
             <Clock className="h-4 w-4 shrink-0 text-primary" />
-            <div><div className="text-lg font-bold leading-none text-primary">{analysis.overallAlignment.estimatedDuration}</div><div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Time to Prepare</div></div>
+            <div><div className="text-lg font-bold leading-none text-primary">{analysis.overallAlignment.estimatedDuration}</div><div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Estimated Prep Time</div></div>
           </div>
         </div>
 
@@ -615,7 +651,7 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
         </div>
 
         {/* D2. Stream Readiness for Grade 11-12 */}
-        {formData.schoolStage === "high" && gradeNum >= 11 && (() => {
+        {formData.schoolStage === "high" && (entryGrade(String(gradeNum), formData.targetGrade) ?? 0) >= 11 && (() => {
           const subjects = formData.academicPath || [];
           const subjectAnalysis = analysis.subjectAnalysis || [];
           const getReadiness = (keywords: RegExp): "strong" | "moderate" | "preparation" => {
@@ -638,6 +674,25 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
             preparation: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200",
           };
           const readinessLabels = { strong: "Strong Readiness", moderate: "Moderate Readiness", preparation: "Preparation Required" };
+          // A stream chosen in the form decides the subjects; suggesting one from the
+          // US subject names (which say "Science", never "Biology") contradicted it.
+          const chosenStream = targetStreamLabel(formData.targetStream);
+          if (chosenStream) {
+            const levelOf = (level?: string): "strong" | "moderate" | "preparation" =>
+              level === "strong" ? "strong" : level === "moderate" ? "moderate" : "preparation";
+            return (
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-1.5"><Layers className="h-4 w-4 text-primary" /><h3 className="text-base font-semibold">Stream Readiness</h3></div>
+                <p className="text-xs text-muted-foreground">Chosen stream: <span className="font-medium text-foreground">{chosenStream}</span>. Readiness in each subject of that stream, based on current US coursework.</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                  {subjectAnalysis.map((s) => {
+                    const readiness = levelOf(s.alignmentLevel);
+                    return (<div key={s.subject} className={`p-2.5 rounded-lg border text-center ${readinessColors[readiness]}`}><div className="text-xs font-semibold">{s.subject}</div><div className="text-[11px] mt-0.5">{readinessLabels[readiness]}</div></div>);
+                  })}
+                </div>
+              </div>
+            );
+          }
           const pcmReady = streamSubjects.filter(s => /math|physics|chemistry/i.test(s.name)).every(s => s.readiness !== "preparation");
           const pcbReady = streamSubjects.filter(s => /math|physics|chemistry|biology/i.test(s.name) && !/computer/i.test(s.name)).some(s => /biology/i.test(s.name) && s.readiness !== "preparation");
           return (
@@ -683,7 +738,7 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
                     {gaps.map((g, i) => (
                       <div key={i} className="px-3 py-2.5 text-xs">
                         <div className="flex items-start justify-between gap-3">
-                          <span className="font-semibold text-foreground">{g.url ? <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary">{g.topic}</a> : g.topic}</span>
+                          <span className="font-semibold text-foreground">{g.url ? <a href={g.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary">{g.topic}</a> : g.topic}{g.classTag && <span className="ml-1.5 whitespace-nowrap rounded bg-muted px-1 py-0.5 text-[9px] font-semibold text-muted-foreground">{g.classTag}</span>}</span>
                           <span className="shrink-0 rounded-full bg-secondary/10 px-2 py-0.5 text-[10px] font-semibold text-secondary">{g.weeks} Week{g.weeks === 1 ? "" : "s"}</span>
                         </div>
                         <p className="mt-1 text-muted-foreground">{g.description}</p>

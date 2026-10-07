@@ -25,6 +25,8 @@ import { getGapReason } from "@/lib/gapExplanations";
 import { deriveSubjectStrengths } from "@/components/assessment/shared/submitAssessment";
 import ReportGenerationLoader, { type LoaderPersona } from "@/components/assessment/shared/ReportGenerationLoader";
 import globiculumLogo from "@/assets/globiculum-logo.png";
+import { entryGrade, targetStreamLabel } from "@/hooks/useCurriculumSubjects";
+import { ALL_COURSES, courseLabel } from "@/components/assessment/shared/highSchoolCourses";
 
 const PERSONA_STORAGE_KEY = "globiculum-selected-persona";
 const getPersona = (): LoaderPersona => (sessionStorage.getItem(PERSONA_STORAGE_KEY) === "parent" ? "parent" : "student");
@@ -177,10 +179,18 @@ const buildProfileGrid = (formData: any): { label: string; value: string }[] => 
     { label: "Student Name", value: `${name}${age}` },
     { label: "Target Board", value: targetLabel },
     { label: "School Stage", value: schoolStageLabel },
-    { label: "Transition Timeline", value: timelineLabel },
+    // The family's own plan; "Estimated Prep Time" below is our estimate.
+    { label: "Planned Move", value: timelineLabel },
     { label: "Origin Curriculum", value: originLabel },
     { label: "Language(s)", value: languages },
+    // Shown only when chosen: the report credits these courses' content.
+    ...coursesTakenRow(formData.academicPath),
   ];
+};
+
+const coursesTakenRow = (academicPath: unknown): { label: string; value: string }[] => {
+  const taken = Array.isArray(academicPath) ? ALL_COURSES.filter((c) => academicPath.includes(c)) : [];
+  return taken.length > 0 ? [{ label: "Courses Taken", value: taken.map(courseLabel).join(", ") }] : [];
 };
 
 // Per-subject alignment % derived from the EXISTING topicsCovered/totalTopics
@@ -306,10 +316,19 @@ const SUBJECT_DIFFICULTY: Record<SubjectAnalysis["alignmentLevel"], { level: str
 // rather than inventing specific topic names.
 const buildSubjectStrengths = (subject: SubjectAnalysis): string[] => {
   const bullets: string[] = [`${subject.topicsCovered} of ${subject.totalTopics} target topics already covered.`];
+  // "Strong" subjects can still list missing topics; saying "no gaps" above
+  // that list contradicted it.
   if (subject.alignmentLevel === "strong") {
-    bullets.push("No significant gaps identified in this subject.");
+    bullets.push(subject.keyGaps.length === 0
+      ? "No significant gaps identified in this subject."
+      : "Only a few narrow gaps remain, listed below.");
   } else if (subject.keyGaps.length === 0) {
     bullets.push("No specific gap topics flagged for this subject yet.");
+  }
+  // Coverage is measured by topic, not depth: 100% means every topic appears
+  // in the current curriculum, not that the student is exam-ready for it.
+  if (subject.totalTopics > 0 && subject.topicsCovered / subject.totalTopics >= 0.9) {
+    bullets.push("Topics match, but the Indian board may cover them in more depth — practise with past board papers.");
   }
   return bullets;
 };
@@ -338,11 +357,13 @@ const deriveRiskMetrics = (analysis: AnalysisData): { label: string; percentage:
   ];
 };
 
-// Total prep months come from the bridge timeline's own phase durations
-// (e.g. "Months 7-8") or, failing that, the overall estimatedDuration string
-// — never a fixed/invented number.
+// Total prep months come from the overall estimatedDuration (e.g. "3-6
+// months" -> 6) or, failing that, the last bridge phase's duration — never a
+// fixed/invented number. The estimate comes first: the model copies the
+// prompt's example phase durations ("Months 1-3 ... 7-8"), so reading the
+// phase first gave an 8-month plan under a "3-6 months" estimate.
 const extractMonthCount = (analysis: AnalysisData): number => {
-  const candidates = [analysis.bridgeTimeline?.phase3?.duration, analysis.overallAlignment?.estimatedDuration].filter(
+  const candidates = [analysis.overallAlignment?.estimatedDuration, analysis.bridgeTimeline?.phase3?.duration].filter(
     (v): v is string => !!v
   );
   for (const text of candidates) {
@@ -386,7 +407,11 @@ const buildMonthlyBridgePlan = (
     return null;
   });
 
-  const phaseSpans: [number, number][] = parsedRanges.every((r): r is [number, number] => r !== null)
+  // The model's own ranges are used only when they fit the estimate; otherwise
+  // the months are split evenly across the three phases.
+  const rangesFit = parsedRanges.every((r): r is [number, number] => r !== null)
+    && (parsedRanges as [number, number][])[2][1] === monthCount;
+  const phaseSpans: [number, number][] = rangesFit
     ? (parsedRanges as [number, number][])
     : (() => {
         const base = Math.floor(monthCount / 3);
@@ -456,6 +481,8 @@ const buildWhyStartNow = (analysis: AnalysisData): string[] => {
 // backend value. Description reuses the existing getGapReason() explainer
 // already used in the Subject-wise Missing Topics tables.
 const CRITICAL_GAP_PRIORITY_WEIGHT: Record<"High" | "Medium" | "Low", number> = { High: 3, Medium: 2, Low: 1 };
+// Roughly one textbook chapter; no single gap is shown as needing longer.
+const MAX_WEEKS_PER_GAP = 4;
 
 // analysis.criticalGaps items don't carry a subject field, so getGapReason()
 // was always called with subject="" here — meaning its subject-specific
@@ -478,8 +505,9 @@ const buildTopicSubjectMap = (analysis: AnalysisData): Map<string, string> => {
 };
 
 const buildCriticalGapsTable = (
-  analysis: AnalysisData
-): { priority: "High" | "Medium" | "Low"; subject: string; topic: string; url?: string; description: string; weeks: number }[] => {
+  analysis: AnalysisData,
+  entry?: number
+): { priority: "High" | "Medium" | "Low"; subject: string; topic: string; url?: string; description: string; weeks: number; classTag?: string }[] => {
   const gaps = analysis.criticalGaps;
   const total = gaps.length;
   if (total === 0) return [];
@@ -503,8 +531,10 @@ const buildCriticalGapsTable = (
     // critical gap); fall back to the keyGaps-derived map for older/LLM-only
     // entries that predate that field (only covers each subject's first 6).
     const subject = getGapSubject(gap) ?? topicSubjectMap.get(topic.toLowerCase().trim()) ?? "General";
-    const weeks = Math.max(1, Math.round((CRITICAL_GAP_PRIORITY_WEIGHT[priority] / weightSum) * totalWeeks));
-    return { priority, subject, topic, url: getGapUrl(gap), description: getGapDescription(gap, subject), weeks };
+    // Capped: with few critical gaps the whole plan was split between them
+    // ("16 Weeks" for one chapter).
+    const weeks = Math.min(MAX_WEEKS_PER_GAP, Math.max(1, Math.round((CRITICAL_GAP_PRIORITY_WEIGHT[priority] / weightSum) * totalWeeks)));
+    return { priority, subject, topic, url: getGapUrl(gap), description: getGapDescription(gap, subject), weeks, classTag: gapClassTag(gap, entry) };
   });
 };
 
@@ -555,7 +585,9 @@ const buildParentFAQ = (analysis: AnalysisData): { question: string; answer: str
   const { critical } = summarizeSubjects(analysis);
   const duration = analysis.overallAlignment.estimatedDuration;
   const risk = deriveRiskLevel(analysis.overallAlignment.percentage);
-  const phase1Name = analysis.bridgeTimeline.phase1.name;
+  // The model sometimes names it "Foundation Phase"; drop the trailing word so
+  // the sentence below doesn't read "the Foundation Phase phase".
+  const phase1Name = analysis.bridgeTimeline.phase1.name.replace(/\s+phase$/i, "");
 
   const tutorAnswer =
     critical.length > 0
@@ -609,7 +641,14 @@ const ReadinessDonut = ({ percentage }: { percentage: number }) => {
 };
 
 // Gap items: AI returns either a plain string (legacy) or { topic, resourceUrl? }
-type GapItem = string | { topic: string; resourceUrl?: string; subject?: string; reason?: string };
+type GapItem = string | { topic: string; resourceUrl?: string; subject?: string; reason?: string; grade?: number };
+
+// A gap from a class before the one the student enters (a Class 11 unit for a
+// Class 12 entrant) is a foundation to cover first, not this year's syllabus.
+const gapClassTag = (g: GapItem, entry: number | undefined): string | undefined => {
+  const grade = typeof g === "string" ? undefined : g.grade;
+  return grade && entry && grade < entry ? `Class ${grade} foundation` : undefined;
+};
 // Resource items: AI returns either a plain string (legacy) or { name, url? }
 type ResourceItem = string | { name: string; url?: string };
 
@@ -971,6 +1010,11 @@ const ReportPreview = () => {
         currentCurriculum,
         targetCurriculum,
         targetGoal,
+        // Must match submitAssessment.ts's payload: this call runs whenever the
+        // submit-time analysis didn't (no student profile, save failed), and
+        // without the stream the backend compares every subject the board has.
+        targetStream: typeof raw?.targetStream === "string" && raw.targetStream ? raw.targetStream : undefined,
+        targetGrade: raw?.targetGrade === "next" || raw?.targetGrade === "same" ? raw.targetGrade : undefined,
         academicPath: Array.isArray(raw?.academicPath) ? raw.academicPath : undefined,
         // strongestSubjects/challengingAreas are derived from subjectConfidences
         // (single source of truth — see deriveSubjectStrengths), falling back to
@@ -1483,7 +1527,7 @@ const ReportPreview = () => {
                       <Clock className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                       <div>
                         <div className="text-lg font-bold leading-none text-primary">{analysis.overallAlignment.estimatedDuration}</div>
-                        <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Time to Prepare</div>
+                        <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Estimated Prep Time</div>
                       </div>
                     </div>
                   </div>
@@ -1577,9 +1621,10 @@ const ReportPreview = () => {
                     const rawGaps = isFoundation
                       ? mergeWithBaseline(gradeNum, subject.subject, subject.keyGaps.map(getGapTopic), { maxTopics: 6 }).map(t => subject.keyGaps.find(g => getGapTopic(g) === t) ?? t)
                       : subject.keyGaps;
+                    const entry = entryGrade(String(formData.snapshotGrade), formData.targetGrade);
                     const gapRows = rawGaps.slice(0, 4).map((gap) => {
                       const topic = getGapTopic(gap);
-                      return { topic, url: getGapUrl(gap), reason: getGapDescription(gap, subject.subject) };
+                      return { topic, url: getGapUrl(gap), reason: getGapDescription(gap, subject.subject), classTag: gapClassTag(gap, entry) };
                     });
                     const strengths = buildSubjectStrengths(subject);
                     const resources = buildSubjectResources(subject);
@@ -1644,6 +1689,9 @@ const ReportPreview = () => {
                                               </a>
                                             ) : (
                                               g.topic
+                                            )}
+                                            {g.classTag && (
+                                              <span className="ml-1 whitespace-nowrap rounded bg-muted px-1 py-0.5 text-[9px] font-semibold text-muted-foreground">{g.classTag}</span>
                                             )}
                                           </td>
                                           <td className="border-t border-border px-2 py-1 align-top text-muted-foreground">{g.reason}</td>
@@ -1710,7 +1758,7 @@ const ReportPreview = () => {
                 })()}
 
                 {/* D2. Stream Readiness for High School 11-12 */}
-                {analysis && formData.schoolStage === "high" && parseInt(formData.snapshotGrade) >= 11 && (() => {
+                {analysis && formData.schoolStage === "high" && (entryGrade(String(formData.snapshotGrade), formData.targetGrade) ?? 0) >= 11 && (() => {
                   // Determine stream readiness from selected subjects
                   const subjects = formData.academicPath || [];
                   const subjectAnalysis = analysis.subjectAnalysis || [];
@@ -1740,6 +1788,25 @@ const ReportPreview = () => {
                     preparation: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800",
                   };
                   const readinessLabels = { strong: "Strong Readiness", moderate: "Moderate Readiness", preparation: "Preparation Required" };
+                  // A stream chosen in the form decides the subjects; suggesting one from the
+                  // US subject names (which say "Science", never "Biology") contradicted it.
+                  const chosenStream = targetStreamLabel(formData.targetStream);
+                  if (chosenStream) {
+                    const levelOf = (level?: string): "strong" | "moderate" | "preparation" =>
+                      level === "strong" ? "strong" : level === "moderate" ? "moderate" : "preparation";
+                    return (
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-1.5"><Layers className="h-4 w-4 text-primary" /><h3 className="text-base font-semibold">Stream Readiness</h3></div>
+                        <p className="text-xs text-muted-foreground">Chosen stream: <span className="font-medium text-foreground">{chosenStream}</span>. Readiness in each subject of that stream, based on current US coursework.</p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                          {subjectAnalysis.map((s) => {
+                            const readiness = levelOf(s.alignmentLevel);
+                            return (<div key={s.subject} className={`p-2.5 rounded-lg border text-center ${readinessColors[readiness]}`}><div className="text-xs font-semibold">{s.subject}</div><div className="text-[11px] mt-0.5">{readinessLabels[readiness]}</div></div>);
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
 
                   // Suggest streams
                   const pcmReady = streamSubjects.filter(s => /math|physics|chemistry/i.test(s.name)).every(s => s.readiness !== "preparation");
@@ -1788,7 +1855,7 @@ const ReportPreview = () => {
                     backend-side); this just uses it for navigation instead of
                     discarding it. */}
                 {analysis && (() => {
-                  const criticalGapsTable = buildCriticalGapsTable(analysis);
+                  const criticalGapsTable = buildCriticalGapsTable(analysis, entryGrade(String(formData.snapshotGrade), formData.targetGrade));
                   if (criticalGapsTable.length === 0) return null;
                   const highCount = criticalGapsTable.filter((g) => g.priority === "High").length;
                   const priorityStyle: Record<"High" | "Medium" | "Low", string> = {
@@ -1863,6 +1930,9 @@ const ReportPreview = () => {
                                           </a>
                                         ) : (
                                           g.topic
+                                        )}
+                                        {g.classTag && (
+                                          <span className="ml-1.5 whitespace-nowrap rounded bg-muted px-1 py-0.5 text-[9px] font-semibold text-muted-foreground">{g.classTag}</span>
                                         )}
                                       </span>
                                     </div>

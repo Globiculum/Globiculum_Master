@@ -70,6 +70,17 @@ export const CURRICULUM_DB_REGISTRY: Record<string, CurriculumEntry> = {
   // whichever side of the transition it's on. See mergeBestSourceMatch().
   'ngss':          { dbSystem: 'ngss',           nodeType: 'standard', label: 'US NGSS (Science)' },
   'science':       { dbSystem: 'ngss',           nodeType: 'standard', label: 'US NGSS (Science)' },
+  // ── ISC (CISCE, Classes XI-XII only) ───────────────────────────────────
+  // Ingested from the official CISCE 2027 syllabuses for the 12 core academic
+  // subjects. Units map to node_type 'topic' and their subtopics to
+  // 'learning_outcome', matching the NCERT shape, so the same retrieval path
+  // works unchanged. ISC only exists for grades 11-12 — a grade-10-or-below
+  // request will correctly find nothing here rather than mis-matching.
+  // NOTE: 'icse' above still points at ncert-cbse. ICSE is the CISCE board's
+  // grade 9-10 syllabus and is NOT this data; leave it until ICSE is ingested.
+  'isc':           { dbSystem: 'isc-cisce', nodeType: 'topic', label: 'Indian ISC (CISCE)' },
+  'isc-cisce':     { dbSystem: 'isc-cisce', nodeType: 'topic', label: 'Indian ISC (CISCE)' },
+  'cisce':         { dbSystem: 'isc-cisce', nodeType: 'topic', label: 'Indian ISC (CISCE)' },
   // ── Future curricula (uncomment when ingested into DB) ─────────────────
   // 'ib-myp':     { dbSystem: 'ib-myp',            nodeType: 'objective', label: 'IB MYP' },
   // 'cambridge':  { dbSystem: 'cambridge-igcse',    nodeType: 'topic',    label: 'Cambridge IGCSE' },
@@ -77,10 +88,28 @@ export const CURRICULUM_DB_REGISTRY: Record<string, CurriculumEntry> = {
   // 'uk':         { dbSystem: 'uk-national',        nodeType: 'standard', label: 'UK National Curriculum' },
 };
 
-/** Resolve a curriculum string to its DB entry. Returns null if not yet ingested. */
-export function mapToDBEntry(curriculum?: string): CurriculumEntry | null {
+// CISCE runs two syllabuses under one board: ICSE for classes 9-10, ISC for
+// classes 11-12. A family member selecting "ICSE" for a class-11 transfer means
+// ISC in practice, so the same label has to resolve differently by grade.
+const CISCE_FAMILY_SELECTIONS = new Set(['icse', 'isc', 'cisce', 'isc-cisce']);
+const ISC_FIRST_GRADE = 11;
+
+/**
+ * Resolve a curriculum string to its DB entry. Returns null if not yet ingested.
+ *
+ * `grade` is optional and only changes the outcome for CISCE selections: at
+ * grade 11-12 they resolve to the ISC syllabus, below that they keep falling
+ * back to ncert-cbse because ICSE's own 9-10 syllabus is not ingested yet.
+ * Omitting grade preserves the previous behaviour for every caller.
+ */
+export function mapToDBEntry(curriculum?: string, grade?: number): CurriculumEntry | null {
   if (!curriculum) return null;
   const c = curriculum.toLowerCase().trim();
+
+  if (CISCE_FAMILY_SELECTIONS.has(c) && typeof grade === 'number' && grade >= ISC_FIRST_GRADE) {
+    return CURRICULUM_DB_REGISTRY['isc-cisce'];
+  }
+
   if (CURRICULUM_DB_REGISTRY[c]) return CURRICULUM_DB_REGISTRY[c];
   for (const [key, entry] of Object.entries(CURRICULUM_DB_REGISTRY)) {
     if (c.includes(key) || key.includes(c)) return entry;
@@ -119,11 +148,14 @@ export function expandSubjectFilter(subjects?: string[]): string[] | undefined {
 // =============================================================================
 
 export type SubjectDomain =
-  | 'mathematics' | 'english' | 'science' | 'social-science'
+  | 'mathematics' | 'english' | 'science' | 'social-science' | 'computer-science'
   | 'hindi' | 'sanskrit' | 'other-language' | 'other';
 
 const DOMAIN_KEYWORDS: [SubjectDomain, RegExp][] = [
-  ['mathematics', /math/i],
+  // Course names as well as the subject: US forms and AP selections arrive as
+  // "Algebra", "Geometry", "Pre-Calculus / Calculus", "AP ... Calculus", none of
+  // which contain "math".
+  ['mathematics', /math|algebra|geometr|calculus|trigonometr/i],
   ['english', /english|^ela$|language arts/i],
   // Checked BEFORE the generic 'science' pattern below — "Social Science"
   // literally contains the substring "Science", so a naive science-first
@@ -131,7 +163,18 @@ const DOMAIN_KEYWORDS: [SubjectDomain, RegExp][] = [
   // production data: that bug let Social Science inherit NGSS's real science
   // coverage and show 64% aligned, when Common Core/NGSS have zero actual
   // social-studies content, so it should read 0%, same as Hindi/Sanskrit.
-  ['social-science', /social (science|studies)|history|geography|civics|political/i],
+  // Economics belongs here: US social studies teaches it (California's
+  // History-Social Science framework includes it), so a US state pool is a real
+  // comparison for ISC/CBSE Economics rather than "domain not taught".
+  ['social-science', /social (science|studies)|history|geography|civics|political|econom/i],
+  // Also checked BEFORE 'science', and for the same substring reason: "Computer
+  // Science" matches /science/ and was inheriting general science coverage. That
+  // produced a 64% aligned card for ISC Computer Science (Java, DBMS, Boolean
+  // algebra) off US science standards, which contain none of it. It gets its own
+  // domain rather than falling to 'other' because states DO publish real CS
+  // standards (California has 89 nodes at grade 11) — it is Common Core and NGSS
+  // that have none, which SOURCE_SYSTEM_DOMAINS already expresses per system.
+  ['computer-science', /computer science|informatics|information technology|\bcomp\.? sci/i],
   ['science', /science|physics|chemistry|biology|evs \(/i],
   ['sanskrit', /sanskrit/i],
   ['hindi', /^hindi/i],
@@ -158,6 +201,11 @@ export function canonicalSubjectDomain(rawSubject: string | undefined | null): S
 export const SOURCE_SYSTEM_DOMAINS: Record<string, SubjectDomain[] | null> = {
   'us-common-core': ['mathematics', 'english'],
   'ngss': ['science'],
+  // ISC was ingested for the 12 core academic subjects only. Art, Music, SUPW,
+  // Fashion Designing and the other electives were deliberately left out: they
+  // have no domain here, so as source material they could only contribute
+  // cross-domain similarity noise.
+  'isc-cisce': ['mathematics', 'english', 'science', 'social-science', 'computer-science'],
 };
 
 // The DB holds all 51 US state curricula in full (math, ELA, science, social
@@ -173,7 +221,7 @@ const US_STATE_SYSTEM_PREFIX = 'us-state-';
 // SubjectSourceAudit, not assumed here. This constant is the fail-open upper
 // bound used by effectiveSourceDomains() when a state system appears in
 // sourceSystemsQueried at all.
-const US_STATE_CONTRIBUTED_DOMAINS: SubjectDomain[] = ['mathematics', 'english', 'science', 'social-science'];
+const US_STATE_CONTRIBUTED_DOMAINS: SubjectDomain[] = ['mathematics', 'english', 'science', 'social-science', 'computer-science'];
 
 // The assessment form stores usState as the 2-letter code ("CA"), while the
 // ingested systems are slugged full names ("us-state-california"), so a naive
@@ -383,12 +431,21 @@ export function effectiveSourceDomains(sourceSystemsQueried: string[]): Set<Subj
 // SUBJECT-SCOPED STATE SOURCE RETRIEVAL
 // =============================================================================
 //
-// Runs 4 parallel find_curriculum_gaps_rag calls, one per broad subject, each
-// scoped on BOTH sides: source_subjects narrows the state pool to just that
-// subject's slice (the thing that makes a whole-state query feasible at all —
-// see the module header), and target_subjects narrows which NCERT/target
-// nodes that slice is even compared against, so the 4 calls' results are
-// disjoint by target node and can be concatenated directly, no merge-by-
+// Runs one find_curriculum_gaps_rag call per core subject domain, in parallel,
+// each scoped on BOTH sides: source_subjects narrows the state pool to just
+// that subject's slice (the thing that makes a whole-state query feasible at
+// all — see the module header), and target_subjects narrows which target
+// nodes that slice is compared against.
+//
+// Disjointness is ENFORCED here, not assumed. The RPC falls back to the whole
+// target pool when target_subjects matches nothing, and the static target
+// names below are CBSE Class 1-10 labels ("Science", "Social Science"). For a
+// Class 11-12 target, where boards teach Physics/Chemistry/History instead,
+// both queries fell back and returned every target node: measured on a live
+// California -> ISC Class 11 request, 215 rows for 102 distinct nodes, with
+// ISC History scored against California science standards. Target names are
+// now read from the target board itself, and every query's rows are filtered
+// to its own domain before they are concatenated, so no merge-by-
 // best-similarity needed (contrast with mergeBestSourceMatch, which is for
 // re-querying the SAME target nodes against a second source).
 //
@@ -400,12 +457,25 @@ export function effectiveSourceDomains(sourceSystemsQueried: string[]): Set<Subj
 // "state data unavailable", not scored as a gap at all — see
 // analyze-curriculum's use of `unavailableSubjectKeys` below.
 
+export type CoreDomain = 'mathematics' | 'english' | 'science' | 'social-science' | 'computer-science';
+
 export interface SubjectSourceQuery {
-  key: 'mathematics' | 'english' | 'science' | 'social-science';
+  key: CoreDomain;
   label: string;
-  /** NCERT/target-side metadata.subject values this query is scoped to. */
+  /** Target-side metadata.subject values this query is scoped to. Only used
+   * when the target board's own subject list can't be read (no rpcNamed, or
+   * get_curriculum_subjects failed); normally the names come from the board. */
   targetSubjects: string[];
-  /** ILIKE patterns matched against the STATE's own metadata.subject naming. */
+  /** What it means when neither the state nor a fallback has data:
+   *  'unavailable' — every US school teaches it, so a missing pool is OUR data
+   *                  gap and must not be scored (Social Studies);
+   *  'not-covered' — genuinely optional in US schooling, so missing standards
+   *                  mean the student likely never studied it (Computer Science,
+   *                  published by only 21 of 51 jurisdictions). */
+  missingMeans: 'unavailable' | 'not-covered';
+  /** ILIKE patterns matched against the STATE's own metadata.subject naming.
+   * Only used when subject_mappings can't be read; normally the exact current
+   * labels come from get_canonical_subjects. */
   stateSourceSubjects: string[];
   /** ILIKE patterns to exclude from the state match — e.g. Science's pattern
    * would otherwise also match "History-Social Science". */
@@ -418,6 +488,7 @@ export interface SubjectSourceQuery {
 export const US_STATE_SUBJECT_QUERIES: SubjectSourceQuery[] = [
   {
     key: 'mathematics',
+    missingMeans: 'unavailable',
     label: 'Mathematics',
     targetSubjects: ['Mathematics', 'Math'],
     stateSourceSubjects: ['%math%'],
@@ -427,6 +498,7 @@ export const US_STATE_SUBJECT_QUERIES: SubjectSourceQuery[] = [
   },
   {
     key: 'english',
+    missingMeans: 'unavailable',
     label: 'English / ELA',
     targetSubjects: ['English', 'English / Language Arts', 'English Language Arts & Literacy'],
     stateSourceSubjects: ['%english%', '%language arts%', '%reading%', '%literacy%'],
@@ -436,6 +508,7 @@ export const US_STATE_SUBJECT_QUERIES: SubjectSourceQuery[] = [
   },
   {
     key: 'science',
+    missingMeans: 'unavailable',
     label: 'Science',
     targetSubjects: ['Science'],
     // '%science%' (not just a 'Science%' prefix) — verified against live
@@ -453,10 +526,22 @@ export const US_STATE_SUBJECT_QUERIES: SubjectSourceQuery[] = [
   },
   {
     key: 'social-science',
+    missingMeans: 'unavailable',
     label: 'Social Studies',
     targetSubjects: ['Social Science', 'Social Studies'],
     stateSourceSubjects: STATE_SOCIAL_STUDIES_PATTERNS,
     fallbackSystem: null, // no fallback exists — see module header
+    fallbackNodeType: null,
+    fallbackLabel: '',
+  },
+  {
+    key: 'computer-science',
+    missingMeans: 'not-covered',
+    label: 'Computer Science',
+    targetSubjects: ['Computer Science', 'Informatics Practices', 'Information Technology'],
+    stateSourceSubjects: ['%computer science%', '%computing%', '%cyber%'],
+    // Neither Common Core nor NGSS contains any computer science.
+    fallbackSystem: null,
     fallbackNodeType: null,
     fallbackLabel: '',
   },
@@ -470,39 +555,191 @@ export interface SubjectSourceAuditEntry {
   subject: string;
   source: string;
   sourceLabel: string;
-  status: 'state' | 'fallback' | 'unavailable' | 'error';
+  /** state/fallback: a real pool was compared. unavailable/error: our data gap,
+   * not scored. not-covered/not-studied: scored as "not taught by the source".
+   * no-target: the target board has nothing in this domain at this grade. */
+  status: 'state' | 'fallback' | 'unavailable' | 'error' | 'not-covered' | 'not-studied' | 'no-target';
   rowCount: number;
 }
 
 export interface StateAwareSourceGapsResult {
   allTargetNodes: GapNode[];
   sourceSystemsQueried: string[];
-  /** Keyed by SubjectSourceQuery.key — one entry per subject, always 4,
-   * regardless of outcome. Log this on the response so a report can be
-   * audited against exactly which source produced each subject's numbers. */
+  /** Keyed by SubjectSourceQuery.key — one entry per core domain, regardless
+   * of outcome. Log this on the response so a report can be audited against
+   * exactly which source produced each subject's numbers. */
   subjectSourceAudit: Record<string, SubjectSourceAuditEntry>;
   /** Subject keys where NO source (state or fallback) could be used —
    * callers must NOT run these through classifyGapsBySubject, since that
    * would score "we have no data" as "0% covered = full gap", which is a
    * data problem, not a curriculum finding. */
   unavailableSubjectKeys: string[];
+  /** Domains for which a real source pool was compared. Pass this to
+   * classifyGapsBySubject: every other domain is "not taught by the source",
+   * which a state system's blanket domain list cannot express — a student who
+   * never took Computer Science must not inherit their state's CS standards. */
+  coveredDomains: Set<SubjectDomain>;
 }
 
 export interface RpcCaller {
-  (params: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }>;
+  (params: Record<string, unknown>): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+}
+
+/** Calls any Postgres function by name — used for subject lookups. */
+export interface NamedRpcCaller {
+  // PromiseLike, not Promise: supabase.rpc() returns a thenable query builder.
+  (fn: string, params: Record<string, unknown>): PromiseLike<{ data: unknown; error: { message: string } | null }>;
 }
 
 export interface DebugLogger {
   (step: string, message: string, data?: Record<string, unknown>): void;
 }
 
+const CORE_DOMAIN_SET = new Set<SubjectDomain>(US_STATE_SUBJECT_QUERIES.map(q => q.key));
+
+// Every US school teaches these through grade 12, so a parent leaving one
+// unanswered on the form almost always means "skipped", not "never studied".
+// Computer Science is the only genuinely optional core domain.
+const UNIVERSAL_US_DOMAINS = new Set<SubjectDomain>(['mathematics', 'english', 'science', 'social-science']);
+
 /**
- * Fetches gap rows for all 4 core subjects using the student's state as the
- * primary source, in parallel, with per-subject fallback. See the section
+ * Core domains the student actually studies, from the form's academicPath.
+ * The four universal domains are always assumed; Computer Science counts only
+ * when selected. Returns null (assume everything) when academicPath is empty,
+ * since then there is no evidence either way.
+ */
+export function studiedSourceDomains(academicPath?: string[] | null): Set<SubjectDomain> | null {
+  if (!academicPath || academicPath.length === 0) return null;
+  const studied = new Set<SubjectDomain>(UNIVERSAL_US_DOMAINS);
+  for (const subject of academicPath) {
+    const d = canonicalSubjectDomain(subject);
+    if (CORE_DOMAIN_SET.has(d)) studied.add(d);
+  }
+  return studied;
+}
+
+/** Escapes LIKE wildcards so an exact label can be passed as an ILIKE pattern. */
+function asExactLikePattern(label: string): string {
+  return label.replace(/[\\%_]/g, ch => `\\${ch}`);
+}
+
+/**
+ * Exact current-vintage state labels per core domain, from subject_mappings.
+ * Returns null when the mapping isn't reachable (e.g. the migration hasn't been
+ * applied yet), in which case callers fall back to the ILIKE patterns.
+ */
+async function loadStateLabelsByDomain(
+  rpcNamed: NamedRpcCaller,
+  stateSystem: string,
+  gradeMin: number,
+  gradeMax: number,
+  debug: DebugLogger
+): Promise<Map<SubjectDomain, { labels: string[]; nodes: number }> | null> {
+  const { data, error } = await rpcNamed('get_canonical_subjects', {
+    p_curriculum_system: stateSystem,
+    p_grade_min: gradeMin,
+    p_grade_max: gradeMax,
+    p_core_only: true,
+  });
+  if (error || !Array.isArray(data)) {
+    debug('rag_state_labels_unavailable', 'subject_mappings unreachable, using ILIKE patterns', {
+      stateSystem, error: error?.message,
+    });
+    return null;
+  }
+  const byDomain = new Map<SubjectDomain, { labels: string[]; nodes: number }>();
+  for (const row of data as { domain: SubjectDomain; raw_subjects: string[] | null; node_count: number }[]) {
+    const entry = byDomain.get(row.domain) ?? { labels: [], nodes: 0 };
+    entry.labels.push(...(row.raw_subjects ?? []));
+    entry.nodes += Number(row.node_count) || 0;
+    byDomain.set(row.domain, entry);
+  }
+  debug('rag_state_labels', 'Exact state labels loaded from subject_mappings', {
+    stateSystem,
+    pools: Object.fromEntries([...byDomain].map(([d, e]) => [d, { labels: e.labels.length, nodes: e.nodes }])),
+  });
+  return byDomain;
+}
+
+/**
+ * The target board's own subject names across the grade window, optionally
+ * narrowed to a stream, grouped by domain. Reading names from the board is
+ * what keeps target_subjects from silently missing (see section header).
+ */
+export async function loadTargetSubjects(
+  rpcNamed: NamedRpcCaller,
+  targetCurriculum: string,
+  gradeMin: number,
+  gradeMax: number,
+  stream: string | null | undefined,
+  debug: DebugLogger = () => {}
+): Promise<{ all: string[]; byDomain: Map<SubjectDomain, string[]> } | null> {
+  const grades: number[] = [];
+  for (let g = gradeMin; g <= gradeMax; g++) grades.push(g);
+
+  const fetchNames = async (useStream: string | null) => {
+    const names = new Set<string>();
+    for (const g of grades) {
+      const { data, error } = await rpcNamed('get_curriculum_subjects', {
+        p_curriculum_system: targetCurriculum,
+        p_grade: g,
+        p_stream: useStream,
+      });
+      if (error || !Array.isArray(data)) return null;
+      for (const row of data as { subject: string }[]) if (row.subject) names.add(row.subject);
+    }
+    return names;
+  };
+
+  // Streams only exist from Class XI. A board with no stream metadata (one
+  // ingested later without it) would empty the list, so that is retried without
+  // the filter rather than reporting that the board teaches nothing.
+  const streamApplies = !!stream && gradeMax >= 11;
+  let names = await fetchNames(streamApplies ? stream! : null);
+  if (names && names.size === 0 && streamApplies) {
+    debug('rag_target_stream_empty', 'Stream filter matched no subjects, retrying without it', {
+      targetCurriculum, stream,
+    });
+    names = await fetchNames(null);
+  }
+  if (!names) {
+    debug('rag_target_subjects_unavailable', 'Target subject list unreachable, using static names', { targetCurriculum });
+    return null;
+  }
+
+  const byDomain = new Map<SubjectDomain, string[]>();
+  for (const name of names) {
+    const d = canonicalSubjectDomain(name);
+    const list = byDomain.get(d) ?? [];
+    list.push(name);
+    byDomain.set(d, list);
+  }
+  return { all: [...names], byDomain };
+}
+
+/** Full target subject label. getNodeSubjectLabel truncates to 40 chars for
+ * display grouping, which would break exact name comparisons. */
+function targetSubjectOf(n: GapNode): string {
+  const m = (n.target_metadata || {}) as Record<string, unknown>;
+  return ((m.subject as string) || (m.domain as string) || '').trim();
+}
+
+/** Rows whose target subject belongs to `domain` — the disjointness guard. */
+function keepDomain(rows: GapNode[], domain: SubjectDomain): GapNode[] {
+  return rows.filter(r => canonicalSubjectDomain(targetSubjectOf(r)) === domain);
+}
+
+/**
+ * Fetches gap rows for every core domain using the student's state as the
+ * primary source, in parallel, with per-domain fallback. See the section
  * header above for the full rationale.
  */
 export async function fetchUSStateAwareSourceGaps(opts: {
   rpc: RpcCaller;
+  /** Enables exact state labels and board-sourced target names. Without it
+   * the static ILIKE patterns and target names are used, and target subjects
+   * outside the core domains are not fetched. */
+  rpcNamed?: NamedRpcCaller;
   stateSystem: string;
   stateLabel: string;
   targetCurriculum: string;
@@ -511,23 +748,61 @@ export async function fetchUSStateAwareSourceGaps(opts: {
   gradeMax: number;
   sourceGradeMin: number;
   sourceGradeMax: number;
+  /** 'science-pcm' | 'science-pcb' | 'commerce' | 'humanities' — narrows Class XI-XII targets. */
+  targetStream?: string | null;
+  /** The student's own grade. Target subject NAMES are read at this grade
+   * only; the gradeMin..gradeMax window still supplies neighbouring chapters of
+   * those subjects. Reading names across the whole window pulls in subjects
+   * that only start a year later — a Class 10 entrant was shown Accountancy and
+   * Business Studies, which begin in Class 11. */
+  targetGrade?: number;
+  /** From studiedSourceDomains(); null assumes every core domain. */
+  studiedDomains?: Set<SubjectDomain> | null;
   resultLimitPerSubject?: number;
   onDebug?: DebugLogger;
 }): Promise<StateAwareSourceGapsResult> {
   const {
-    rpc, stateSystem, stateLabel, targetCurriculum, targetNodeType,
-    gradeMin, gradeMax, sourceGradeMin, sourceGradeMax,
-    resultLimitPerSubject = 300, onDebug,
+    rpc, rpcNamed, stateSystem, stateLabel, targetCurriculum, targetNodeType,
+    gradeMin, gradeMax, sourceGradeMin, sourceGradeMax, targetStream, targetGrade,
+    studiedDomains = null, resultLimitPerSubject = 300, onDebug,
   } = opts;
   const debug = onDebug ?? (() => {});
+
+  const [stateLabels, targetSubjects] = rpcNamed
+    ? await Promise.all([
+        loadStateLabelsByDomain(rpcNamed, stateSystem, sourceGradeMin, sourceGradeMax, debug),
+        loadTargetSubjects(
+          rpcNamed, targetCurriculum,
+          targetGrade ?? gradeMin, targetGrade ?? gradeMax,
+          targetStream, debug
+        ),
+      ])
+    : [null, null];
+
+  const coveredDomains = new Set<SubjectDomain>();
 
   const perSubject = await Promise.all(US_STATE_SUBJECT_QUERIES.map(async (q): Promise<{
     key: string; rows: GapNode[]; audit: SubjectSourceAuditEntry;
   }> => {
+    const targetNames = targetSubjects ? (targetSubjects.byDomain.get(q.key) ?? []) : q.targetSubjects;
+    const empty = (status: SubjectSourceAuditEntry['status'], source = stateSystem, sourceLabel = stateLabel) => ({
+      key: q.key, rows: [] as GapNode[],
+      audit: { subject: q.label, source, sourceLabel, status, rowCount: 0 },
+    });
+
+    // The board teaches nothing in this domain at this grade/stream.
+    if (targetSubjects && targetNames.length === 0) return empty('no-target');
+
+    // The student doesn't study it: their targets are scored as not taught.
+    if (studiedDomains && !studiedDomains.has(q.key)) {
+      debug('rag_state_subject_not_studied', `${q.label} not in the student's subjects`, { subject: q.key });
+      return empty('not-studied');
+    }
+
     const baseParams = {
       target_curriculum: targetCurriculum,
       target_node_type_filter: targetNodeType,
-      target_subjects: q.targetSubjects,
+      target_subjects: targetNames,
       grade_min: gradeMin,
       grade_max: gradeMax,
       source_grade_min: sourceGradeMin,
@@ -536,29 +811,52 @@ export async function fetchUSStateAwareSourceGaps(opts: {
       result_limit: resultLimitPerSubject,
     };
 
-    const { data: stateRows, error: stateError } = await rpc({
-      ...baseParams,
-      source_curriculum: stateSystem,
-      source_node_type: 'standard',
-      source_subjects: q.stateSourceSubjects,
-      source_subjects_exclude: q.stateSourceExclude ?? null,
-    });
+    // With the mapping loaded, a state that has no labels for this domain has
+    // no pool at all, so the state query is skipped rather than widened to
+    // broad patterns. Without the mapping, the ILIKE patterns are used.
+    const statePool = stateLabels?.get(q.key);
+    const exactLabels = statePool?.labels ?? [];
+    const useExact = exactLabels.length > 0;
+    const stateHasPool = !stateLabels || useExact;
+    const { data: stateRows, error: stateError } = stateHasPool
+      ? await rpc({
+          ...baseParams,
+          source_curriculum: stateSystem,
+          source_node_type: 'standard',
+          source_subjects: useExact ? exactLabels.map(asExactLikePattern) : q.stateSourceSubjects,
+          source_subjects_exclude: useExact ? null : (q.stateSourceExclude ?? null),
+        })
+      : { data: [], error: null };
+    const stateInDomain = Array.isArray(stateRows) ? keepDomain(stateRows as GapNode[], q.key) : [];
 
-    if (!stateError && Array.isArray(stateRows) && stateRows.length >= MIN_VIABLE_SOURCE_ROWS) {
+    // "Too thin to trust" is a property of the SOURCE pool. Counting returned
+    // rows measures the TARGET side instead: ISC has only 11 Mathematics units
+    // and 6 English units, so a state with a full math and ELA framework was
+    // always judged thin and silently replaced by Common Core. With the mapping
+    // the pool size is known exactly; without it, returned rows are the only
+    // signal available.
+    const viable = useExact
+      ? (statePool?.nodes ?? 0) >= MIN_VIABLE_SOURCE_ROWS && stateInDomain.length > 0
+      : stateInDomain.length >= MIN_VIABLE_SOURCE_ROWS;
+    if (!stateError && viable) {
       debug('rag_state_subject_query', `State data used for ${q.label}`, {
-        subject: q.key, source: stateSystem, rowCount: stateRows.length,
+        subject: q.key, source: stateSystem, rowCount: stateInDomain.length,
+        matching: useExact ? 'exact-labels' : 'ilike-patterns',
+        sourcePoolNodes: statePool?.nodes ?? null,
+        droppedOutOfDomain: Array.isArray(stateRows) ? stateRows.length - stateInDomain.length : 0,
       });
+      coveredDomains.add(q.key);
       return {
         key: q.key,
-        rows: stateRows as GapNode[],
-        audit: { subject: q.label, source: stateSystem, sourceLabel: stateLabel, status: 'state', rowCount: stateRows.length },
+        rows: stateInDomain,
+        audit: { subject: q.label, source: stateSystem, sourceLabel: stateLabel, status: 'state', rowCount: stateInDomain.length },
       };
     }
 
     if (stateError) {
       debug('rag_state_subject_error', `State query failed for ${q.label} (non-fatal)`, { subject: q.key, error: stateError.message });
     } else {
-      debug('rag_state_subject_thin', `State data too thin for ${q.label}`, { subject: q.key, rowCount: Array.isArray(stateRows) ? stateRows.length : 0 });
+      debug('rag_state_subject_thin', `State data too thin for ${q.label}`, { subject: q.key, rowCount: stateInDomain.length });
     }
 
     if (q.fallbackSystem) {
@@ -570,30 +868,24 @@ export async function fetchUSStateAwareSourceGaps(opts: {
         source_subjects_exclude: null,
       });
       if (!fbError && Array.isArray(fbRows)) {
+        const fbInDomain = keepDomain(fbRows as GapNode[], q.key);
         debug('rag_state_subject_fallback', `Fell back to ${q.fallbackLabel} for ${q.label}`, {
-          subject: q.key, source: q.fallbackSystem, rowCount: fbRows.length,
+          subject: q.key, source: q.fallbackSystem, rowCount: fbInDomain.length,
         });
+        coveredDomains.add(q.key);
         return {
           key: q.key,
-          rows: fbRows as GapNode[],
-          audit: { subject: q.label, source: q.fallbackSystem, sourceLabel: q.fallbackLabel, status: 'fallback', rowCount: fbRows.length },
+          rows: fbInDomain,
+          audit: { subject: q.label, source: q.fallbackSystem, sourceLabel: q.fallbackLabel, status: 'fallback', rowCount: fbInDomain.length },
         };
       }
       debug('rag_state_subject_fallback_error', `Fallback also failed for ${q.label}`, { subject: q.key, error: fbError?.message });
     }
 
-    // No fallback exists (social studies) or the fallback also failed —
-    // genuinely unavailable. Return an empty row set; the caller must skip
-    // scoring this subject as a gap.
-    return {
-      key: q.key,
-      rows: [],
-      audit: {
-        subject: q.label, source: stateSystem, sourceLabel: stateLabel,
-        status: stateError ? 'error' : 'unavailable',
-        rowCount: 0,
-      },
-    };
+    if (q.missingMeans === 'not-covered') return empty('not-covered');
+    // Universal subject with no usable pool anywhere: our data gap, not a
+    // finding about the student. The caller must skip scoring it.
+    return empty(stateError ? 'error' : 'unavailable');
   }));
 
   const allTargetNodes: GapNode[] = [];
@@ -607,15 +899,67 @@ export async function fetchUSStateAwareSourceGaps(opts: {
       unavailableSubjectKeys.push(key);
       continue;
     }
-    allTargetNodes.push(...rows);
-    sourceSystemsQueried.add(audit.source);
+    if (audit.status === 'state' || audit.status === 'fallback') {
+      allTargetNodes.push(...rows);
+      sourceSystemsQueried.add(audit.source);
+    }
   }
 
+  // Target subjects outside every compared domain — Hindi and Sanskrit at
+  // Classes 1-10, Accountancy and Business Studies at XI-XII, plus any core
+  // domain the student doesn't study. They still belong in the report as
+  // gaps, so they're fetched once here; the source pool is irrelevant because
+  // classifyGapsBySubject marks an uncovered domain's topics CRITICAL and
+  // orders them by curriculum sequence, never by similarity.
+  if (rpcNamed && targetSubjects) {
+    const unavailable = new Set<string>(unavailableSubjectKeys);
+    const residual = targetSubjects.all.filter(name => {
+      const d = canonicalSubjectDomain(name);
+      return !coveredDomains.has(d) && !unavailable.has(d);
+    });
+    if (residual.length > 0) {
+      const { data: resRows, error: resError } = await rpc({
+        target_curriculum: targetCurriculum,
+        target_node_type_filter: targetNodeType,
+        target_subjects: residual,
+        grade_min: gradeMin,
+        grade_max: gradeMax,
+        source_grade_min: sourceGradeMin,
+        source_grade_max: sourceGradeMax,
+        similarity_threshold: 0.0,
+        result_limit: resultLimitPerSubject,
+        source_curriculum: 'us-common-core',
+        source_node_type: 'standard',
+        source_subjects: null,
+        source_subjects_exclude: null,
+      });
+      if (!resError && Array.isArray(resRows)) {
+        const wanted = new Set(residual.map(n => n.toLowerCase()));
+        const kept = (resRows as GapNode[]).filter(r => wanted.has(targetSubjectOf(r).toLowerCase()));
+        allTargetNodes.push(...kept);
+        debug('rag_state_residual', 'Fetched target subjects no source pool covers', {
+          subjects: residual, rowCount: kept.length,
+        });
+      } else {
+        debug('rag_state_residual_error', 'Residual subject fetch failed (non-fatal)', { error: resError?.message });
+      }
+    }
+  }
+
+  // Final guard: each target node appears once, whatever happened above.
+  const seen = new Set<string>();
+  const deduped = allTargetNodes.filter(n => {
+    if (seen.has(n.target_node_id)) return false;
+    seen.add(n.target_node_id);
+    return true;
+  });
+
   return {
-    allTargetNodes,
+    allTargetNodes: deduped,
     sourceSystemsQueried: [...sourceSystemsQueried],
     subjectSourceAudit,
     unavailableSubjectKeys,
+    coveredDomains,
   };
 }
 
@@ -652,6 +996,35 @@ export interface GapNodeWithSeverity extends GapNode {
 // ranks among its own (uniformly bad) peers.
 export const SUBJECT_QUALIFY_RATIO = 0.6;
 
+// Absolute similarity a node must reach to count as covered. This is now the
+// only per-topic test (the percentile cut was removed: it also forced the
+// bottom 35% of every subject to be gaps, capping scores near 65%).
+//
+// Percentile classification alone manufactures coverage: it splits by RANK, so
+// ~65% of a subject's nodes land above the 35th percentile whatever the actual
+// overlap is. A California -> ISC Class 11 report showed every subject at
+// 63-68%, Geography included, where nothing in US schooling matches.
+//
+// Calibrated on the node types production actually queries (ISC units and
+// NCERT chapters, node_type 'topic') by reading the real match pairs in each
+// similarity band, California -> ISC Class 11 and -> CBSE Class 8:
+//   >= 0.55  genuine same-concept matches: "Working with Fractions" <- operations
+//            with fractions (0.597); "Laws of Motion" <- Newton's second law
+//            (0.575); "Classification of Elements" <- the periodic table (0.575)
+//   0.50-0.55  partial, adjacent concepts
+//   < 0.50   unrelated
+// It also splits ISC History cleanly: its world-history units (Cold War 0.711,
+// Great Depression 0.701, World War I, Decolonisation, Rise of Fascism) clear
+// it, and every Indian national-movement unit (Partition 0.495, Gandhian
+// Nationalism 0.448) does not. All of ISC Geography falls below it.
+// An earlier value of 0.65 was calibrated on subtopic nodes, which production
+// never queries; on chapter-level nodes it rejected every genuine match and read
+// CBSE Class 8 Mathematics as 0% for a California eighth grader.
+export const COVERAGE_SIMILARITY_FLOOR = 0.55;
+// Below this the best source match is unrelated (see the bands above), so the
+// gap is new content: CRITICAL. Between it and the floor: MAJOR.
+export const GAP_UNRELATED_BELOW = 0.50;
+
 export interface SubjectClassification {
   subject: string;
   avgSimilarity: number;
@@ -663,6 +1036,75 @@ export interface SubjectClassification {
 export function getNodeSubjectLabel(n: { target_metadata?: Record<string, unknown> | null }): string {
   const m = (n.target_metadata || {}) as Record<string, unknown>;
   return ((m.subject as string) || (m.domain as string) || 'Unknown').substring(0, 40);
+}
+
+/**
+ * Compare English on skills, not prescribed texts. Indian English nodes are
+ * literature chapters ("The Proposal", "Silk Road"); US English standards are
+ * skills, so chapters never matched and English read 0% with chapter titles as
+ * its top gaps. Where a board has English skill nodes for the grade
+ * (metadata.component 'language-skills', from rag-pipeline/ingest/english_skills.py)
+ * they replace that subject's chapter nodes; literature is one of the skills.
+ * Grades without skill nodes are returned unchanged.
+ *
+ * targetGrade: the student's grade. The retrieval window also spans the
+ * neighbouring grade, so without it a Class 10 entrant would be measured
+ * against Class 11 skills; skill nodes not covering this grade are dropped.
+ */
+export function preferEnglishSkillNodes<T extends {
+  target_metadata?: Record<string, unknown> | null;
+  target_grade_min?: number | null;
+  target_grade_max?: number | null;
+}>(nodes: T[], targetGrade?: number): T[] {
+  const isSkill = (n: T) => (n.target_metadata as Record<string, unknown> | null)?.component === 'language-skills';
+  const coversGrade = (n: T) =>
+    targetGrade == null || ((n.target_grade_min ?? targetGrade) <= targetGrade && targetGrade <= (n.target_grade_max ?? targetGrade));
+  const kept = nodes.filter(n => !isSkill(n) || coversGrade(n));
+  const subjectsWithSkills = new Set(
+    kept.filter(n => isSkill(n) && canonicalSubjectDomain(getNodeSubjectLabel(n)) === 'english')
+      .map(n => getNodeSubjectLabel(n))
+  );
+  if (subjectsWithSkills.size === 0) return kept;
+  return kept.filter(n => isSkill(n) || !subjectsWithSkills.has(getNodeSubjectLabel(n)));
+}
+
+/**
+ * Keep one node per (subject, unit name). ISC repeats units across classes
+ * (Computer Science Class XII re-lists "Objects", "Primitive Values...",
+ * "Recursion" from Class XI), so a Class 12 entrant had them counted twice and
+ * listed twice as gaps. The copy for the student's own grade wins, then the
+ * later class.
+ */
+export function dedupeRepeatedUnits<T extends {
+  target_node_name: string;
+  target_metadata?: Record<string, unknown> | null;
+  target_grade_min?: number | null;
+  target_grade_max?: number | null;
+}>(nodes: T[], targetGrade?: number): T[] {
+  const covers = (n: T) => targetGrade != null
+    && (n.target_grade_min ?? targetGrade) <= targetGrade && targetGrade <= (n.target_grade_max ?? targetGrade);
+  const best = new Map<string, T>();
+  for (const n of nodes) {
+    const key = `${getNodeSubjectLabel(n).toLowerCase()}|${(n.target_node_name || '').toLowerCase().trim()}`;
+    const prior = best.get(key);
+    if (!prior
+      || (covers(n) && !covers(prior))
+      || (covers(n) === covers(prior) && (n.target_grade_max ?? 0) > (prior.target_grade_max ?? 0))) {
+      best.set(key, n);
+    }
+  }
+  const keep = new Set(best.values());
+  return nodes.filter(n => keep.has(n));
+}
+
+/** Target-node clean-up shared by the gap engines: English as skills, one copy of repeated units. */
+export function prepareTargetNodes<T extends {
+  target_node_name: string;
+  target_metadata?: Record<string, unknown> | null;
+  target_grade_min?: number | null;
+  target_grade_max?: number | null;
+}>(nodes: T[], targetGrade?: number): T[] {
+  return dedupeRepeatedUnits(preferEnglishSkillNodes(nodes, targetGrade), targetGrade);
 }
 
 // NCERT Hindi/Sanskrit chapter lists mix grammar/script reference material
@@ -781,9 +1223,9 @@ export interface ClassifyResult {
 
 /**
  * Classifies target nodes into gap/covered + severity PER SUBJECT, gated by
- * domain-availability first and relative percentile second — see the module
- * header for why a single global percentile (or a percentile-only per-subject
- * check) isn't enough on its own.
+ * domain-availability first, then the subject ratio gate, then each topic's
+ * similarity against COVERAGE_SIMILARITY_FLOOR. Severity comes from the same
+ * calibrated bands (GAP_UNRELATED_BELOW), not from rank.
  *
  * @param allTargetNodes  Raw rows from find_curriculum_gaps_rag (after
  *   merging any secondary target/source curricula, e.g. NGSS).
@@ -802,9 +1244,13 @@ export interface ClassifyResult {
 export function classifyGapsBySubject(
   allTargetNodes: GapNode[],
   sourceSystemsQueried: string[],
-  subjectKeyFn: (n: GapNode) => string = getNodeSubjectLabel
+  subjectKeyFn: (n: GapNode) => string = getNodeSubjectLabel,
+  /** Explicit set of domains a real source pool was compared for — pass
+   * StateAwareSourceGapsResult.coveredDomains. Overrides the per-system
+   * lookup, which can only say a US state teaches "everything". */
+  coveredDomains?: Set<SubjectDomain> | null
 ): ClassifyResult {
-  const domains = effectiveSourceDomains(sourceSystemsQueried);
+  const domains = coveredDomains !== undefined ? coveredDomains : effectiveSourceDomains(sourceSystemsQueried);
 
   const bySubject = new Map<string, GapNode[]>();
   for (const n of allTargetNodes) {
@@ -817,7 +1263,13 @@ export function classifyGapsBySubject(
   for (const [subj, nodes] of bySubject) {
     subjectAvg.set(subj, nodes.reduce((sum, n) => sum + (n.best_similarity ?? 0), 0) / nodes.length);
   }
-  const bestAvg = subjectAvg.size > 0 ? Math.max(...subjectAvg.values()) : 0;
+  // The ratio gate's baseline is the best COMPARED subject. A subject whose
+  // domain the source never teaches is scored against an arbitrary pool, so its
+  // average is noise and must not move the bar for real comparisons.
+  const comparedAvgs = [...subjectAvg].filter(([subj]) =>
+    domains === null || domains.has(canonicalSubjectDomain(subj))
+  ).map(([, avg]) => avg);
+  const bestAvg = comparedAvgs.length > 0 ? Math.max(...comparedAvgs) : 0;
 
   const gapNodesWithSeverity: GapNodeWithSeverity[] = [];
   const coveredNodes: GapNode[] = [];
@@ -846,15 +1298,18 @@ export function classifyGapsBySubject(
       ? [...nodes].sort((a, b) => (a.best_similarity ?? 0) - (b.best_similarity ?? 0))
       : [...nodes].sort((a, b) => compareNaturalOrder(a, b, domain));
     const n = sortedAsc.length;
-    const critIdx = Math.floor(n * 0.10);
-    const majorIdx = Math.floor(n * 0.20);
-    const gapIdx = Math.floor(n * 0.35);
     let subjCovered = 0;
     const gapsHere: GapNodeWithSeverity[] = [];
     const coveredHere: GapNode[] = [];
 
-    sortedAsc.forEach((node, i) => {
-      const isGap = !qualifies || i <= gapIdx;
+    sortedAsc.forEach((node) => {
+      // Covered = the subject qualifies and the topic clears the absolute floor.
+      // Rank plays no part: the earlier rule also made the bottom 35% of every
+      // subject a gap by position, so a topic matched at 0.57 ("Persuasive
+      // writing" <- "Write to argue a position") was listed as missing, and no
+      // subject could score above ~65% even between near-identical syllabuses.
+      const sim = node.best_similarity ?? 0;
+      const isGap = !qualifies || sim < COVERAGE_SIMILARITY_FLOOR;
       if (!isGap) {
         coveredCount++;
         subjCovered++;
@@ -862,13 +1317,15 @@ export function classifyGapsBySubject(
         coveredHere.push(node);
         return;
       }
-      // When the source curriculum structurally has no content for this
-      // domain at all, every topic is an equally-unknown unknown — ranking
-      // them by percentile would imply a precision the similarity numbers
-      // (pure cross-domain noise in that case) don't actually have.
-      const severity: 'CRITICAL' | 'MAJOR' | 'MODERATE' = !domainCovered
+      // Severity from the same calibrated bands as the floor: below
+      // GAP_UNRELATED_BELOW the closest source topic is unrelated (new content);
+      // between it and the floor it is an adjacent concept (partial). A topic
+      // above the floor is a gap only because its subject failed the ratio gate.
+      // When the source has no content for the domain at all, every topic is an
+      // equally-unknown unknown and the similarity numbers are noise.
+      const severity: 'CRITICAL' | 'MAJOR' | 'MODERATE' = !domainCovered || sim < GAP_UNRELATED_BELOW
         ? 'CRITICAL'
-        : i <= critIdx ? 'CRITICAL' : i <= majorIdx ? 'MAJOR' : 'MODERATE';
+        : sim < COVERAGE_SIMILARITY_FLOOR ? 'MAJOR' : 'MODERATE';
       gapsHere.push({ ...node, _severity: severity });
     });
 
@@ -1003,6 +1460,19 @@ export function buildGapReason(gap: GapNode, domainCovered: boolean, sourceLabel
   // gap bucket — ground the "why" in the nearest match actually found rather
   // than guessing from keywords.
   const pct = gap.best_similarity != null ? Math.round(gap.best_similarity * 100) : null;
+  // Below GAP_UNRELATED_BELOW the "closest match" is merely the least-unrelated
+  // standard and quoting it misleads ("Mechanical Properties of Solids" <-
+  // "Explain the physiology of skeletal muscle"), so it is not named.
+  if (gap.best_similarity != null && gap.best_similarity < GAP_UNRELATED_BELOW) {
+    return `Nothing closely related appears in your ${sourceLabel} coursework — "${topic}" will be new content.`;
+  }
+  // Some state documents carry heading and cross-reference stubs as standards
+  // ("Skills to be mastered at this grade level are as follows:", "See Writing
+  // Types and Narrative Techniques."). Quoting one as the match says nothing.
+  const isStub = (s: string) => /:\s*$/.test(s.trim()) || /^see\s/i.test(s.trim());
+  if (gap.best_source_match && isStub(gap.best_source_match)) {
+    return `Your ${sourceLabel} coursework only partly covers this — "${topic}" goes beyond what you've studied.`;
+  }
   if (gap.best_source_match && pct != null) {
     const match = truncateAtWord(gap.best_source_match, 110);
     return `Closest match in your ${sourceLabel} coursework was "${match}" — only about ${pct}% conceptually related, so "${topic}" introduces meaningfully new content beyond what you've studied.`;
@@ -1036,6 +1506,75 @@ export function buildUnavailableSubjectReason(subjectLabel: string, stateLabel: 
  * background counts, instead of every Science-domain target topic only ever
  * being compared against irrelevant Math/ELA text.
  */
+/** US high-school course content (rag-pipeline/ingest/us_courses.py). */
+export const US_COURSES_SYSTEM = 'us-courses';
+
+/**
+ * Credit the high-school courses a US student has taken. State standards are
+ * broad (Maryland lists 71 NGSS statements for all of high-school science, with
+ * no organic chemistry or optics), so a student who took Chemistry or AP Physics
+ * read as a beginner. Each selected course's units (stored under
+ * curriculum_system 'us-courses', metadata.subject = the form's course label)
+ * are matched against the same target nodes, and a node's best match is raised
+ * when a course matches it better than the state standards did. Only nodes
+ * already in `nodes` change; nothing is added. Domains of the courses that were
+ * found are returned so they count as taught.
+ */
+export async function applyCourseMatches(opts: {
+  rpc: RpcCaller;
+  academicPath: string[] | undefined | null;
+  nodes: GapNode[];
+  targetCurriculum: string;
+  targetNodeType: string | null;
+  targetSubjects: string[] | null;
+  gradeMin: number;
+  gradeMax: number;
+  debug: DebugLogger;
+}): Promise<{ nodes: GapNode[]; courseDomains: Set<SubjectDomain>; upgraded: number }> {
+  const none = { nodes: opts.nodes, courseDomains: new Set<SubjectDomain>(), upgraded: 0 };
+  const labels = (opts.academicPath ?? []).filter(Boolean);
+  if (labels.length === 0 || opts.nodes.length === 0) return none;
+
+  const { data, error } = await opts.rpc({
+    source_curriculum: US_COURSES_SYSTEM,
+    source_node_type: 'topic',
+    // Exact labels: non-course entries ("Mathematics") match no course rows.
+    source_subjects: labels.map(asExactLikePattern),
+    source_grade_min: 9,
+    source_grade_max: 12,
+    target_curriculum: opts.targetCurriculum,
+    target_node_type_filter: opts.targetNodeType,
+    target_subjects: opts.targetSubjects,
+    grade_min: opts.gradeMin,
+    grade_max: opts.gradeMax,
+    similarity_threshold: 0.0,
+    result_limit: 2000,
+  });
+  if (error || !Array.isArray(data) || data.length === 0) {
+    if (error) opts.debug('rag_course_error', 'Course match query failed (non-fatal)', { error: error.message });
+    return none;
+  }
+
+  const better = new Map<string, GapNode>();
+  for (const row of data as GapNode[]) better.set(row.target_node_id, row);
+  let upgraded = 0;
+  const nodes = opts.nodes.map(n => {
+    const c = better.get(n.target_node_id);
+    if (c && (c.best_similarity ?? -1) > (n.best_similarity ?? -1)) {
+      upgraded++;
+      return { ...n, best_similarity: c.best_similarity, best_source_match: c.best_source_match, gap_exists: c.gap_exists };
+    }
+    return n;
+  });
+  const courseDomains = new Set<SubjectDomain>();
+  for (const label of labels) {
+    const d = canonicalSubjectDomain(label);
+    if (CORE_DOMAIN_SET.has(d)) courseDomains.add(d);
+  }
+  opts.debug('rag_course_matches', 'Course content applied', { courses: labels, upgraded, rows: data.length });
+  return { nodes, courseDomains, upgraded };
+}
+
 export function mergeBestSourceMatch(primary: GapNode[], supplement: GapNode[]): GapNode[] {
   const byId = new Map<string, GapNode>();
   for (const n of primary) byId.set(n.target_node_id, n);

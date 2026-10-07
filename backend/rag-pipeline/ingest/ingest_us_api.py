@@ -59,7 +59,7 @@ from config import (
     CURRICULUM_US_CC,
     INSERT_BATCH_SIZE,
 )
-from db.supabase_client import get_client, batch_insert, get_existing_source_ids, delete_edges_for_curriculum, _should_reconnect
+from db.supabase_client import get_client, batch_insert, get_existing_source_ids, delete_edges_for_curriculum, _should_reconnect, refresh_subject_index
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -697,6 +697,7 @@ def ingest_us_api(
 
     # ── Summary ────────────────────────────────────────────────────────────
     _clear_checkpoint()  # all done — remove checkpoint
+    refresh_subject_index(db_client)
 
     print(f"\n{'=' * 60}")
     print(f"  US Standards API Ingestion Complete")

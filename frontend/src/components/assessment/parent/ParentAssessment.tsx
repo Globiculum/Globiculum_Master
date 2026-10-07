@@ -9,6 +9,7 @@ import ParentStep3 from "./ParentStep3";
 import ParentStep5 from "./ParentStep5";
 import { validateParentStep, PARENT_TOTAL_STEPS } from "./parentValidation";
 import type { ParentFormData } from "./parentMapper";
+import { normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
 
 // ParentAssessment.tsx — the dedicated Parent state owner and step
 // controller. Fully isolated from the Student module: its own state
@@ -52,6 +53,7 @@ const createDefaultParentFormData = (): ParentFormData => ({
   targetGoal: "",
   targetGoalOther: "",
   targetGrade: "",
+  targetStream: "",
   timeline: "",
   educationHistory: [],
 
@@ -124,6 +126,8 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
     targetGoal: prefillData.targetGoal || defaults.targetGoal,
     targetGoalOther: prefillData.targetGoalOther || defaults.targetGoalOther,
     targetGrade: prefillData.targetGrade || defaults.targetGrade,
+    // Pre-split "science" is cleared so the stream question is asked again.
+    targetStream: normalizeTargetStream(prefillData.targetStream) || defaults.targetStream,
     timeline: prefillData.timeline || defaults.timeline,
     educationHistory: Array.isArray(prefillData.educationHistory) ? prefillData.educationHistory : defaults.educationHistory,
     academicPath: Array.isArray(prefillData.academicPath) ? prefillData.academicPath : defaults.academicPath,

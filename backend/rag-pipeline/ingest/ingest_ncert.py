@@ -27,7 +27,8 @@ from config import (
     CURRICULUM_NCERT,
     INSERT_BATCH_SIZE,
 )
-from db.supabase_client import get_client, batch_insert, get_existing_source_ids, delete_edges_for_curriculum
+from db.supabase_client import get_client, batch_insert, get_existing_source_ids, delete_edges_for_curriculum, refresh_subject_index
+from subject_streams import ncert_streams  # noqa: E402
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -138,6 +139,9 @@ def process_file(filepath: Path, existing_source_ids: set[str]) -> tuple[list[di
                     "book": _safe_str(row.get("Book")) or None,
                     "chapter_number": _safe_int(row.get("Chapter Number"), 0) or None,
                     "stream": stream,
+                    # Real stream list for Class XI-XII; `stream` above is only the
+                    # source folder (see subject_streams.py).
+                    "streams": ncert_streams(subject, grade_min),
                     "depth_level": _safe_str(row.get("Depth Level")) or None,
                     "difficulty_score": _safe_float(row.get("Difficulty Score")),
                     "estimated_hours": _safe_float(row.get("Estimated Hours")),
@@ -175,6 +179,7 @@ def process_file(filepath: Path, existing_source_ids: set[str]) -> tuple[list[di
                     "parent_standard_code": standard_code,
                     "subtopic_index": idx,
                     "stream": stream,
+                    "streams": ncert_streams(subject, grade_min),
                     "depth_level": _safe_str(row.get("Depth Level")) or None,
                     "difficulty_score": _safe_float(row.get("Difficulty Score")),
                     "url": _safe_str(row.get("URL")) or None,
@@ -335,6 +340,7 @@ def ingest_ncert(fresh: bool = False) -> None:
         batch_insert(client, "curriculum_edges", edge_records, INSERT_BATCH_SIZE)
         print("  Done.")
 
+    refresh_subject_index(client)
     print(f"\n[OK] NCERT ingestion complete.")
     print(f"  Chapter nodes: {len(inserted_chapters)}")
     print(f"  Subtopic nodes: {len(inserted_subtopics)}")

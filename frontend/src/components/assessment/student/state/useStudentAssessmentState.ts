@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { type AssessmentFormData, createDefaultAssessmentFormData } from "../../shared/types";
+import { normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
 
 // Isolated from the Parent flow's local useState inside AssessmentForm.tsx —
 // the Student module owns its own state container so the two flows can
@@ -30,6 +31,8 @@ export function useStudentAssessmentState(
       : typeof rawCurriculum === "string" && rawCurriculum
         ? [rawCurriculum]
         : defaults.currentCurriculum;
+    // Pre-split "science" is cleared so the stream question is asked again.
+    merged.targetStream = normalizeTargetStream(merged.targetStream);
     return merged;
   });
 

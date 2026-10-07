@@ -240,3 +240,20 @@ def get_existing_source_ids(client: Client, curriculum_system: str) -> set[str]:
             break
         offset += len(rows)
     return existing
+
+
+def refresh_subject_index(client: Client) -> None:
+    """
+    Rebuild curriculum_subject_index, the per-subject node counts the assessment
+    form and get_canonical_subjects read instead of scanning curriculum_nodes.
+    Call after any import that adds or removes nodes; until then new subjects
+    don't appear in the form. A failure only warns: the import itself is done,
+    and the refresh can be re-run alone with
+        python -c "from db.supabase_client import *; refresh_subject_index(get_client())"
+    """
+    print("Refreshing curriculum_subject_index...")
+    try:
+        client.rpc("refresh_curriculum_subject_index", {}).execute()
+        print("  Done.")
+    except Exception as exc:  # noqa: BLE001 - never fail a finished import over this
+        print(f"  [WARN] refresh failed, run it again later: {str(exc)[:160]}")

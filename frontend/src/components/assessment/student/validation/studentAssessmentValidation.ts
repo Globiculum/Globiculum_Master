@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AssessmentFormData } from "../../shared/types";
+import { gradeHasStream, normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
 
 // Independent from frontend/src/lib/validation/studentValidation.ts (the
 // Parent flow's schema / backend contract). This module only gates
@@ -33,13 +34,18 @@ const studentProfileStepSchema = z
     currentCurriculum: z.array(z.string()).min(1, "Please select at least one curriculum"),
     targetGoal: z.string().min(1, "Please select a target Indian board"),
     targetGrade: z.string().min(1, "Please select a target grade"),
+    targetStream: z.string().optional(),
     timeline: z.string().min(1, "Please select a transition timeline"),
   })
   // US State is only mandatory once the country is "us" — mirrors Parent's
-  // own canProceedFromStep gate for the same field.
+  // own canProceedFromStep gate for the same field. Stream likewise only for
+  // Classes XI-XII on a streamed board.
   .superRefine((data, ctx) => {
     if (data.snapshotLocation === "us" && !data.usState) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select your state", path: ["usState"] });
+    }
+    if (gradeHasStream(data.snapshotGrade, data.targetGoal, data.targetGrade) &&!normalizeTargetStream(data.targetStream)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please choose a stream", path: ["targetStream"] });
     }
   });
 

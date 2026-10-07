@@ -43,7 +43,7 @@ from config import (
     CURRICULUM_NGSS,
     INSERT_BATCH_SIZE,
 )
-from db.supabase_client import get_client, batch_insert, get_existing_source_ids
+from db.supabase_client import get_client, batch_insert, get_existing_source_ids, refresh_subject_index
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -200,6 +200,7 @@ def ingest_ngss(fresh: bool = False) -> None:
     inserted = batch_insert(client, "curriculum_nodes", nodes, INSERT_BATCH_SIZE)
     print(f"  Inserted {len(inserted)} nodes.")
 
+    refresh_subject_index(client)
     print(f"\n[OK] NGSS ingestion complete.")
     print(f"  Standard nodes: {len(inserted)}")
 

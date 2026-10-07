@@ -5,7 +5,7 @@ import {
   Calculator, Sigma, Shapes, Infinity as InfinityIcon, FlaskConical, TestTube, Atom, Dna, Code,
   BookOpen, PenTool, Languages, Landmark, ScrollText, Scale, Compass, Brain, Users, TrendingUp,
   Receipt, Briefcase, Leaf, Palette, GraduationCap,
-  type LucideIcon,
+  type LucideIcon, HeartPulse, Wallet,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -92,6 +92,11 @@ const SUBJECT_ICON: Record<string, LucideIcon> = {
   "General Awareness / Environmental Learning": Leaf,
   "Elective (Art/Music/CS/Other)": Palette,
   "Elective (Art/Music/Technology)": Palette,
+  // Canonical US subject names from subject_mappings (get_canonical_subjects).
+  "World Languages": Languages,
+  "Arts": Palette,
+  "Physical Education & Health": HeartPulse,
+  "Personal Finance": Wallet,
 };
 const getSubjectIcon = (subject: string): LucideIcon => SUBJECT_ICON[subject] ?? GraduationCap;
 

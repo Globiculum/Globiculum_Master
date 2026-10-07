@@ -51,6 +51,11 @@ export interface AssessmentFormData {
   targetGoal: string;
   targetGoalOther: string;
   targetGrade: string; // "same" | "next" — grade to enroll in relative to snapshotGrade
+  // Classes XI-XII only. Indian boards are stream-based at this level, so the
+  // subject list shown in the Academic Path step is filtered by it — a Commerce
+  // student is never offered Physics, a Science student never Accountancy.
+  // Empty for grades 1-10, where no stream exists.
+  targetStream: string; // "science-pcm" | "science-pcb" | "commerce" | "humanities" | "" (TargetStream)
   timeline: string;
   transitionConcerns: string[];
   supportNeeds: string[];
@@ -99,6 +104,7 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   targetGoal: "",
   targetGoalOther: "",
   targetGrade: "",
+  targetStream: "",
   timeline: "",
   transitionConcerns: [],
   supportNeeds: [],

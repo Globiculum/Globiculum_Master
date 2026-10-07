@@ -17,6 +17,8 @@ import {
   resolveSourceCurriculum,
   fetchUSStateAwareSourceGaps,
   SubjectSourceAuditEntry,
+  SubjectDomain,
+  prepareTargetNodes,
 } from "../_shared/curriculumGaps.ts";
 
 interface DiagnosticsRequest {
@@ -313,14 +315,18 @@ async function runDiagnostics(
   let pooledTotal = 0;
 
   if (sourceEntry && targetEntry && sourceEntry.dbSystem !== targetEntry.dbSystem) {
+    // Target: the grade itself and the year before, never the year after (that
+    // counted next year's chapters as gaps). Source keeps one year of lookahead.
     const gradeMin = Math.max(1, gradeLevel - 1);
-    const gradeMax = Math.min(12, gradeLevel + 1);
+    const gradeMax = Math.min(12, gradeLevel);
+    const sourceGradeMax = Math.min(12, gradeLevel + 1);
 
     let gapRows: GapNode[] = [];
     let sourceSystemsQueried: string[] = [];
     let rpcError: { message: string } | null = null;
     let unavailableSubjectKeys: string[] = [];
     let subjectSourceAudit: Record<string, SubjectSourceAuditEntry> = {};
+    let coveredDomains: Set<SubjectDomain> | undefined;
 
     if (sourceResolution.mode === 'us-state') {
       // Subject-scoped, parallel retrieval against the student's own state
@@ -328,19 +334,22 @@ async function runDiagnostics(
       // pool (17k-75k nodes) as one source, which times out at 20s.
       const stateResult = await fetchUSStateAwareSourceGaps({
         rpc: (params) => supabase.rpc('find_curriculum_gaps_rag', params),
+        rpcNamed: (fn, params) => supabase.rpc(fn, params),
+        targetGrade: gradeLevel,
         stateSystem: sourceEntry.dbSystem,
         stateLabel: sourceEntry.label,
         targetCurriculum: targetEntry.dbSystem,
         targetNodeType: targetEntry.nodeType,
         gradeMin, gradeMax,
         sourceGradeMin: 1,
-        sourceGradeMax: gradeMax,
+        sourceGradeMax,
         onDebug: (step, message, data) => logger.debug(message, { step, ...data }),
       });
       gapRows = stateResult.allTargetNodes;
       sourceSystemsQueried = stateResult.sourceSystemsQueried;
       subjectSourceAudit = stateResult.subjectSourceAudit;
       unavailableSubjectKeys = stateResult.unavailableSubjectKeys;
+      coveredDomains = stateResult.coveredDomains;
     } else {
       const rpcParams = {
         source_curriculum: sourceEntry.dbSystem,
@@ -362,7 +371,7 @@ async function runDiagnostics(
         // (grade±1); the source band spans grade 1 through grade+1 so a
         // student's earlier-grade prior knowledge actually counts as coverage.
         source_grade_min: 1,
-        source_grade_max: gradeMax,
+        source_grade_max: sourceGradeMax,
       };
 
       const { data: primaryRows, error: primaryError } = await logger.measureRetrieval(
@@ -423,7 +432,10 @@ async function runDiagnostics(
       // production data. Group by a lowercased key so it matches this
       // function's own subject-request-matching convention below.
       const lowerKeyFn = (n: GapNode) => getNodeSubjectLabel(n).toLowerCase().trim();
-      const { bySubjectCovered, bySubjectGaps } = classifyGapsBySubject(gapRows, sourceSystemsQueried, lowerKeyFn);
+      // English on skills, one copy of units repeated across classes.
+      const { bySubjectCovered, bySubjectGaps } = classifyGapsBySubject(
+        prepareTargetNodes(gapRows, gradeLevel), sourceSystemsQueried, lowerKeyFn, coveredDomains
+      );
 
       subjectScores = {};
       for (const subject of subjectsToAnalyze) {

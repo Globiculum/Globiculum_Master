@@ -15,6 +15,8 @@ import {
   mergeBestSourceMatch,
   resolveSourceCurriculum,
   fetchUSStateAwareSourceGaps,
+  SubjectDomain,
+  prepareTargetNodes,
 } from "../_shared/curriculumGaps.ts";
 
 interface AlignmentRequest {
@@ -237,14 +239,18 @@ serve(async (req) => {
  * callers must use subjectStats (also returned here) rather than an
  * `array.includes(node)` reference check to tell gap vs. covered per
  * subject; a reference check would silently count every node as "covered". */
-function classifyBySubject(allNodes: GapNode[], sourceSystemsQueried: string[]): {
+function classifyBySubject(
+  allNodes: GapNode[],
+  sourceSystemsQueried: string[],
+  coveredDomains?: Set<SubjectDomain>
+): {
   gapStandards: GapNode[];
   coveredStandards: GapNode[];
   severityByNodeId: Map<string, 'critical' | 'moderate' | 'minor'>;
   subjectStats: Map<string, { total: number; covered: number }>;
 } {
   const lowerKeyFn = (n: GapNode) => getNodeSubjectLabel(n).toLowerCase().trim();
-  const { gapNodesWithSeverity, coveredNodes, subjectStats } = classifyGapsBySubject(allNodes, sourceSystemsQueried, lowerKeyFn);
+  const { gapNodesWithSeverity, coveredNodes, subjectStats } = classifyGapsBySubject(allNodes, sourceSystemsQueried, lowerKeyFn, coveredDomains);
   const severityMap: Record<'CRITICAL' | 'MAJOR' | 'MODERATE', 'critical' | 'moderate' | 'minor'> = {
     CRITICAL: 'critical', MAJOR: 'moderate', MODERATE: 'minor',
   };
@@ -317,8 +323,11 @@ async function runAlignmentRAG(
   subjects: string[],
   isUSStateSource: boolean,
 ): Promise<AlignmentResult> {
+  // Target: the grade itself and the year before, never the year after (that
+  // counted next year's chapters as gaps). Source keeps one year of lookahead.
   const gradeMin = Math.max(1, gradeLevel - 1);
-  const gradeMax = Math.min(12, gradeLevel + 1);
+  const gradeMax = Math.min(12, gradeLevel);
+  const sourceGradeMax = Math.min(12, gradeLevel + 1);
 
   const baseParams = {
     source_curriculum: sourceEntry.dbSystem,
@@ -339,11 +348,12 @@ async function runAlignmentRAG(
     // (grade±1); the source band spans grade 1 through grade+1 so a
     // student's earlier-grade prior knowledge actually counts as coverage.
     source_grade_min: 1,
-    source_grade_max: gradeMax,
+    source_grade_max: sourceGradeMax,
   };
 
   let rawData: GapNode[];
   let sourceSystemsQueried: string[];
+  let coveredDomains: Set<SubjectDomain> | undefined;
 
   // State-primary path: same subject-scoped, parallel retrieval as
   // analyze-curriculum/diagnostics-engine — see _shared/curriculumGaps.ts.
@@ -352,17 +362,20 @@ async function runAlignmentRAG(
   if (isUSStateSource) {
     const stateResult = await fetchUSStateAwareSourceGaps({
       rpc: (params) => supabase.rpc('find_curriculum_gaps_rag', params),
+      rpcNamed: (fn, params) => supabase.rpc(fn, params),
+      targetGrade: gradeLevel,
       stateSystem: sourceEntry.dbSystem,
       stateLabel: sourceEntry.dbSystem,
       targetCurriculum: targetEntry.dbSystem,
       targetNodeType: targetEntry.nodeType,
       gradeMin, gradeMax,
       sourceGradeMin: 1,
-      sourceGradeMax: gradeMax,
+      sourceGradeMax,
       onDebug: (step, message, data) => logger.debug(message, { step, ...data }),
     });
     rawData = stateResult.allTargetNodes;
     sourceSystemsQueried = stateResult.sourceSystemsQueried;
+    coveredDomains = stateResult.coveredDomains;
     if (rawData.length === 0) {
       logger.warn('State-aware RAG data unavailable', { source: sourceEntry.dbSystem });
       return buildEstimatedAlignment(sourceEntry.dbSystem, targetEntry.dbSystem, gradeLevel, ['math', 'english', 'science']);
@@ -419,13 +432,14 @@ async function runAlignmentRAG(
   // ── Per-subject classification ─────────────────────────────────────────
   // See classifyBySubject() above for why this replaced a single global
   // percentile ranking across all subjects.
-  // Filter to the target curriculum's specific node type (or all nodes if nodeType is null)
-  const allCC = rawData.filter(g =>
+  // Filter to the target curriculum's specific node type (or all nodes if nodeType is null),
+  // English on skills, one copy of units repeated across classes.
+  const allCC = prepareTargetNodes(rawData.filter(g =>
     targetEntry.nodeType == null || g.target_node_type === targetEntry.nodeType
-  );
+  ), gradeLevel);
 
   const total = allCC.length;
-  const { gapStandards, coveredStandards, severityByNodeId, subjectStats: rawSubjectStats } = classifyBySubject(allCC, sourceSystemsQueried);
+  const { gapStandards, coveredStandards, severityByNodeId, subjectStats: rawSubjectStats } = classifyBySubject(allCC, sourceSystemsQueried, coveredDomains);
 
   // ── Per-subject stats ───────────────────────────────────────────────────
   const subjectStats: Record<string, { gap: number; covered: number }> = {};

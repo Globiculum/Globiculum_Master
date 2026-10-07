@@ -53,6 +53,12 @@ import {
   resolveSourceCurriculum,
   fetchUSStateAwareSourceGaps,
   SubjectSourceAuditEntry,
+  SubjectDomain,
+  studiedSourceDomains,
+  loadTargetSubjects,
+  prepareTargetNodes,
+  applyCourseMatches,
+  US_COURSES_SYSTEM,
 } from "../_shared/curriculumGaps.ts";
 
 // =============================================================================
@@ -63,22 +69,43 @@ import {
 // =============================================================================
 
 /**
+ * The grade the student will ENTER in India: their current grade, or the next
+ * one when the form's "Same grade, or move up?" answer is 'next'. Gaps are
+ * measured against this grade, not the current one.
+ */
+function resolveTargetGrade(formData: FormData): number | undefined {
+  const grade = Number(formData.snapshotGrade);
+  if (!Number.isFinite(grade)) return undefined;
+  return Math.min(12, grade + (formData.targetGrade === 'next' ? 1 : 0));
+}
+
+/**
  * Infer the TARGET curriculum the student is transitioning TO.
  * Priority: explicit targetCurriculum > targetGoal text > snapshotLocation.
  */
 function inferTargetEntry(formData: FormData): CurriculumEntry | null {
+  // CISCE selections are grade-dependent: ICSE covers classes 9-10, ISC covers
+  // 11-12. A student transferring into class 11 under the "ICSE" label needs the
+  // ISC syllabus, so the grade is passed through to the resolver.
+  const targetGrade = resolveTargetGrade(formData);
+
   // 1. Explicit target curriculum passed from form
-  const explicit = mapToDBEntry(formData.targetCurriculum);
+  const explicit = mapToDBEntry(formData.targetCurriculum, targetGrade);
   if (explicit) return explicit;
   // 2. Infer from targetGoal (e.g. 'cbse', 'US curriculum alignment')
   const goal = (formData.targetGoal || '').toLowerCase();
   if (goal.includes('us') || goal.includes('common core') || goal.includes('american')) {
     return CURRICULUM_DB_REGISTRY['us-common-core'];
   }
+  if (goal.includes('isc') && !goal.includes('icse')) {
+    return CURRICULUM_DB_REGISTRY['isc-cisce'];
+  }
+  if (goal.includes('icse') || goal.includes('cisce')) {
+    return mapToDBEntry('icse', targetGrade) ?? CURRICULUM_DB_REGISTRY['icse'];
+  }
   if (goal.includes('cbse') || goal.includes('ncert') || goal.includes('india')) {
     return CURRICULUM_DB_REGISTRY['ncert-cbse'];
   }
-  if (goal.includes('icse')) return CURRICULUM_DB_REGISTRY['icse'];
   // 3. Fall back to snapshotLocation (where student currently is = likely target)
   const loc = (formData.snapshotLocation || '').toLowerCase();
   if (loc === 'us') return CURRICULUM_DB_REGISTRY['us-common-core'];
@@ -89,7 +116,7 @@ function inferTargetEntry(formData: FormData): CurriculumEntry | null {
 /**
  * Build a compact RAG context string for the LLM prompt.
  * Groups gaps by subject, shows target node name + closest source match.
- * Severity is pre-computed by adaptive percentile (not absolute similarity).
+ * Severity is pre-computed from calibrated similarity bands (see classifyGapsBySubject).
  */
 function buildRagContext(
   gaps: GapNodeWithSeverity[],
@@ -355,8 +382,8 @@ function expandSubjectAnalysisFromRag(
   subjectStats: Map<string, { total: number; covered: number }>,
   subjectClassifications: SubjectClassification[],
   sourceLabel: string
-): { subject: string; action: 'added' | 'existing' | 'updated' }[] {
-  const expansionLog: { subject: string; action: 'added' | 'existing' | 'updated' }[] = [];
+): { subject: string; action: 'added' | 'existing' | 'updated' | 'dropped' }[] {
+  const expansionLog: { subject: string; action: 'added' | 'existing' | 'updated' | 'dropped' }[] = [];
   if (subjectStats.size === 0) return expansionLog;
 
   const domainCoveredBySubject = new Map(subjectClassifications.map(s => [s.subject, s.domainCovered]));
@@ -421,7 +448,9 @@ function expandSubjectAnalysisFromRag(
       const meta = (g.target_metadata || {}) as Record<string, unknown>;
       const url = (meta.url as string) || (meta.source_url as string);
       const reason = buildGapReason(g, domainCovered, sourceLabel);
-      return { topic: g.target_node_name, subject, reason, ...(url ? { resourceUrl: url } : {}) };
+      // grade: the class the topic belongs to, so the report can mark
+      // earlier-class topics as foundations.
+      return { topic: g.target_node_name, subject, reason, grade: g.target_grade_min, ...(url ? { resourceUrl: url } : {}) };
     });
 
     const normalized = subject.toLowerCase();
@@ -451,6 +480,38 @@ function expandSubjectAnalysisFromRag(
   // since the LLM isn't guaranteed to follow the exact-match instruction),
   // keep only the entry with the higher totalTopics (the one that actually
   // got real subjectStats data merged into it above) and drop the rest.
+  // Subjects the LLM invented that have no target nodes behind them are dropped
+  // here. The loop above only ever adds or updates entries from subjectStats, so
+  // anything left over came purely from Gemini — and with no RAG data it can only
+  // render as a permanent "0% aligned" card. Confirmed in a production report:
+  // Sociology appeared at 0% for a US -> ISC Class 11 student, but Sociology is
+  // not one of the 12 ingested ISC subjects, so nothing could ever match it.
+  // Only applied when RAG data exists at all (the function already returns early
+  // when subjectStats is empty), and it runs BEFORE the unavailable-subject cards
+  // are injected downstream, so genuine "state data missing" subjects survive.
+  const groundedKeys = new Set<string>();
+  for (const subject of subjectStats.keys()) {
+    const name = subject.toLowerCase().trim();
+    groundedKeys.add(name);
+    for (const alias of SUBJECT_ALIASES[name] || []) groundedKeys.add(alias);
+    for (const [key, aliasList] of Object.entries(SUBJECT_ALIASES)) {
+      if (key === name || aliasList.includes(name)) {
+        groundedKeys.add(key);
+        aliasList.forEach(a => groundedKeys.add(a));
+      }
+    }
+  }
+
+  const grounded = subjectAnalysis.filter(entry => {
+    const name = ((entry.subject as string) || '').toLowerCase().trim();
+    if (!name) return false;
+    if (groundedKeys.has(name)) return true;
+    expansionLog.push({ subject: (entry.subject as string) || '(unnamed)', action: 'dropped' });
+    return false;
+  });
+  subjectAnalysis.length = 0;
+  subjectAnalysis.push(...grounded);
+
   const seenCanonical = new Map<string, Record<string, unknown>>();
   const deduped: Record<string, unknown>[] = [];
   for (const entry of subjectAnalysis) {
@@ -474,7 +535,12 @@ function expandSubjectAnalysisFromRag(
   subjectAnalysis.push(...deduped);
 
   // Ensure criticalGaps reflect the most severe gaps across subjects
-  const criticalGaps = Array.isArray(analysisData.criticalGaps)
+  // When the database found CRITICAL gaps, they replace the model's own list:
+  // the model's entries are free-text paraphrases with no subject, so the
+  // report filed them under "General" and ranked them first, ahead of the real
+  // gaps. Without RAG gaps the model's list is all there is, so it is kept.
+  const hasRagCritical = ragGaps.some(g => g._severity === 'CRITICAL');
+  const criticalGaps = Array.isArray(analysisData.criticalGaps) && !hasRagCritical
     ? (analysisData.criticalGaps as (string | Record<string, unknown>)[])
     : [];
   const criticalSet = new Set(
@@ -522,7 +588,7 @@ function expandSubjectAnalysisFromRag(
     // 7th+ gap a correct, specific reason.
     const domainCovered = domainCoveredBySubject.get(subject) ?? true;
     const reason = buildGapReason(gap, domainCovered, sourceLabel);
-    criticalGaps.push({ topic, subject, reason, ...(url ? { resourceUrl: url } : {}) });
+    criticalGaps.push({ topic, subject, reason, grade: gap.target_grade_min, ...(url ? { resourceUrl: url } : {}) });
     criticalSet.add(topic.toLowerCase());
   }
   for (const [subject, nodes] of languageDomainNodes) {
@@ -537,6 +603,16 @@ function expandSubjectAnalysisFromRag(
   return expansionLog;
 }
 
+// Labels for the stream values analyze-curriculum accepts (see the
+// targetStream allow-list below); used in the model prompt.
+const TARGET_STREAM_LABELS: Record<string, string> = {
+  'science-pcm': 'Science – Non-Medical (Physics, Chemistry, Mathematics)',
+  'science-pcb': 'Science – Medical (Physics, Chemistry, Biology)',
+  'commerce': 'Commerce',
+  'humanities': 'Humanities',
+  'science': 'Science',
+};
+
 interface FormData {
   schoolStage?: string;
   snapshotGrade?: number;
@@ -546,6 +622,8 @@ interface FormData {
   currentCurriculum?: string;
   targetCurriculum?: string;  // explicit target (e.g. 'cbse', 'us-common-core')
   targetGoal?: string;        // text goal — used to infer targetCurriculum if not explicit
+  targetStream?: string;      // 'science-pcm' | 'science-pcb' | 'commerce' | 'humanities' — Classes XI-XII only
+  targetGrade?: string;       // 'same' | 'next' — grade entered in India, relative to snapshotGrade
   academicPath?: string[];
   strongestSubjects?: string[];
   challengingAreas?: string[];
@@ -757,7 +835,18 @@ serve(async (req) => {
       currentCurriculum: sanitizeForPrompt(rawFormData.currentCurriculum, 100) || undefined,
       targetCurriculum: sanitizeForPrompt(rawFormData.targetCurriculum, 100) || undefined,
       targetGoal: sanitizeForPrompt(rawFormData.targetGoal, 200) || undefined,
-      academicPath: sanitizeArray(rawFormData.academicPath, 10, 50),
+      // Allow-listed rather than free text: it selects database rows. 'science'
+      // is the pre-split value (Physics, Chemistry, Maths AND Biology), still
+      // accepted so reports generated before the PCM/PCB split can be retaken.
+      targetStream: ['science-pcm', 'science-pcb', 'commerce', 'humanities', 'science']
+        .includes(String(rawFormData.targetStream))
+        ? String(rawFormData.targetStream)
+        : undefined,
+      targetGrade: rawFormData.targetGrade === 'next' ? 'next' : rawFormData.targetGrade === 'same' ? 'same' : undefined,
+      // 30 items: a US state's full subject list (up to 9) plus high-school and
+      // AP courses (up to 16). The old cap of 10 silently dropped selections —
+      // including Computer Science, which changes scoring.
+      academicPath: sanitizeArray(rawFormData.academicPath, 30, 60),
       strongestSubjects: sanitizeArray(rawFormData.strongestSubjects, 10, 50),
       challengingAreas: sanitizeArray(rawFormData.challengingAreas, 10, 50),
       languagesSpoken: sanitizeArray(rawFormData.languagesSpoken, 10, 50),
@@ -875,6 +964,8 @@ serve(async (req) => {
     // thin, no fallback exists) — must never be scored as a gap. See
     // buildUnavailableSubjectReason() and its use below.
     let unavailableSubjectKeys: string[] = [];
+    // Set in US state mode only: domains a real source pool was compared for.
+    let coveredDomains: Set<SubjectDomain> | undefined;
 
     // Resolve source and target curricula. resolveSourceCurriculum() is the
     // new architecture's entry point: for a US student on "Regular U.S.
@@ -910,9 +1001,17 @@ serve(async (req) => {
         sourceNodeType: sourceEntry.nodeType, targetNodeType: targetEntry.nodeType,
       });
       try {
-        const grade = formData.snapshotGrade || 9;
+        // `grade` is the grade the student will ENTER (see resolveTargetGrade).
+        // The target window is that grade plus the year before it, never the
+        // year after: a student entering Class 11 was shown Class 12 chapters
+        // (Amines, Haloalkanes, Electrochemistry) as their top critical gaps.
+        const studentGrade = formData.snapshotGrade || 9;
+        const grade = resolveTargetGrade(formData) ?? studentGrade;
         const gradeMin = Math.max(1, grade - 1);
-        const gradeMax = Math.min(12, grade + 1);
+        const gradeMax = grade;
+        // Source: everything taught up to the student's current grade, plus one
+        // year of lookahead for sequencing differences between curricula.
+        const sourceGradeMax = Math.min(12, studentGrade + 1);
 
         // Only apply the subject filter for grades 11-12. academicPath for
         // those grades is drawn from the same NCERT-stream-shaped subject
@@ -925,7 +1024,22 @@ serve(async (req) => {
         // exact gaps a cross-curriculum transition report exists to surface
         // (verified against production data: a US Common Core -> CBSE grade 8
         // report where Hindi/Sanskrit are the single most important findings).
-        const targetSubjects = grade >= 11 ? expandSubjectFilter(formData.academicPath) : undefined;
+        //
+        // academicPath now holds the US subjects a student studies today (read
+        // from their state's canonical subjects), so for US students it can no
+        // longer double as the target filter. The chosen stream replaces it.
+        // Non-US students keep the old behaviour: their Class XI-XII list is
+        // still drawn from the target board.
+        const rpcNamed = (fn: string, params: Record<string, unknown>) => supabase.rpc(fn, params);
+        let targetSubjects: string[] | undefined;
+        if (grade >= 11 && formData.targetStream) {
+          const streamSubjects = await loadTargetSubjects(
+            rpcNamed, targetEntry.dbSystem, grade, grade, formData.targetStream, addDebug
+          );
+          targetSubjects = streamSubjects?.all.length ? streamSubjects.all : undefined;
+        } else if (grade >= 11 && (formData.snapshotLocation || '').toLowerCase() !== 'us') {
+          targetSubjects = expandSubjectFilter(formData.academicPath);
+        }
 
         let rawGaps: GapNode[];
         let sourceSystemsQueried: string[];
@@ -942,6 +1056,10 @@ serve(async (req) => {
           // fallback rules, and why Social Studies has no fallback at all.
           const stateResult = await fetchUSStateAwareSourceGaps({
             rpc: (params) => supabase.rpc('find_curriculum_gaps_rag', params),
+            rpcNamed,
+            targetStream: formData.targetStream ?? null,
+            targetGrade: grade,
+            studiedDomains: studiedSourceDomains(formData.academicPath),
             stateSystem: sourceEntry.dbSystem,
             stateLabel: sourceEntry.label,
             targetCurriculum: targetEntry.dbSystem,
@@ -949,18 +1067,39 @@ serve(async (req) => {
             gradeMin,
             gradeMax,
             sourceGradeMin: 1,
-            sourceGradeMax: gradeMax,
+            sourceGradeMax,
             onDebug: addDebug,
           });
           rawGaps = stateResult.allTargetNodes;
           sourceSystemsQueried = stateResult.sourceSystemsQueried;
           subjectSourceAudit = stateResult.subjectSourceAudit;
           unavailableSubjectKeys = stateResult.unavailableSubjectKeys;
+          coveredDomains = stateResult.coveredDomains;
+
+          // High-school courses the student has taken (Chemistry, AP Physics...)
+          // teach far more than the state's broad standards list.
+          const courseResult = await applyCourseMatches({
+            rpc: (params) => supabase.rpc('find_curriculum_gaps_rag', params),
+            academicPath: formData.academicPath,
+            nodes: rawGaps,
+            targetCurriculum: targetEntry.dbSystem,
+            targetNodeType: targetEntry.nodeType,
+            targetSubjects: targetSubjects ?? null,
+            gradeMin,
+            gradeMax,
+            debug: addDebug,
+          });
+          if (courseResult.upgraded > 0) {
+            rawGaps = courseResult.nodes;
+            sourceSystemsQueried = [...sourceSystemsQueried, US_COURSES_SYSTEM];
+            for (const d of courseResult.courseDomains) coveredDomains?.add(d);
+          }
           addDebug('rag_state_aware_summary', 'State-aware subject retrieval complete', {
             state: sourceEntry.dbSystem,
             sourceSystemsQueried,
             subjectSourceAudit,
             unavailableSubjectKeys,
+            coveredDomains: [...stateResult.coveredDomains],
             totalRows: rawGaps.length,
           });
         } else {
@@ -979,11 +1118,12 @@ serve(async (req) => {
             target_node_type_filter: targetEntry.nodeType,
             target_subjects: targetSubjects ?? null,
             // Cumulative, not symmetric: the TARGET grade band stays narrow
-            // (grade±1 — what we're assessing readiness FOR), but the SOURCE
-            // band spans from grade 1 through grade+1 — everything the student
-            // has plausibly been taught so far, plus a small lookahead buffer.
+            // (the entry grade and the year before — what we're assessing
+            // readiness FOR), but the SOURCE band spans from grade 1 through the
+            // student's grade+1 — everything plausibly taught so far, plus a
+            // small lookahead buffer.
             source_grade_min: 1,
-            source_grade_max: gradeMax,
+            source_grade_max: sourceGradeMax,
           };
           addDebug('rag_rpc_params', 'Calling find_curriculum_gaps_rag', rpcParams);
 
@@ -1053,10 +1193,11 @@ serve(async (req) => {
           // ── Per-subject gap classification ──────────────────────────────
           // See classifyGapsBySubject() above for why this replaced a single
           // global percentile ranking.
-          // Filter to the target curriculum's specific node type (or all nodes if null)
-          const allTargetNodes = (rawGaps as GapNode[]).filter(g =>
+          // Filter to the target curriculum's specific node type (or all nodes if null),
+          // English on skills, one copy of units repeated across classes.
+          const allTargetNodes = prepareTargetNodes((rawGaps as GapNode[]).filter(g =>
             targetEntry.nodeType == null || g.target_node_type === targetEntry.nodeType
-          );
+          ), Number(grade));
 
           addDebug('rag_raw_rows', 'Raw RPC rows received', {
             rawRowCount: rawGaps.length,
@@ -1085,7 +1226,7 @@ serve(async (req) => {
             total,
             subjectClassifications,
             subjectStats,
-          } = classifyGapsBySubject(allTargetNodes, sourceSystemsQueried);
+          } = classifyGapsBySubject(allTargetNodes, sourceSystemsQueried, undefined, coveredDomains);
 
           const allSims = allTargetNodes.map(n => n.best_similarity ?? 0);
           const simLow = Math.min(...allSims);
@@ -1213,9 +1354,9 @@ Step 3 — Generate missing topics: Must align with target grade expectations. M
 
 VERIFIED GAP DATA RULES (CRITICAL)
 - When VERIFIED GAPS are provided from the curriculum database, USE THEM. Do NOT hallucinate topics.
-- CRITICAL = bottom 10% semantic similarity (urgent — must bridge before starting target grade)
-- MAJOR = 10–20% similarity (bridge before grade-level work)
-- MODERATE = 20–35% similarity (address concurrently)
+- CRITICAL = nothing related in the student's current curriculum; new content (urgent — must bridge before starting target grade)
+- MAJOR = only a partially related topic in the current curriculum (bridge before grade-level work)
+- MODERATE = related content exists but the subject as a whole is weakly matched (address concurrently)
 - If no RAG data provided: use curriculum knowledge but reason from grade-level expectations
 
 RESOURCE URL RULES
@@ -1274,8 +1415,21 @@ Return ONLY valid JSON. No markdown fences, no explanation before or after the J
       ragContextFull: ragContext || '(none — LLM will use its own knowledge)',
     });
 
+    // Classes XI-XII: the stream decides which subjects are in the report, so
+    // the model must not plan for others (a PCB report recommended Indian
+    // history). The VERIFIED GAP DATA already holds only the stream's subjects.
+    const streamName = formData.targetStream ? TARGET_STREAM_LABELS[formData.targetStream] : undefined;
+    // Only true when US Common Core really is the source; for a state source
+    // (all four core subjects present) it pushed the model towards History.
+    const commonCoreNote = sourceEntry?.dbSystem === 'us-common-core'
+      ? `4. NOTE: US Common Core only contains Math and English Language Arts standards. Science, History, Social Studies are not in the source DB, so their target topics will always appear as gaps. This is expected and correct; list them.\n`
+      : '';
+    const streamRule = streamName
+      ? `${commonCoreNote ? 5 : 4}. The student will take the ${streamName} stream. Discuss, plan and recommend ONLY the subjects listed in the VERIFIED GAP DATA; do not mention other subjects (e.g. History, Social Science, Accountancy) anywhere in the response.\n`
+      : '';
+    const criticalRuleNo = 4 + (commonCoreNote ? 1 : 0) + (streamRule ? 1 : 0);
     const ragSection = ragContext
-      ? `\n**VERIFIED GAPS FROM CURRICULUM DATABASE (${ragGapCount} priority gaps):**\n${ragContext}\n\nIMPORTANT — READ CAREFULLY:\n1. Use the VERIFIED GAPS above (semantic analysis of ${sourceEntry?.label || formData.currentCurriculum || 'source'} vs ${targetEntry?.label || formData.targetGoal || 'target'}) to populate keyGaps and criticalGaps. These are grounded in real DB data, not estimates.\n2. MANDATORY: Create a subjectAnalysis entry for EVERY [SubjectName] section listed in the VERIFIED GAP DATA above (e.g. [Hindi], [Geography], [History], [Science], [Political Science], [Sanskrit], [Economics]). Do NOT skip any RAG subject — even if the student did not list it in their profile.\n3. For subjects the student listed that have NO RAG gaps (e.g. Mathematics when it is well-aligned), include a brief entry with alignmentLevel: "strong" and keyGaps: [].\n4. NOTE: ${sourceEntry?.label || 'US Common Core'} only contains Math and English Language Arts standards. Science, History, Social Studies are not in the source DB — so NCERT Science/History/Social Studies topics will always appear as gaps. This is expected and correct — list them.\n5. CRITICAL = bottom 10% by similarity (urgent); MAJOR = 10-20% (bridge soon); MODERATE = 20-35% (address concurrently).\n`
+      ? `\n**VERIFIED GAPS FROM CURRICULUM DATABASE (${ragGapCount} priority gaps):**\n${ragContext}\n\nIMPORTANT — READ CAREFULLY:\n1. Use the VERIFIED GAPS above (semantic analysis of ${sourceEntry?.label || formData.currentCurriculum || 'source'} vs ${targetEntry?.label || formData.targetGoal || 'target'}) to populate keyGaps and criticalGaps. These are grounded in real DB data, not estimates.\n2. MANDATORY: Create a subjectAnalysis entry for EVERY [SubjectName] section listed in the VERIFIED GAP DATA above (e.g. [Hindi], [Geography], [History], [Science], [Political Science], [Sanskrit], [Economics]). Do NOT skip any RAG subject — even if the student did not list it in their profile.\n3. For subjects the student listed that have NO RAG gaps (e.g. Mathematics when it is well-aligned), include a brief entry with alignmentLevel: "strong" and keyGaps: [].\n${commonCoreNote}${streamRule}${criticalRuleNo}. CRITICAL = no related topic in the current curriculum (urgent); MAJOR = only partially related (bridge soon); MODERATE = related but in a weakly matched subject (address concurrently).\n`
       : '';
 
     const userPrompt = `Analyze curriculum alignment for this student${ragContext ? ' using the VERIFIED GAP DATA from our curriculum database' : ''}:
@@ -1283,10 +1437,10 @@ Return ONLY valid JSON. No markdown fences, no explanation before or after the J
 **Profile:**
 - Stage: ${formData.schoolStage || 'Not specified'}
 - Grade: ${formData.snapshotGrade || 'Not specified'}
-- Location: ${formData.snapshotLocation === 'us' ? `US${formData.usState ? ` - ${formData.usState}` : ''}` : formData.snapshotLocation || 'Not specified'}
+${formData.targetGrade === 'next' ? `- Entering Grade in India: ${resolveTargetGrade(formData)} (moving up one grade)\n` : ''}- Location: ${formData.snapshotLocation === 'us' ? `US${formData.usState ? ` - ${formData.usState}` : ''}` : formData.snapshotLocation || 'Not specified'}
 - Source Curriculum: ${formData.currentCurriculum || 'Not specified'}
 - Target: ${formData.targetGoal || 'US curriculum alignment'}
-- Subjects: ${formData.academicPath?.join(', ') || 'Core subjects'}
+${streamName ? `- Target Stream (Classes XI-XII): ${streamName}\n` : ''}- Subjects: ${formData.academicPath?.join(', ') || 'Core subjects'}
 - Strong Areas: ${formData.strongestSubjects?.join(', ') || 'Not specified'}
 - Challenges: ${formData.challengingAreas?.join(', ') || 'Not specified'}
 - Languages: ${formData.languagesSpoken?.join(', ') || 'English'}
