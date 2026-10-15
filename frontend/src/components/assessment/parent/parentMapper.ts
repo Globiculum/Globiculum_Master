@@ -32,6 +32,8 @@ export interface ParentFormData {
   targetGrade: string; // "same" | "next" — grade to enroll in relative to snapshotGrade
   // Classes XI-XII only; drives the stream-filtered subject list. "" below grade 11.
   targetStream: string; // "science-pcm" | "science-pcb" | "commerce" | "humanities" | "" (TargetStream)
+  // Optional subjects chosen for the stream (e.g. Computer Science in PCM).
+  targetElectives: string[];
   timeline: string;
   educationHistory: EducationHistoryEntry[];
 

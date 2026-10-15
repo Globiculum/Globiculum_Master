@@ -321,6 +321,10 @@ interface AcademicPathFlashcardsProps {
   customCardSubtitle?: string;
   customCardQuestion?: string;
   summaryTitle?: string;
+  // The Electives section reuses this component without the trailing
+  // "Other subjects" card, and its Next scrolls past the core section.
+  showCustomCard?: boolean;
+  nextSectionId?: string;
 }
 
 const ADVANCE_DELAY_MS = 420;
@@ -342,11 +346,16 @@ const AcademicPathFlashcards = ({
   customCardSubtitle = "Add any subject not listed above, then rate your confidence.",
   customCardQuestion = "How confident do you feel in this subject?",
   summaryTitle = "Your Academic Path is ready.",
+  showCustomCard = true,
+  nextSectionId = "academic-path-next-section",
 }: AcademicPathFlashcardsProps) => {
   const resolvedMicrocopy: Record<ConfidenceValue, string> = { ...DEFAULT_MICROCOPY, ...microcopy };
   const shouldReduceMotion = useReducedMotion() ?? false;
-  const customSubjects = academicPath.filter((s) => !activeSubjectList.includes(s) && !excludeFromCustom.includes(s));
-  const totalCards = activeSubjectList.length + 1; // +1 for the trailing "Other subjects" card
+  const customSubjects = showCustomCard
+    ? academicPath.filter((s) => !activeSubjectList.includes(s) && !excludeFromCustom.includes(s))
+    : [];
+  // +1 for the trailing "Other subjects" card when it is shown.
+  const totalCards = activeSubjectList.length + (showCustomCard ? 1 : 0);
 
   const hasExistingAnswers =
     activeSubjectList.some((s) => academicPath.includes(s) && subjectConfidences[s]) || customSubjects.length > 0;
@@ -361,7 +370,7 @@ const AcademicPathFlashcards = ({
   // every remaining card in the sequence.
   const [editingSingleCard, setEditingSingleCard] = useState(false);
 
-  const isOnCustomCard = cardIndex >= activeSubjectList.length;
+  const isOnCustomCard = showCustomCard && cardIndex >= activeSubjectList.length;
   const currentSubject = isOnCustomCard ? null : activeSubjectList[cardIndex];
   const currentSubjectSelected = currentSubject ? subjectConfidences[currentSubject] : undefined;
   const position = Math.min(cardIndex, totalCards - 1) + 1;
@@ -430,7 +439,7 @@ const AcademicPathFlashcards = ({
     const idx = activeSubjectList.indexOf(subject);
     setEditingSingleCard(true);
     setPhase("cards");
-    setCardIndex(idx === -1 ? activeSubjectList.length : idx);
+    setCardIndex(idx === -1 ? (showCustomCard ? activeSubjectList.length : 0) : idx);
   };
 
   const editOther = () => {
@@ -441,11 +450,11 @@ const AcademicPathFlashcards = ({
 
   const goToSummary = () => {
     setPhase("cards");
-    setCardIndex(activeSubjectList.length);
+    setCardIndex(showCustomCard ? activeSubjectList.length : Math.max(0, activeSubjectList.length - 1));
   };
 
   const continueToNext = () => {
-    document.getElementById("academic-path-next-section")?.scrollIntoView({ behavior: shouldReduceMotion ? "auto" : "smooth", block: "start" });
+    document.getElementById(nextSectionId)?.scrollIntoView({ behavior: shouldReduceMotion ? "auto" : "smooth", block: "start" });
   };
 
   // Drives both the persistent left nav (desktop) and the compact progress
@@ -478,7 +487,7 @@ const AcademicPathFlashcards = ({
         onClick: status === "completed" || status === "skipped" ? () => editSubject(subject) : undefined,
       };
     }),
-    (() => {
+    ...(showCustomCard ? [(() => {
       const status: NavStatus =
         customSubjects.length > 0
           ? "completed"
@@ -501,7 +510,7 @@ const AcademicPathFlashcards = ({
                 : undefined,
         onClick: status === "completed" || status === "skipped" ? editOther : undefined,
       };
-    })(),
+    })()] : []),
   ];
 
   const activeLabel = isOnCustomCard ? "Other subjects" : (currentSubject ?? "");

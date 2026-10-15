@@ -210,6 +210,10 @@ export function useCanonicalSubjects({
           p_grade_min: g,
           p_grade_max: g,
           p_core_only: false,
+          // Only subjects the state sets for this grade: without it, K-12
+          // catch-all standards put World Languages and Personal Finance on
+          // every grade's list (see migration 20261009000000).
+          p_grade_specific: true,
         });
         if (cancelled) return;
         if (rpcError) {
@@ -255,7 +259,9 @@ export function useCanonicalSubjects({
 interface Options {
   curriculumSystem: string | null;
   grade?: number;
-  stream?: TargetStream | null;
+  // A stream ("science-pcm") returns its core subjects; "<stream>:optional"
+  // returns the subjects a student of that stream may choose as electives.
+  stream?: TargetStream | `${TargetStream}:optional` | null;
   enabled?: boolean;
 }
 

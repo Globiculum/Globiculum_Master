@@ -54,6 +54,7 @@ const createDefaultParentFormData = (): ParentFormData => ({
   targetGoalOther: "",
   targetGrade: "",
   targetStream: "",
+  targetElectives: [],
   timeline: "",
   educationHistory: [],
 
@@ -128,6 +129,7 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
     targetGrade: prefillData.targetGrade || defaults.targetGrade,
     // Pre-split "science" is cleared so the stream question is asked again.
     targetStream: normalizeTargetStream(prefillData.targetStream) || defaults.targetStream,
+    targetElectives: Array.isArray(prefillData.targetElectives) ? prefillData.targetElectives : defaults.targetElectives,
     timeline: prefillData.timeline || defaults.timeline,
     educationHistory: Array.isArray(prefillData.educationHistory) ? prefillData.educationHistory : defaults.educationHistory,
     academicPath: Array.isArray(prefillData.academicPath) ? prefillData.academicPath : defaults.academicPath,

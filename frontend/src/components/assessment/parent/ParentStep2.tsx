@@ -14,6 +14,7 @@ import { HighSchoolMathDeepDive } from "../HighSchoolMathDeepDive";
 import AcademicPathFlashcards, { MAIN_CONFIDENCE_LEVELS } from "../student/steps/AcademicPathFlashcards";
 import ParentLanguageJourneyCard from "./ParentLanguageJourneyCard";
 import { ALL_COURSES, AP_COURSES, HIGH_SCHOOL_COURSES, courseLabel } from "../shared/highSchoolCourses";
+import { splitCoreElectives } from "../shared/subjectGroups";
 import type { ParentStepProps } from "./types";
 import {
   useCurriculumSubjects,
@@ -155,6 +156,30 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
       ? dbSubjects.map((s) => s.subject)
       : subjects;
 
+  // The stream's optional subjects (Computer Science in PCM, Maths in PCB...).
+  // A US student picks the ones they will take in India; for a student already
+  // on the board they are the electives of their current list.
+  const stream = normalizeTargetStream(formData.targetStream);
+  const { subjects: optionalDb } = useCurriculumSubjects({
+    curriculumSystem,
+    grade: boardGrade,
+    stream: stream ? `${stream}:optional` : null,
+    enabled: boardIsHigherSecondary && !!curriculumSystem && !!stream,
+  });
+  const streamOptional = optionalDb.map((s) => s.subject);
+
+  // Core subjects and electives are asked in separate sections.
+  const [coreSubjects, electiveSubjects] = showTargetList
+    ? [activeSubjectList, streamOptional]
+    : splitCoreElectives(activeSubjectList);
+  const toggleTargetElective = (subject: string) => {
+    const current = formData.targetElectives ?? [];
+    onFieldChange(
+      "targetElectives",
+      current.includes(subject) ? current.filter((s) => s !== subject) : [...current, subject]
+    );
+  };
+
   // Same two-step pattern as the Foreign Language / Indian Languages cards
   // in ParentLanguageJourneyCard.tsx: pick which apply from the chip grid
   // first, then a compact confidence row appears only for what's selected —
@@ -178,6 +203,25 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
         <div className="rounded-lg border border-secondary/30 bg-secondary/5 px-4 py-3 text-sm text-foreground">
           {comparisonNote}
         </div>
+      )}
+
+      {usSourceSystem && boardIsHigherSecondary && streamOptional.length > 0 && (
+        <QuestionCard
+          label={`Electives in ${boardLabel} Class ${boardGrade}`}
+          tooltip="Optional subjects in this stream. Only the ones you tick are included in the report."
+        >
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {streamOptional.map((subject) => (
+              <InputCard
+                key={subject}
+                variant="chip"
+                label={subject}
+                selected={(formData.targetElectives ?? []).includes(subject)}
+                onClick={() => toggleTargetElective(subject)}
+              />
+            ))}
+          </div>
+        </QuestionCard>
       )}
 
       {usSourceSystem && usLoading && (
@@ -212,25 +256,47 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
           the five-subject fallback and then change under the parent. */}
       {!(usSourceSystem && usLoading) && (
         <AcademicPathFlashcards
-          activeSubjectList={activeSubjectList}
+          activeSubjectList={coreSubjects}
           requiredSubjects={NO_REQUIRED_SUBJECTS}
           academicPath={formData.academicPath}
           subjectConfidences={formData.subjectConfidences}
           setAcademicPath={(value) => onFieldChange("academicPath", value)}
           setConfidence={(subject, value) => onRecordFieldChange("subjectConfidences", subject, value)}
           error={fieldErrors.academicPath}
-          navTitle="Your Child's Academic Path"
+          navTitle="Core Subjects"
           navSubtitle="See how your child is doing in each subject."
           microcopy={{
             strong: "Seems confident",
             moderate: "Understands most of it",
             "needs-help": "Could use more support",
           }}
-          excludeFromCustom={AP_SUBJECTS}
+          excludeFromCustom={[...AP_SUBJECTS, ...electiveSubjects]}
           customCardTitle="Any other subjects?"
           customCardSubtitle="Add any subject not listed above, then note your child's confidence."
           customCardQuestion="How confident does your child seem in this subject?"
-          summaryTitle="Your Child's Academic Path is ready."
+          summaryTitle="Core subjects are ready."
+          nextSectionId={electiveSubjects.length > 0 ? "academic-electives-section" : "academic-path-next-section"}
+        />
+      )}
+
+      <span id="academic-electives-section" className="sr-only" aria-hidden="true" />
+      {!(usSourceSystem && usLoading) && electiveSubjects.length > 0 && (
+        <AcademicPathFlashcards
+          activeSubjectList={electiveSubjects}
+          requiredSubjects={NO_REQUIRED_SUBJECTS}
+          academicPath={formData.academicPath}
+          subjectConfidences={formData.subjectConfidences}
+          setAcademicPath={(value) => onFieldChange("academicPath", value)}
+          setConfidence={(subject, value) => onRecordFieldChange("subjectConfidences", subject, value)}
+          navTitle="Electives"
+          navSubtitle="Optional subjects - mark the ones your child doesn't take."
+          microcopy={{
+            strong: "Seems confident",
+            moderate: "Understands most of it",
+            "needs-help": "Could use more support",
+          }}
+          summaryTitle="Electives are ready."
+          showCustomCard={false}
         />
       )}
 

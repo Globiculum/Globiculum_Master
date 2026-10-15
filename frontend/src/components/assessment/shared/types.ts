@@ -56,6 +56,8 @@ export interface AssessmentFormData {
   // student is never offered Physics, a Science student never Accountancy.
   // Empty for grades 1-10, where no stream exists.
   targetStream: string; // "science-pcm" | "science-pcb" | "commerce" | "humanities" | "" (TargetStream)
+  // Optional subjects chosen for the stream (e.g. Computer Science in PCM).
+  targetElectives: string[];
   timeline: string;
   transitionConcerns: string[];
   supportNeeds: string[];
@@ -105,6 +107,7 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   targetGoalOther: "",
   targetGrade: "",
   targetStream: "",
+  targetElectives: [],
   timeline: "",
   transitionConcerns: [],
   supportNeeds: [],

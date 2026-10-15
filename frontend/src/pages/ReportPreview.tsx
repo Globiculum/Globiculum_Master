@@ -1022,6 +1022,7 @@ const ReportPreview = () => {
         // without the stream the backend compares every subject the board has.
         targetStream: typeof raw?.targetStream === "string" && raw.targetStream ? raw.targetStream : undefined,
         targetGrade: raw?.targetGrade === "next" || raw?.targetGrade === "same" ? raw.targetGrade : undefined,
+        targetElectives: Array.isArray(raw?.targetElectives) && raw.targetElectives.length ? raw.targetElectives : undefined,
         academicPath: Array.isArray(raw?.academicPath) ? raw.academicPath : undefined,
         // strongestSubjects/challengingAreas are derived from subjectConfidences
         // (single source of truth — see deriveSubjectStrengths), falling back to
@@ -1644,7 +1645,13 @@ const ReportPreview = () => {
                         className={`overflow-hidden rounded-lg border-l-4 bg-muted/50 ${accentBorder}`}
                       >
                         <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 p-4 text-left sm:p-5">
-                          <h4 className="text-base font-bold text-foreground">{subject.subject}</h4>
+                          <h4 className="text-base font-bold text-foreground">
+                            {subject.subject}
+                            {/* An optional stream subject the student chose (e.g. Computer Science in PCM). */}
+                            {(formData.targetElectives ?? []).includes(subject.subject) && (
+                              <span className="ml-2 rounded-full bg-muted px-2 py-0.5 align-middle text-[10px] font-semibold text-muted-foreground">Elective</span>
+                            )}
+                          </h4>
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white ${percentage >= 70 ? "bg-secondary" : "bg-accent"}`}>
                               {percentage}% Align

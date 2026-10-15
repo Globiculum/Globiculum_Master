@@ -103,9 +103,19 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
     }
   };
 
+  // Removing a language also drops its familiarity rating, so a deleted
+  // language doesn't linger in the saved answers.
+  const removeLanguage = (lang: string) => {
+    setField("selectedLanguages", formData.selectedLanguages.filter((l) => l !== lang));
+    setField(
+      "languageProficiencies",
+      Object.fromEntries(Object.entries(formData.languageProficiencies).filter(([key]) => key !== lang))
+    );
+  };
+
   const toggleIndianLanguage = (lang: string) => {
     if (formData.selectedLanguages.includes(lang)) {
-      setField("selectedLanguages", formData.selectedLanguages.filter((l) => l !== lang));
+      removeLanguage(lang);
     } else {
       setField("selectedLanguages", [...formData.selectedLanguages, lang]);
     }
@@ -125,7 +135,7 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
   };
 
   const removeCustomIndianLanguage = (lang: string) => {
-    setField("selectedLanguages", formData.selectedLanguages.filter((l) => l !== lang));
+    removeLanguage(lang);
   };
 
   // Single-select: picking a new foreign language replaces the old pick;
@@ -160,7 +170,13 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
     setCardIndex((i) => Math.max(0, i - 1));
   };
 
-  const goToSummary = () => setPhase("summary");
+  // "Back" on the summary reopens the cards. It used to set the summary
+  // again, so saved languages could not be changed or removed on a retake.
+  const backToCards = () => {
+    setEditingSingleCard(false);
+    setPhase("cards");
+    setCardIndex(total - 1);
+  };
 
   const editCard = (id: CardId) => {
     setEditingSingleCard(true);
@@ -181,7 +197,7 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-muted-foreground">Language Exposure</span>
-          <button type="button" onClick={goToSummary} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+          <button type="button" onClick={backToCards} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
             ← Back
           </button>
         </div>
@@ -201,35 +217,54 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField }: LanguageJou
           ) : (
             <div className="mt-5 space-y-1.5">
               {formData.selectedLanguages.map((lang) => (
-                <button
-                  key={lang}
-                  type="button"
-                  onClick={() => editCard("indian")}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
-                >
-                  <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
-                    {lang}
-                  </span>
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    {INDIAN_LEVELS.find((lv) => lv.value === formData.languageProficiencies[lang])?.label ?? "—"}
-                  </span>
-                </button>
+                <div key={lang} className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => editCard("indian")}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
+                      {lang}
+                    </span>
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {INDIAN_LEVELS.find((lv) => lv.value === formData.languageProficiencies[lang])?.label ?? "—"}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeLanguage(lang)}
+                    aria-label={`Remove ${lang}`}
+                    className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               ))}
               {hasForeign && (
-                <button
-                  type="button"
-                  onClick={() => editCard("foreign")}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
-                >
-                  <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
-                    {foreignLabel(formData)}
-                  </span>
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    {FOREIGN_LEVELS.find((lv) => lv.value === formData.foreignLanguageLevel)?.label ?? "—"}
-                  </span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => editCard("foreign")}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
+                      {foreignLabel(formData)}
+                    </span>
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {FOREIGN_LEVELS.find((lv) => lv.value === formData.foreignLanguageLevel)?.label ?? "—"}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setField("foreignLanguageName", ""); setField("foreignLanguageLevel", ""); }}
+                    aria-label="Remove foreign language"
+                    className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               )}
             </div>
           )}

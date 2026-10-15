@@ -624,6 +624,7 @@ interface FormData {
   targetGoal?: string;        // text goal — used to infer targetCurriculum if not explicit
   targetStream?: string;      // 'science-pcm' | 'science-pcb' | 'commerce' | 'humanities' — Classes XI-XII only
   targetGrade?: string;       // 'same' | 'next' — grade entered in India, relative to snapshotGrade
+  targetElectives?: string[]; // optional Class XI-XII subjects chosen for the stream
   academicPath?: string[];
   strongestSubjects?: string[];
   challengingAreas?: string[];
@@ -843,6 +844,9 @@ serve(async (req) => {
         ? String(rawFormData.targetStream)
         : undefined,
       targetGrade: rawFormData.targetGrade === 'next' ? 'next' : rawFormData.targetGrade === 'same' ? 'same' : undefined,
+      // Optional Class XI-XII subjects the student chose (e.g. Computer Science
+      // in PCM). Matched against the board's optional list, never used as-is.
+      targetElectives: sanitizeArray(rawFormData.targetElectives, 6, 60),
       // 30 items: a US state's full subject list (up to 9) plus high-school and
       // AP courses (up to 16). The old cap of 10 silently dropped selections —
       // including Computer Science, which changes scoring.
@@ -1034,7 +1038,8 @@ serve(async (req) => {
         let targetSubjects: string[] | undefined;
         if (grade >= 11 && formData.targetStream) {
           const streamSubjects = await loadTargetSubjects(
-            rpcNamed, targetEntry.dbSystem, grade, grade, formData.targetStream, addDebug
+            rpcNamed, targetEntry.dbSystem, grade, grade, formData.targetStream, addDebug,
+            formData.targetElectives ?? []
           );
           targetSubjects = streamSubjects?.all.length ? streamSubjects.all : undefined;
         } else if (grade >= 11 && (formData.snapshotLocation || '').toLowerCase() !== 'us') {
@@ -1059,6 +1064,7 @@ serve(async (req) => {
             rpcNamed,
             targetStream: formData.targetStream ?? null,
             targetGrade: grade,
+            targetElectives: formData.targetElectives ?? [],
             studiedDomains: studiedSourceDomains(formData.academicPath),
             stateSystem: sourceEntry.dbSystem,
             stateLabel: sourceEntry.label,

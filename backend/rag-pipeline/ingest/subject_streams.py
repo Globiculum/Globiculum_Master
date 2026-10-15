@@ -1,25 +1,31 @@
-"""Which Class XI-XII streams each CBSE (NCERT) and ISC subject belongs to.
+"""Which Class XI-XII streams each CBSE (NCERT) and ISC subject belongs to, as a
+core subject or as an optional one (elective).
 
-Indian boards split Classes XI-XII into four streams. A subject is listed under
-a stream only when students of that stream normally take it, because every
-listed subject is compared in the report and an unlisted one is not:
+Indian boards split Classes XI-XII into four streams. Each stream has
+compulsory subjects, which every report for that stream compares, and optional
+ones a student may add, which are compared only when the student chooses them
+in the form's Electives section:
 
-  science-pcm  Science, Non-Medical: English, Physics, Chemistry, Mathematics,
-               Computer Science (the usual fifth subject, as in the
-               data/Ncret "Non Medical" folder)
-  science-pcb  Science, Medical: English, Physics, Chemistry, Biology
-  commerce     English, Accountancy, Business Studies, Economics, Mathematics
-  humanities   English, History, Political Science, Geography, Economics
+  stream       core (always compared)                     optional (if chosen)
+  science-pcm  English, Physics, Chemistry, Mathematics    Computer Science, Economics, Physical Education
+  science-pcb  English, Physics, Chemistry, Biology        Mathematics, Computer Science, Physical Education
+  commerce     English, Accountancy, Business Studies,     Mathematics, Physical Education
+               Economics
+  humanities   English, History, Political Science,        Economics, English Elective, Physical Education
+               Geography
 
 Sources: the stream folders under backend/data/Ncret, and the CBSE / CISCE
-scheme of studies. Two places where this goes beyond the folders:
-  * Economics is in Commerce. It is one of the three core Commerce subjects
-    (Accountancy, Business Studies, Economics); the Class XI folder has it only
-    under Arts because each file was stored once.
-  * Computer Science is NOT in Commerce. Commerce students who take a computing
-    subject take Informatics Practices, a different syllabus.
-Physical Education is optional in every stream, so it is left out rather than
-reported as a gap for students who don't take it.
+scheme of studies: Science = Physics + Chemistry + Mathematics or Biology;
+Commerce = Accountancy + Business Studies + Economics, with Mathematics or
+Informatics Practices as a choice; Humanities = History, Political Science,
+Geography, with Economics a common choice. Computer Science was listed as a
+PCM core subject before, which put it in every PCM report even for students
+who don't take it.
+
+metadata.streams holds both kinds: the stream value for core subjects
+("science-pcm") and "<stream>:optional" for optional ones
+("science-pcm:optional"). A lookup for a stream therefore returns only its
+core subjects, and a lookup for "<stream>:optional" its electives.
 
 "science" is the earlier, unsplit Science value. Science subjects keep it so
 reports generated before the split can still be retaken.
@@ -32,22 +38,28 @@ PCM, PCB, COMMERCE, HUMANITIES = "science-pcm", "science-pcb", "commerce", "huma
 LEGACY_SCIENCE = "science"
 ALL_STREAMS = [PCM, PCB, COMMERCE, HUMANITIES]
 
+
+def optional(*streams: str) -> list[str]:
+    return [f"{s}:optional" for s in streams]
+
+
 SUBJECT_STREAMS: dict[str, list[str]] = {
     # English is taken in every stream, including the legacy Science value.
-    "English":           [LEGACY_SCIENCE, *ALL_STREAMS],
-    "English Core":      [LEGACY_SCIENCE, *ALL_STREAMS],
-    "English Elective":  [HUMANITIES],
-    "Physics":           [LEGACY_SCIENCE, PCM, PCB],
-    "Chemistry":         [LEGACY_SCIENCE, PCM, PCB],
-    "Biology":           [LEGACY_SCIENCE, PCB],
-    "Mathematics":       [LEGACY_SCIENCE, PCM, COMMERCE],
-    "Computer Science":  [LEGACY_SCIENCE, PCM],
-    "Accountancy":       [COMMERCE],
-    "Business Studies":  [COMMERCE],
-    "Economics":         [COMMERCE, HUMANITIES],
-    "History":           [HUMANITIES],
-    "Geography":         [HUMANITIES],
-    "Political Science": [HUMANITIES],
+    "English":            [LEGACY_SCIENCE, *ALL_STREAMS],
+    "English Core":       [LEGACY_SCIENCE, *ALL_STREAMS],
+    "English Elective":   optional(HUMANITIES),
+    "Physics":            [LEGACY_SCIENCE, PCM, PCB],
+    "Chemistry":          [LEGACY_SCIENCE, PCM, PCB],
+    "Biology":            [LEGACY_SCIENCE, PCB],
+    "Mathematics":        [LEGACY_SCIENCE, PCM, *optional(PCB, COMMERCE)],
+    "Computer Science":   [LEGACY_SCIENCE, *optional(PCM, PCB)],
+    "Accountancy":        [COMMERCE],
+    "Business Studies":   [COMMERCE],
+    "Economics":          [COMMERCE, *optional(PCM, HUMANITIES)],
+    "History":            [HUMANITIES],
+    "Geography":          [HUMANITIES],
+    "Political Science":  [HUMANITIES],
+    "Physical Education": optional(*ALL_STREAMS),
 }
 
 STREAM_FIRST_GRADE = 11

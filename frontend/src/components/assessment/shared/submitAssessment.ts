@@ -38,6 +38,7 @@ export interface SubmittableFormData {
   previousLocation: string;
   targetGoal: string;
   targetStream: string;
+  targetElectives: string[];
   targetGrade: string;
   curriculumType: string;
   academicPath: string[];
@@ -218,6 +219,8 @@ export async function submitAssessment<T extends SubmittableFormData>({
           // subjects the student will actually sit, instead of every subject the
           // target board offers.
           targetStream: formData.targetStream || undefined,
+          // Optional stream subjects the student chose; compared only when chosen.
+          targetElectives: formData.targetElectives?.length ? formData.targetElectives : undefined,
           // "same" | "next": the grade entered in India. Gaps are measured
           // against that grade, not the current one.
           targetGrade: formData.targetGrade || undefined,

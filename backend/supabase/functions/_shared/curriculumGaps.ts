@@ -672,7 +672,11 @@ export async function loadTargetSubjects(
   gradeMin: number,
   gradeMax: number,
   stream: string | null | undefined,
-  debug: DebugLogger = () => {}
+  debug: DebugLogger = () => {},
+  /** Optional subjects the student chose for the stream (form "Electives"). Only
+   * names the board lists as optional for this stream ("<stream>:optional") are
+   * added; everything else is ignored. */
+  electives: string[] = []
 ): Promise<{ all: string[]; byDomain: Map<SubjectDomain, string[]> } | null> {
   const grades: number[] = [];
   for (let g = gradeMin; g <= gradeMax; g++) grades.push(g);
@@ -705,6 +709,16 @@ export async function loadTargetSubjects(
   if (!names) {
     debug('rag_target_subjects_unavailable', 'Target subject list unreachable, using static names', { targetCurriculum });
     return null;
+  }
+
+  // A stream's core subjects are always compared; its optional ones only when
+  // the student chose them (e.g. Computer Science in PCM).
+  if (streamApplies && electives.length > 0) {
+    const optional = await fetchNames(`${stream}:optional`);
+    const chosen = new Set(electives.map(e => e.toLowerCase().trim()));
+    const added = [...(optional ?? [])].filter(n => chosen.has(n.toLowerCase()));
+    for (const n of added) names.add(n);
+    debug('rag_target_electives', 'Chosen electives added to the stream subjects', { stream, electives, added });
   }
 
   const byDomain = new Map<SubjectDomain, string[]>();
@@ -756,6 +770,8 @@ export async function fetchUSStateAwareSourceGaps(opts: {
    * that only start a year later — a Class 10 entrant was shown Accountancy and
    * Business Studies, which begin in Class 11. */
   targetGrade?: number;
+  /** Optional stream subjects the student chose (see loadTargetSubjects). */
+  targetElectives?: string[];
   /** From studiedSourceDomains(); null assumes every core domain. */
   studiedDomains?: Set<SubjectDomain> | null;
   resultLimitPerSubject?: number;
@@ -764,7 +780,7 @@ export async function fetchUSStateAwareSourceGaps(opts: {
   const {
     rpc, rpcNamed, stateSystem, stateLabel, targetCurriculum, targetNodeType,
     gradeMin, gradeMax, sourceGradeMin, sourceGradeMax, targetStream, targetGrade,
-    studiedDomains = null, resultLimitPerSubject = 300, onDebug,
+    targetElectives = [], studiedDomains = null, resultLimitPerSubject = 300, onDebug,
   } = opts;
   const debug = onDebug ?? (() => {});
 
@@ -774,7 +790,7 @@ export async function fetchUSStateAwareSourceGaps(opts: {
         loadTargetSubjects(
           rpcNamed, targetCurriculum,
           targetGrade ?? gradeMin, targetGrade ?? gradeMax,
-          targetStream, debug
+          targetStream, debug, targetElectives
         ),
       ])
     : [null, null];

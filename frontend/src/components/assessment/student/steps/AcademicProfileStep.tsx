@@ -5,6 +5,7 @@ import InputCard from "../../shared/InputCard";
 import AcademicPathFlashcards from "./AcademicPathFlashcards";
 import LanguageJourneyCard from "./LanguageJourneyCard";
 import { ALL_COURSES, AP_COURSES, HIGH_SCHOOL_COURSES, courseLabel } from "../../shared/highSchoolCourses";
+import { splitCoreElectives } from "../../shared/subjectGroups";
 import childLogo from "@/assets/childlogo.png";
 import {
   useCurriculumSubjects,
@@ -113,6 +114,23 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors }: Stu
   const requiredSubjects = usSourceSystem
     ? US_REQUIRED_SUBJECTS
     : isHigherSecondary ? new Set<string>() : REQUIRED_SUBJECTS;
+
+  // See ParentStep2: the stream's optional subjects, and core vs electives.
+  const stream = normalizeTargetStream(formData.targetStream);
+  const { subjects: optionalDb } = useCurriculumSubjects({
+    curriculumSystem,
+    grade: boardGrade,
+    stream: stream ? `${stream}:optional` : null,
+    enabled: boardIsHigherSecondary && !!curriculumSystem && !!stream,
+  });
+  const streamOptional = optionalDb.map((s) => s.subject);
+  const [coreSubjects, electiveSubjects] = showTargetList
+    ? [activeSubjectList, streamOptional]
+    : splitCoreElectives(activeSubjectList);
+  const toggleTargetElective = (subject: string) => {
+    const current = formData.targetElectives ?? [];
+    setField("targetElectives", current.includes(subject) ? current.filter((s) => s !== subject) : [...current, subject]);
+  };
   return (
     <SectionCard logo={childLogo} title="Academic Path">
       <div className="-mt-4 text-sm text-muted-foreground">Tell us what you're studying right now.</div>
@@ -123,19 +141,58 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors }: Stu
         </div>
       )}
 
+      {usSourceSystem && boardIsHigherSecondary && streamOptional.length > 0 && (
+        <QuestionCard
+          label={`Electives in ${boardLabel} Class ${boardGrade}`}
+          tooltip="Optional subjects in this stream. Only the ones you tick are included in your report."
+        >
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {streamOptional.map((subject) => (
+              <InputCard
+                key={subject}
+                variant="chip"
+                label={subject}
+                selected={(formData.targetElectives ?? []).includes(subject)}
+                onClick={() => toggleTargetElective(subject)}
+              />
+            ))}
+          </div>
+        </QuestionCard>
+      )}
+
       {usSourceSystem && usLoading ? (
         <div className="text-sm text-muted-foreground">Loading your state&apos;s subjects…</div>
       ) : (
-        <AcademicPathFlashcards
-          activeSubjectList={activeSubjectList}
-          requiredSubjects={requiredSubjects}
-          academicPath={formData.academicPath}
-          subjectConfidences={formData.subjectConfidences}
-          setAcademicPath={(value) => setField("academicPath", value)}
-          setConfidence={(subject, value) => setRecordField("subjectConfidences", subject, value)}
-          error={errors.academicPath}
-          excludeFromCustom={ALL_COURSES}
-        />
+        <>
+          <AcademicPathFlashcards
+            activeSubjectList={coreSubjects}
+            requiredSubjects={requiredSubjects}
+            academicPath={formData.academicPath}
+            subjectConfidences={formData.subjectConfidences}
+            setAcademicPath={(value) => setField("academicPath", value)}
+            setConfidence={(subject, value) => setRecordField("subjectConfidences", subject, value)}
+            error={errors.academicPath}
+            excludeFromCustom={[...ALL_COURSES, ...electiveSubjects]}
+            navTitle="Core Subjects"
+            summaryTitle="Core subjects are ready."
+            nextSectionId={electiveSubjects.length > 0 ? "academic-electives-section" : "academic-path-next-section"}
+          />
+          <span id="academic-electives-section" className="sr-only" aria-hidden="true" />
+          {electiveSubjects.length > 0 && (
+            <AcademicPathFlashcards
+              activeSubjectList={electiveSubjects}
+              requiredSubjects={new Set<string>()}
+              academicPath={formData.academicPath}
+              subjectConfidences={formData.subjectConfidences}
+              setAcademicPath={(value) => setField("academicPath", value)}
+              setConfidence={(subject, value) => setRecordField("subjectConfidences", subject, value)}
+              navTitle="Electives"
+              navSubtitle="Optional subjects - mark the ones you don't take."
+              summaryTitle="Electives are ready."
+              showCustomCard={false}
+            />
+          )}
+        </>
       )}
 
       <span id="academic-path-next-section" className="sr-only" aria-hidden="true" />
