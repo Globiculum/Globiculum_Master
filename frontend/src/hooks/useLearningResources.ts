@@ -18,6 +18,39 @@ export interface LearningResource {
   provider: string;
   title: string;
   url: string;
+  /** Hindi/Sanskrit material pitched at a learner's level rather than a class; null = class material. */
+  level: "beginner" | "intermediate" | null;
+}
+
+/** Familiarity picked on the form's language card (languageProficiencies). */
+export type LanguageFamiliarity = "beginner" | "intermediate" | "fluent";
+
+export interface ResourceGroup {
+  heading: string;
+  items: LearningResource[];
+}
+
+/** Languages with level-based resources: report subject label -> key. */
+export function levelledLanguage(label: string): "hindi" | "sanskrit" | null {
+  const s = label.toLowerCase();
+  return s.includes("sanskrit") ? "sanskrit" : s.startsWith("hindi") ? "hindi" : null;
+}
+
+/**
+ * Where a student should start in Hindi or Sanskrit, from the familiarity
+ * picked on the form (undefined: the language wasn't marked as known).
+ */
+export function languageStartNote(subject: string, grade: number, familiarity?: LanguageFamiliarity): string {
+  switch (familiarity) {
+    case "fluent":
+      return `Marked as Fluent: spoken ${subject} is in place, so the gaps are mainly reading, writing and grammar at Class ${grade} level.`;
+    case "intermediate":
+      return `Marked as Intermediate: the basics are there; focus on grammar and writing with the next-step and Class ${grade} material.`;
+    case "beginner":
+      return `Marked as Beginner: build the script and everyday words with the starter resources first, then move up to Class ${grade} material.`;
+    default:
+      return `Not marked as known on the form: start with the starter resources, then work up to Class ${grade} material.`;
+  }
 }
 
 /**
@@ -79,7 +112,7 @@ export function useLearningResources(targetGoal: string | undefined, grade: numb
       };
     };
     from("learning_resources")
-      .select("board, subject, grade_min, grade_max, resource_type, provider, title, url")
+      .select("board, subject, grade_min, grade_max, resource_type, provider, title, url, level")
       .in("board", [board, "any"])
       .lte("grade_min", grade)
       .gte("grade_max", grade)
@@ -91,26 +124,46 @@ export function useLearningResources(targetGoal: string | undefined, grade: numb
     };
   }, [board, grade]);
 
-  /** Resources for one report subject: textbooks first, then videos, then practice. */
+  /** Class material for one report subject: textbooks first, then videos, then practice. */
   const forSubject = (label: string, limit = 4): LearningResource[] => {
     const keys = resourceSubjectKeys(label, grade);
     const seen = new Set<string>();
     return resources
-      .filter((r) => keys.includes(r.subject))
+      .filter((r) => !r.level && keys.includes(r.subject))
       .sort((a, b) => TYPE_ORDER[a.resource_type] - TYPE_ORDER[b.resource_type])
       .filter((r) => !seen.has(r.url) && seen.add(r.url))
       .slice(0, limit);
   };
 
-  /** One type across the report's subjects, plus resources for every subject ('*'). */
+  /**
+   * Hindi/Sanskrit resources grouped by where the student should start: a
+   * newcomer gets starter material first, a fluent speaker only class material.
+   */
+  const forLanguage = (label: string, familiarity?: LanguageFamiliarity, perGroup = 3): ResourceGroup[] => {
+    const lang = levelledLanguage(label);
+    const atLevel = (level: "beginner" | "intermediate") =>
+      resources.filter((r) => r.subject === lang && r.level === level).slice(0, perGroup);
+    const groups: ResourceGroup[] = [
+      { heading: "Start here (new to the language)", items: familiarity === "fluent" || familiarity === "intermediate" ? [] : atLevel("beginner") },
+      { heading: "Next step", items: familiarity === "fluent" ? [] : atLevel("intermediate") },
+      { heading: `Class ${grade} material`, items: forSubject(label, perGroup + 1) },
+    ];
+    // A book can be both a next step and class material (Class 10 Vyakaranavithi): show it once.
+    const seen = new Set<string>();
+    return groups
+      .map((g) => ({ ...g, items: g.items.filter((r) => !seen.has(r.url) && seen.add(r.url)).slice(0, perGroup) }))
+      .filter((g) => g.items.length > 0);
+  };
+
+  /** One type across the report's subjects, plus resources for every subject ('*'). Class material only. */
   const ofType = (type: ResourceType, subjectLabels: string[], limit = 6): LearningResource[] => {
     const keys = new Set(subjectLabels.flatMap((l) => resourceSubjectKeys(l, grade)));
     const seen = new Set<string>();
     return resources
-      .filter((r) => r.resource_type === type && (r.subject === "*" || keys.has(r.subject)))
+      .filter((r) => !r.level && r.resource_type === type && (r.subject === "*" || keys.has(r.subject)))
       .filter((r) => !seen.has(r.url) && seen.add(r.url))
       .slice(0, limit);
   };
 
-  return { resources, forSubject, ofType };
+  return { resources, forSubject, forLanguage, ofType };
 }

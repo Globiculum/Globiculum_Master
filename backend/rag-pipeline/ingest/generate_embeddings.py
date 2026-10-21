@@ -111,7 +111,7 @@ def _build_embedding_text(node: dict) -> str:
     description = node.get("description", "") or ""
     curriculum = node.get("curriculum_system", "")
 
-    # English skill nodes (english_skills.py) carry skill-phrased text written
+    # Language skill nodes (language_skills.py) carry skill-phrased text written
     # to match US standards; the NCERT builder below would frame them as chapters.
     if meta.get("component") == "language-skills" and meta.get("embedding_text"):
         return meta["embedding_text"].strip()

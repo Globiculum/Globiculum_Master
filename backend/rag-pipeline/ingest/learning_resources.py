@@ -16,9 +16,11 @@ Sources:
   CBSE                cbseacademic.nic.in sample question papers
   CISCE               ISC 2026 specimen papers with answer keys (cisce.org)
   YouTube             Magnet Brains, Physics Wallah, Khan Academy India
+  Hindi / Sanskrit    beginner and intermediate material by learner level (LANGUAGE_LEVELS)
 
 Usage (from backend/rag-pipeline/):
     python ingest/learning_resources.py --verify      # build + verify -> JSON
+    python ingest/learning_resources.py --refresh-languages   # only the Hindi/Sanskrit level rows
     python ingest/learning_resources.py --load        # replace DB rows from JSON
 """
 
@@ -161,6 +163,40 @@ ISC_YOUTUBE = [
     ("*", "Sir Tarun Rupani: ICSE/ISC lessons", "https://www.youtube.com/@SirTarunRupani", "tarun"),
 ]
 
+# Hindi and Sanskrit by learner level rather than class: most students moving
+# to India meet these languages for the first time, so the class textbook is
+# not where they can start. 'beginner' = script and first words; 'intermediate'
+# = reading and grammar on the way to class level. Shown on every class from
+# the first one the language is taught (Hindi 1, Sanskrit 6).
+# (subject, level, type, provider, title, url, words the page must show, check)
+LANGUAGE_LEVELS = [
+    ("hindi", "beginner", "textbook", "NCERT", "NCERT Sarangi, Class 1: Hindi from the first letters (free PDF)",
+     "https://ncert.nic.in/textbook.php?ahsr1=0-19", ["download complete book"], "body"),
+    # Omniglot and the LILA Hindi portal answer automated checks with 403, so
+    # they can't be verified and are left out.
+    ("hindi", "beginner", "practice", "Duolingo", "Duolingo: learn Hindi from scratch",
+     "https://www.duolingo.com/course/hi/en/Learn-Hindi", ["hindi"], "body"),
+    ("hindi", "beginner", "video", "YouTube", "HindiPod101: Hindi lessons for beginners",
+     "https://www.youtube.com/@HindiPod101", ["hindipod101"], "title"),
+    ("hindi", "intermediate", "textbook", "NCERT", "NCERT Sarangi, Class 2: next-step Hindi reader (free PDF)",
+     "https://ncert.nic.in/textbook.php?bhsr1=0-26", ["download complete book"], "body"),
+    ("hindi", "intermediate", "practice", "StoryWeaver", "StoryWeaver: free Hindi storybooks by reading level",
+     "https://storyweaver.org.in/en/stories?language=Hindi", ["storyweaver"], "body"),
+    ("hindi", "intermediate", "practice", "BBC", "BBC Hindi: daily news for reading practice",
+     "https://www.bbc.com/hindi", ["bbc"], "body"),
+    ("sanskrit", "beginner", "textbook", "NCERT", "NCERT Deepakam, Class 6: Sanskrit from the alphabet (free PDF)",
+     "https://ncert.nic.in/textbook.php?fsde1=0-16", ["download complete book"], "body"),
+    ("sanskrit", "beginner", "practice", "Samskrita Bharati", "Samskrita Bharati: spoken Sanskrit courses for beginners",
+     "https://www.samskritabharati.in/", ["samskrita bharati", "sanskrit", "samskrit"], "body"),
+    ("sanskrit", "beginner", "video", "Vyoma", "Vyoma: free online Sanskrit lessons for beginners",
+     "https://www.sanskritfromhome.org/", ["sanskrit"], "body"),
+    ("sanskrit", "intermediate", "textbook", "NCERT", "NCERT Vyakaranavithi: Sanskrit grammar (free PDF)",
+     "https://ncert.nic.in/textbook.php?jhva1=0-12", ["download complete book"], "body"),
+    ("sanskrit", "intermediate", "practice", "NCERT", "NCERT Abhyaswaan Bhav: Sanskrit practice book (free PDF)",
+     "https://ncert.nic.in/textbook.php?jsab1=0-14", ["download complete book"], "body"),
+]
+LANGUAGE_FIRST_CLASS = {"hindi": 1, "sanskrit": 6}
+
 YOUTUBE = [
     # (board, grade_min, grade_max, subjects, title, url, expected title word)
     ("cbse", 1, 12, ["*"], "Magnet Brains: full CBSE courses, Classes 1-12", "https://www.youtube.com/@MagnetBrainsEducation", "magnet brains"),
@@ -170,10 +206,15 @@ YOUTUBE = [
 ]
 
 
-def row(board, subject, gmin, gmax, rtype, provider, title, url, expect, check="title"):
+def row(board, subject, gmin, gmax, rtype, provider, title, url, expect, check="title", level=None):
     return {"board": board, "subject": subject, "grade_min": gmin, "grade_max": gmax,
-            "resource_type": rtype, "provider": provider, "title": title, "url": url,
+            "resource_type": rtype, "provider": provider, "title": title, "url": url, "level": level,
             "_expect": expect, "_check": check}
+
+
+def language_level_rows() -> list[dict]:
+    return [row("any", s, LANGUAGE_FIRST_CLASS[s], 12, rtype, provider, title, url, words, check, level)
+            for s, level, rtype, provider, title, url, words, check in LANGUAGE_LEVELS]
 
 
 def ncert_books() -> list[dict]:
@@ -264,6 +305,7 @@ def candidates() -> list[dict]:
     for board, gmin, gmax, subjects, title, url, word in YOUTUBE:
         for s in subjects:
             rows.append(row(board, s, gmin, gmax, "video", "YouTube", title, url, [word]))
+    rows += language_level_rows()
     return rows
 
 
@@ -278,7 +320,7 @@ def verify(rows: list[dict], ncert_sample: int) -> list[dict]:
         browser = p.chromium.launch(channel="chrome", headless=True)
         page = browser.new_context(user_agent=UA, locale="en-IN").new_page()
         for r in rows:
-            if r["provider"] == "NCERT" and id(r) not in sampled:
+            if r["provider"] == "NCERT" and id(r) not in sampled and not r.get("level"):
                 kept.append(r)
                 continue
             if r["_check"] == "pdf":
@@ -329,7 +371,8 @@ def load(rows: list[dict]) -> None:
 
     client = get_client()
     client.table("learning_resources").delete().neq("url", "").execute()
-    clean = [{k: v for k, v in r.items() if not k.startswith("_")} for r in rows]
+    # Bulk inserts need the same keys on every row; older JSON rows have no level.
+    clean = [{**{k: v for k, v in r.items() if not k.startswith("_")}, "level": r.get("level")} for r in rows]
     for i in range(0, len(clean), 200):
         client.table("learning_resources").insert(clean[i:i + 200]).execute()
     print(f"loaded {len(clean)} rows")
@@ -342,7 +385,14 @@ def main() -> int:
     parser.add_argument("--load", action="store_true", help="replace DB rows from the JSON")
     parser.add_argument("--refresh-isc", action="store_true",
                         help="re-verify only ISC rows and merge them into the existing JSON")
+    parser.add_argument("--refresh-languages", action="store_true",
+                        help="re-verify only the Hindi/Sanskrit level resources and merge them into the JSON")
     args = parser.parse_args()
+    if args.refresh_languages:
+        kept = [r for r in json.loads(OUT.read_text(encoding="utf-8")) if not r.get("level")]
+        kept += verify(language_level_rows(), 0)
+        OUT.write_text(json.dumps(kept, indent=1, ensure_ascii=False), encoding="utf-8")
+        print(f"{len(kept)} rows -> {OUT}")
     if args.refresh_isc:
         kept = [r for r in json.loads(OUT.read_text(encoding="utf-8")) if r["board"] != "isc"]
         # Earlier runs tagged NCERT books and Khan Academy NCERT courses 'any'.

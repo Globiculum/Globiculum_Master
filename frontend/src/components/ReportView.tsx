@@ -18,7 +18,8 @@ import { getGapReason } from "@/lib/gapExplanations";
 import globiculumLogo from "@/assets/globiculum-logo.png";
 import { entryGrade, targetStreamLabel } from "@/hooks/useCurriculumSubjects";
 import { ALL_COURSES, courseLabel } from "@/components/assessment/shared/highSchoolCourses";
-import { useLearningResources, type LearningResource } from "@/hooks/useLearningResources";
+import { useLearningResources } from "@/hooks/useLearningResources";
+import { SubjectResources } from "@/components/SubjectResources";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -264,9 +265,6 @@ const buildSubjectStrengths = (subject: SubjectAnalysis): string[] => {
   return bullets;
 };
 
-// Subject "Resources" come from the verified learning_resources catalogue;
-// they used to repeat the Missing Topics links.
-const RESOURCE_TYPE_LABEL: Record<LearningResource["resource_type"], string> = { textbook: "Textbook", video: "Video", practice: "Practice" };
 
 const deriveRiskMetrics = (analysis: AnalysisData) => {
   const readiness = Math.max(0, Math.min(100, analysis.overallAlignment.percentage));
@@ -460,7 +458,6 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
       : subject.keyGaps;
     const gapRows = rawGaps.slice(0, 4).map((gap) => ({ topic: getGapTopic(gap), url: getGapUrl(gap), reason: getGapDescription(gap, subject.subject), classTag: gapClassTag(gap, entry) }));
     const strengths = buildSubjectStrengths(subject);
-    const resources = learning.forSubject(subject.subject);
     const difficulty = SUBJECT_DIFFICULTY[subject.alignmentLevel];
     const accentBorder = SUBJECT_ACCENT_BORDER[subjectIndex % SUBJECT_ACCENT_BORDER.length];
 
@@ -516,11 +513,12 @@ const ReportView = ({ formData, analysisData: analysis, sharedBanner }: ReportVi
               </div>
               <div>
                 <h5 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-secondary">Resources</h5>
-                {resources.length > 0 ? (
-                  <ul className="space-y-1 text-xs text-foreground/90">
-                    {resources.map((r, i) => <li key={i} className="flex gap-1.5"><span className="text-secondary" aria-hidden="true">•</span><span><a href={r.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-secondary">{r.title}</a><span className="ml-1 text-[10px] text-muted-foreground">{RESOURCE_TYPE_LABEL[r.resource_type]}</span></span></li>)}
-                  </ul>
-                ) : <p className="text-xs text-muted-foreground">No resources available yet for this subject.</p>}
+                <SubjectResources
+                  subject={subject.subject}
+                  grade={entry ?? undefined}
+                  learning={learning}
+                  languageProficiencies={formData.languageProficiencies}
+                />
               </div>
             </div>
           </div>

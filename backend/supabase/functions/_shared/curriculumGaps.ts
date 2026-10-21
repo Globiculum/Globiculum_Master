@@ -1055,33 +1055,79 @@ export function getNodeSubjectLabel(n: { target_metadata?: Record<string, unknow
 }
 
 /**
- * Compare English on skills, not prescribed texts. Indian English nodes are
+ * Compare languages on skills, not prescribed texts. Indian English nodes are
  * literature chapters ("The Proposal", "Silk Road"); US English standards are
  * skills, so chapters never matched and English read 0% with chapter titles as
- * its top gaps. Where a board has English skill nodes for the grade
- * (metadata.component 'language-skills', from rag-pipeline/ingest/english_skills.py)
- * they replace that subject's chapter nodes; literature is one of the skills.
- * Grades without skill nodes are returned unchanged.
+ * its top gaps. Hindi and Sanskrit nodes are Devanagari chapter titles that no
+ * source teaches, so every chapter was a gap with a chapter link. Where a board
+ * has skill nodes for the grade (metadata.component 'language-skills', from
+ * rag-pipeline/ingest/language_skills.py) they replace that language's chapter
+ * nodes; literature is one of the skills. Grades without skill nodes are
+ * returned unchanged.
  *
  * targetGrade: the student's grade. The retrieval window also spans the
  * neighbouring grade, so without it a Class 10 entrant would be measured
  * against Class 11 skills; skill nodes not covering this grade are dropped.
+ *
+ * Core English is one subject under two labels: CBSE calls it "English" in
+ * Class 11 and "English Core" in Class 12. So when the grade has core English
+ * skills, chapters under either label go, or a Class 12 entrant's window would
+ * keep Class 11 "English" chapters as gaps. English Elective is a separate
+ * optional subject and keeps its chapters. The same holds for any language.
  */
-export function preferEnglishSkillNodes<T extends {
+const SKILL_LANGUAGE_DOMAINS: SubjectDomain[] = ['english', 'hindi', 'sanskrit'];
+
+export function isLanguageSkillNode(n: { target_metadata?: Record<string, unknown> | null }): boolean {
+  return (n.target_metadata as Record<string, unknown> | null)?.component === 'language-skills';
+}
+
+export function preferLanguageSkillNodes<T extends {
   target_metadata?: Record<string, unknown> | null;
   target_grade_min?: number | null;
   target_grade_max?: number | null;
 }>(nodes: T[], targetGrade?: number): T[] {
-  const isSkill = (n: T) => (n.target_metadata as Record<string, unknown> | null)?.component === 'language-skills';
   const coversGrade = (n: T) =>
     targetGrade == null || ((n.target_grade_min ?? targetGrade) <= targetGrade && targetGrade <= (n.target_grade_max ?? targetGrade));
-  const kept = nodes.filter(n => !isSkill(n) || coversGrade(n));
-  const subjectsWithSkills = new Set(
-    kept.filter(n => isSkill(n) && canonicalSubjectDomain(getNodeSubjectLabel(n)) === 'english')
-      .map(n => getNodeSubjectLabel(n))
-  );
-  if (subjectsWithSkills.size === 0) return kept;
-  return kept.filter(n => isSkill(n) || !subjectsWithSkills.has(getNodeSubjectLabel(n)));
+  const languageOf = (label: string): SubjectDomain | null => {
+    const d = canonicalSubjectDomain(label);
+    return SKILL_LANGUAGE_DOMAINS.includes(d) ? d : null;
+  };
+  const isCore = (label: string) => !/elective/i.test(label);
+  // A language with no skills for the student's own class (CBSE Class 4 isn't
+  // loaded yet) uses the closest earlier class's skills rather than that
+  // class's chapter titles. Later classes' skills are never used: they'd
+  // measure the student against work ahead of them. Not across Class 10 -> 11:
+  // Hindi and Sanskrit aren't Class 11-12 stream subjects here, so Class 10
+  // skills must not turn into Class 11 gaps.
+  // Keyed by language, not label: core English is "English" in Class 11 and
+  // "English Core" in Class 12, and a Class 12 entrant must not get both.
+  const skillKey = (n: T) => {
+    const label = getNodeSubjectLabel(n);
+    return `${canonicalSubjectDomain(label)}|${isCore(label) ? 'core' : label}`;
+  };
+  const skillGrade = new Map<string, number>(); // language -> class whose skills are kept
+  for (const n of nodes.filter(isLanguageSkillNode)) {
+    const earlier = targetGrade != null && targetGrade <= 10 && (n.target_grade_max ?? Infinity) < targetGrade;
+    const g = coversGrade(n) ? targetGrade : earlier ? n.target_grade_max : null;
+    if (g != null && g > (skillGrade.get(skillKey(n)) ?? -1)) skillGrade.set(skillKey(n), g);
+  }
+  const keepSkill = (n: T) => {
+    if (targetGrade == null) return true;
+    const g = skillGrade.get(skillKey(n));
+    return g === targetGrade ? coversGrade(n) : g != null && n.target_grade_max === g;
+  };
+  const kept = nodes.filter(n => !isLanguageSkillNode(n) || keepSkill(n));
+  const skillLabels = kept.filter(n => isLanguageSkillNode(n) && languageOf(getNodeSubjectLabel(n)))
+    .map(n => getNodeSubjectLabel(n));
+  if (skillLabels.length === 0) return kept;
+  const subjectsWithSkills = new Set(skillLabels);
+  const coreLanguagesWithSkills = new Set(skillLabels.filter(isCore).map(l => languageOf(l)));
+  return kept.filter(n => {
+    if (isLanguageSkillNode(n)) return true;
+    const label = getNodeSubjectLabel(n);
+    const lang = languageOf(label);
+    return !subjectsWithSkills.has(label) && !(lang && isCore(label) && coreLanguagesWithSkills.has(lang));
+  });
 }
 
 /**
@@ -1113,14 +1159,14 @@ export function dedupeRepeatedUnits<T extends {
   return nodes.filter(n => keep.has(n));
 }
 
-/** Target-node clean-up shared by the gap engines: English as skills, one copy of repeated units. */
+/** Target-node clean-up shared by the gap engines: languages as skills, one copy of repeated units. */
 export function prepareTargetNodes<T extends {
   target_node_name: string;
   target_metadata?: Record<string, unknown> | null;
   target_grade_min?: number | null;
   target_grade_max?: number | null;
 }>(nodes: T[], targetGrade?: number): T[] {
-  return dedupeRepeatedUnits(preferEnglishSkillNodes(nodes, targetGrade), targetGrade);
+  return dedupeRepeatedUnits(preferLanguageSkillNodes(nodes, targetGrade), targetGrade);
 }
 
 // NCERT Hindi/Sanskrit chapter lists mix grammar/script reference material
@@ -1177,6 +1223,23 @@ export function buildLanguageSubjectSummary(
   subject: string,
   sourceLabel: string
 ): { topic: string; reason: string } {
+  // Grades with skill nodes: name the skills expected at this class, basics first.
+  const skills = subjectNodes.filter(isLanguageSkillNode)
+    .sort((a, b) => skillOrder(a) - skillOrder(b));
+  if (skills.length > 0) {
+    const grade = skills[0].target_grade_min;
+    const names = [...new Set(skills.map(n => n.target_node_name.replace(/\s*\(.*\)$/, '')))];
+    // Class skills assume the earlier classes: a Class 7 newcomer can't start
+    // at "discuss texts" without the script, which Indian students learn first.
+    const first = LANGUAGE_FIRST_CLASS[canonicalSubjectDomain(subject)];
+    const start = first != null && grade > first
+      ? `A student new to ${subject} should first learn ${LANGUAGE_FOUNDATIONS[canonicalSubjectDomain(subject)]} (Class ${first} level), then work up to these.`
+      : `Start with ${names[0]} and build up in this order.`;
+    return {
+      topic: subject,
+      reason: `${subject} is not taught in ${sourceLabel}. By Class ${grade} a student is expected to manage: ${names.join('; ')}. ${start}`,
+    };
+  }
   const grammarNames = subjectNodes
     .filter(n => languageSkillCategory(n.target_node_name || '') === 'grammar')
     .map(n => n.target_node_name || '');
@@ -1201,8 +1264,23 @@ export function buildLanguageSubjectSummary(
  * category (grammar/script before literature) takes priority over book
  * order — see languageSkillCategory above.
  */
+// The class each language starts in at CBSE, and what its first year teaches.
+const LANGUAGE_FIRST_CLASS: Partial<Record<SubjectDomain, number>> = { hindi: 1, sanskrit: 6 };
+const LANGUAGE_FOUNDATIONS: Partial<Record<SubjectDomain, string>> = {
+  hindi: 'the Devanagari letters and matras and everyday words',
+  sanskrit: 'the Devanagari script, pronunciation and simple sentences',
+};
+
+/** A skill node's teaching position within its class (language_skills.py), basics first. */
+function skillOrder(n: GapNode): number {
+  const order = (n.target_metadata as Record<string, unknown> | null)?.skill_order;
+  return typeof order === 'number' ? order : 9999;
+}
+
 function naturalOrderKey(n: GapNode, domain: SubjectDomain): [number, number, number, number] {
   const m = (n.target_metadata || {}) as Record<string, unknown>;
+  // Skill sets are already written in teaching order.
+  if (isLanguageSkillNode(n)) return [0, 1, skillOrder(n), 0];
   const isLanguageDomain = domain === 'hindi' || domain === 'sanskrit' || domain === 'other-language';
   const skillRank = isLanguageDomain ? (languageSkillCategory(n.target_node_name || '') === 'grammar' ? 0 : 1) : 0;
   const difficulty = typeof m.difficulty_score === 'number' ? m.difficulty_score : 1;
@@ -1462,6 +1540,10 @@ export function buildGapReason(gap: GapNode, domainCovered: boolean, sourceLabel
 
   if (!domainCovered) {
     if (domain === 'hindi' || domain === 'sanskrit' || domain === 'other-language') {
+      // A skill gap says what the student has to be able to do at this class.
+      if (isLanguageSkillNode(gap) && gap.target_description) {
+        return `Expected by Class ${gap.target_grade_min}: ${truncateAtWord(gap.target_description, 200)}`;
+      }
       return languageSkillCategory(gap.target_node_name || '') === 'grammar'
         ? `${subject} has no prior coverage in ${sourceLabel} at all — this is foundational grammar/script material, and a good place to start since there's nothing from prior coursework to build on.`
         : `${subject} has no prior coverage in ${sourceLabel} at all — this is a reading/literature chapter, best tackled once the subject's grammar and script basics are in place.`;
