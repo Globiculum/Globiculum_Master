@@ -27,6 +27,9 @@
     /* Secondary: Academic Teal #0D9488 */
     --secondary: 175 84% 32%;
     --secondary-foreground: 0 0% 100%;
+    /* Same hue, darkened for small TEXT on light backgrounds: the base teal is
+       3.65:1 on white (fails WCAG 1.4.3 below 18px); this is 5.21:1. */
+    --secondary-contrast: 175 84% 26%;
 
     /* Muted: Slate Grey based */
     --muted: 215 16% 95%;
@@ -99,6 +102,8 @@
   }
 
   .dark {
+    /* Lighter teal for small text on the dark background. */
+    --secondary-contrast: 175 70% 55%;
     --background: 222 47% 6%;
     --foreground: 210 40% 98%;
 
@@ -191,6 +196,11 @@
   html.printing-report [data-radix-popper-content-wrapper],
   html.printing-report button {
     display: none !important;
+  }
+
+  /* Content collapsed on screen behind a "Show all" toggle (SubjectGapList) */
+  html.printing-report .print-show {
+    display: revert !important;
   }
 
   /* ── Page background ──────────────────────────────────── */
@@ -300,6 +310,11 @@
   html.printing-report [data-state="closed"] > [data-radix-collapsible-content] {
     display: block !important;
     height: auto !important;
+  }
+
+  /* Report Preview subject details stay in the page when closed (forceMount). */
+  html.printing-report .report-collapsible {
+    display: block !important;
   }
 
 }

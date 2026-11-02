@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { StudentStepProps } from "./types";
 import SectionCard from "../../shared/SectionCard";
 import QuestionCard from "../../shared/QuestionCard";
@@ -15,6 +16,7 @@ import {
   normalizeTargetStream,
   targetStreamLabel,
   entryGrade,
+  NOT_OFFERED_SUBJECTS,
 } from "@/hooks/useCurriculumSubjects";
 
 // Mirrors Parent's Overall Performance question (see ParentStep2.tsx) —
@@ -69,7 +71,7 @@ const REQUIRED_SUBJECTS = new Set(["Mathematics", "Science", "English / Language
 const US_CORE_FALLBACK = ["Mathematics", "English", "Science", "Social Studies", "Computer Science"];
 const US_REQUIRED_SUBJECTS = new Set(["Mathematics", "English", "Science", "Social Studies"]);
 
-const AcademicProfileStep = ({ formData, setField, setRecordField, errors }: StudentStepProps) => {
+const AcademicProfileStep = ({ formData, setField, setRecordField, errors, validationAttempt, onSubjectsCompleteChange }: StudentStepProps) => {
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(formData.snapshotGrade);
   const gradeNumber = parseInt(formData.snapshotGrade, 10);
 
@@ -89,7 +91,7 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors }: Stu
   const boardGrade = usSourceSystem ? entryGrade(formData.snapshotGrade, formData.targetGrade) ?? gradeNumber : gradeNumber;
   const boardIsHigherSecondary = boardGrade >= 11;
   const curriculumSystem = targetBoardToCurriculumSystem(formData.targetGoal, boardGrade);
-  const { subjects: dbSubjects } = useCurriculumSubjects({
+  const { subjects: dbSubjects, loading: dbLoading } = useCurriculumSubjects({
     curriculumSystem,
     grade: boardGrade,
     stream: normalizeTargetStream(formData.targetStream) || null,
@@ -127,6 +129,14 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors }: Stu
   const [coreSubjects, electiveSubjects] = showTargetList
     ? [activeSubjectList, streamOptional]
     : splitCoreElectives(activeSubjectList);
+  // Every subject card shown needs an answer: a level, or "I don't take this".
+  const listLoading = (!!usSourceSystem && usLoading) || (showTargetList && dbLoading);
+  const subjectsComplete =
+    !listLoading && [...coreSubjects, ...electiveSubjects].every((s) => !!formData.subjectConfidences[s]);
+  useEffect(() => {
+    onSubjectsCompleteChange?.(subjectsComplete);
+  }, [subjectsComplete, onSubjectsCompleteChange]);
+
   const toggleTargetElective = (subject: string) => {
     const current = formData.targetElectives ?? [];
     setField("targetElectives", current.includes(subject) ? current.filter((s) => s !== subject) : [...current, subject]);
@@ -172,7 +182,7 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors }: Stu
             setAcademicPath={(value) => setField("academicPath", value)}
             setConfidence={(subject, value) => setRecordField("subjectConfidences", subject, value)}
             error={errors.academicPath}
-            excludeFromCustom={[...ALL_COURSES, ...electiveSubjects]}
+            excludeFromCustom={[...ALL_COURSES, ...electiveSubjects, ...NOT_OFFERED_SUBJECTS]}
             navTitle="Core Subjects"
             summaryTitle="Core subjects are ready."
             nextSectionId={electiveSubjects.length > 0 ? "academic-electives-section" : "academic-path-next-section"}
@@ -234,7 +244,13 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors }: Stu
         </QuestionCard>
       )}
 
-      <LanguageJourneyCard formData={formData} setField={setField} setRecordField={setRecordField} />
+      <LanguageJourneyCard
+        formData={formData}
+        setField={setField}
+        setRecordField={setRecordField}
+        error={errors.targetLanguage}
+        validationAttempt={validationAttempt}
+      />
 
       <QuestionCard
         label="Overall Performance"

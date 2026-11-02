@@ -1,4 +1,5 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { useRetakePrefill } from "@/hooks/useRetakePrefill";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import StudentAssessmentController from "@/components/assessment/student/StudentAssessmentController";
@@ -9,15 +10,16 @@ const PERSONA_STORAGE_KEY = "globiculum-selected-persona";
 // counterpart to BeginJourney.tsx (which still owns the Parent flow,
 // untouched). Kept intentionally thin: layout chrome + the step controller.
 const StudentAssessment = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const prefillFormData = location.state?.prefillFormData;
-  const prevReportId = location.state?.prevReportId;
+  const { pending: prefillPending, prefillFormData, prevReportId } = useRetakePrefill();
 
   const handleChangePersona = () => {
     sessionStorage.removeItem(PERSONA_STORAGE_KEY);
     navigate("/begin-journey");
   };
+
+  // Wait for the session check before mounting a retake (see useRetakePrefill).
+  if (prefillPending) return null;
 
   return (
     <div className="min-h-screen bg-background">

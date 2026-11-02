@@ -156,6 +156,8 @@ interface AssessmentLayoutProps {
   currentIndex: number;
   onBack: () => void;
   onNext: () => void;
+  /** False until the step's required answers are in; Continue shows dimmed. */
+  canProceed: boolean;
   isFirstStep: boolean;
   isLastStep: boolean;
   /** True when the user arrived from the Reports History "Retake" button. */
@@ -176,6 +178,7 @@ const AssessmentLayout = ({
   currentIndex,
   onBack,
   onNext,
+  canProceed,
   isFirstStep,
   isLastStep,
   isRetake = false,
@@ -213,7 +216,7 @@ const AssessmentLayout = ({
       </AnimatePresence>
       {/* Hidden on the Review step (isLastStep) — StudentReviewStep supplies its
           own sticky ReviewActionBar instead, mirroring Parent's equivalent gate. */}
-      {!isLastStep && <AssessmentFooter onPrev={onBack} onNext={onNext} isFirstStep={isFirstStep} canProceed />}
+      {!isLastStep && <AssessmentFooter onPrev={onBack} onNext={onNext} isFirstStep={isFirstStep} canProceed={canProceed} />}
     </div>
   </div>
 );

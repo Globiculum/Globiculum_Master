@@ -59,6 +59,10 @@ import {
   prepareTargetNodes,
   applyCourseMatches,
   US_COURSES_SYSTEM,
+  filterIndianLanguages,
+  planForReadiness,
+  ncertBookCodesBySubject,
+  TargetLanguageChoice,
 } from "../_shared/curriculumGaps.ts";
 
 // =============================================================================
@@ -381,7 +385,9 @@ function expandSubjectAnalysisFromRag(
   ragGaps: GapNodeWithSeverity[],
   subjectStats: Map<string, { total: number; covered: number }>,
   subjectClassifications: SubjectClassification[],
-  sourceLabel: string
+  sourceLabel: string,
+  /** NCERT book codes per subject (ncertBookCodesBySubject), sent as `textbooks`. */
+  bookCodes: Map<string, string[]> = new Map()
 ): { subject: string; action: 'added' | 'existing' | 'updated' | 'dropped' }[] {
   const expansionLog: { subject: string; action: 'added' | 'existing' | 'updated' | 'dropped' }[] = [];
   if (subjectStats.size === 0) return expansionLog;
@@ -433,8 +439,9 @@ function expandSubjectAnalysisFromRag(
   // Iterate every subject with real target nodes — not just ones with gaps —
   // so a fully-covered subject the LLM skipped still gets a correct entry.
   for (const [subject, stats] of subjectStats.entries()) {
+    // Every gap, not a top-N: the subject card is the report's only per-topic
+    // gap list (the separate Critical Gaps section was removed, T06).
     const gaps = bySubject.get(subject) || [];
-    const topGaps = gaps.slice(0, 6); // max 6 keyGaps shown per subject
 
     const { total, covered } = stats;
     const ratio = total > 0 ? covered / total : 1;
@@ -444,22 +451,25 @@ function expandSubjectAnalysisFromRag(
     else alignmentLevel = 'high_gap';
 
     const domainCovered = domainCoveredBySubject.get(subject) ?? true;
-    const keyGaps = topGaps.map(g => {
+    const keyGaps = gaps.map(g => {
       const meta = (g.target_metadata || {}) as Record<string, unknown>;
       const url = (meta.url as string) || (meta.source_url as string);
       const reason = buildGapReason(g, domainCovered, sourceLabel);
       // grade: the class the topic belongs to, so the report can mark
-      // earlier-class topics as foundations.
-      return { topic: g.target_node_name, subject, reason, grade: g.target_grade_min, ...(url ? { resourceUrl: url } : {}) };
+      // earlier-class topics as foundations. severity: CRITICAL = new content,
+      // MAJOR/MODERATE = partly covered; the card groups topics by it.
+      return { topic: g.target_node_name, subject, reason, grade: g.target_grade_min, severity: g._severity, ...(url ? { resourceUrl: url } : {}) };
     });
 
     const normalized = subject.toLowerCase();
     const existing = findExistingEntry(normalized);
+    const textbooks = bookCodes.get(subject) ?? [];
     if (existing) {
       existing.keyGaps = keyGaps;
       existing.topicsCovered = covered;
       existing.totalTopics = total;
       existing.alignmentLevel = alignmentLevel;
+      existing.textbooks = textbooks;
       expansionLog.push({ subject, action: 'updated' });
     } else {
       const newEntry = {
@@ -468,6 +478,7 @@ function expandSubjectAnalysisFromRag(
         totalTopics: total,
         alignmentLevel,
         keyGaps,
+        textbooks,
       };
       subjectAnalysis.push(newEntry);
       existingBySubject.set(normalized, newEntry);
@@ -581,11 +592,9 @@ function expandSubjectAnalysisFromRag(
     if (criticalSet.has(topic.toLowerCase())) continue;
     const meta = (gap.target_metadata || {}) as Record<string, unknown>;
     const url = (meta.url as string) || (meta.source_url as string);
-    // subject and reason are attached explicitly here (not just inferrable
-    // from keyGaps above) because keyGaps only ever holds each subject's
-    // first 6 gaps, while criticalGaps can hold every CRITICAL gap for a
-    // subject, and without these fields the frontend had no way to give the
-    // 7th+ gap a correct, specific reason.
+    // subject and reason are attached explicitly here: reports saved before
+    // keyGaps held every gap only had each subject's first 6 there, and the
+    // report merges these CRITICAL entries into the subject card for them.
     const domainCovered = domainCoveredBySubject.get(subject) ?? true;
     const reason = buildGapReason(gap, domainCovered, sourceLabel);
     criticalGaps.push({ topic, subject, reason, grade: gap.target_grade_min, ...(url ? { resourceUrl: url } : {}) });
@@ -625,6 +634,7 @@ interface FormData {
   targetStream?: string;      // 'science-pcm' | 'science-pcb' | 'commerce' | 'humanities' — Classes XI-XII only
   targetGrade?: string;       // 'same' | 'next' — grade entered in India, relative to snapshotGrade
   targetElectives?: string[]; // optional Class XI-XII subjects chosen for the stream
+  targetLanguage?: TargetLanguageChoice; // Indian language at the new school (Classes 1-10): Hindi, Sanskrit or both
   academicPath?: string[];
   strongestSubjects?: string[];
   challengingAreas?: string[];
@@ -653,7 +663,7 @@ serve(async (req) => {
   // Initialize logger early (without userId until we authenticate)
   const logger = createLogger('analyze-curriculum');
 
-  // Debug log accumulator — sent back to the frontend for console visibility
+  // Debug log accumulator — function logs only, never sent to the browser
   const debugLogs: DebugLog[] = [];
   const addDebug = (step: string, message: string, data?: Record<string, unknown>) => {
     const entry: DebugLog = { step, message, data };
@@ -847,6 +857,10 @@ serve(async (req) => {
       // Optional Class XI-XII subjects the student chose (e.g. Computer Science
       // in PCM). Matched against the board's optional list, never used as-is.
       targetElectives: sanitizeArray(rawFormData.targetElectives, 6, 60),
+      // Allow-listed: it decides which language's nodes are scored.
+      targetLanguage: ['hindi', 'sanskrit', 'both', 'undecided'].includes(String(rawFormData.targetLanguage))
+        ? (String(rawFormData.targetLanguage) as TargetLanguageChoice)
+        : undefined,
       // 30 items: a US state's full subject list (up to 9) plus high-school and
       // AP courses (up to 16). The old cap of 10 silently dropped selections —
       // including Computer Science, which changes scoring.
@@ -970,6 +984,10 @@ serve(async (req) => {
     let unavailableSubjectKeys: string[] = [];
     // Set in US state mode only: domains a real source pool was compared for.
     let coveredDomains: Set<SubjectDomain> | undefined;
+    // Hindi/Sanskrit subjects left out by the language choice (see filterIndianLanguages).
+    let excludedLanguageSubjects: string[] = [];
+    // NCERT book codes behind each subject's chapters, so the report shows the right textbook.
+    let ragBookCodes = new Map<string, string[]>();
 
     // Resolve source and target curricula. resolveSourceCurriculum() is the
     // new architecture's entry point: for a US student on "Regular U.S.
@@ -1201,9 +1219,14 @@ serve(async (req) => {
           // global percentile ranking.
           // Filter to the target curriculum's specific node type (or all nodes if null),
           // English on skills, one copy of units repeated across classes.
-          const allTargetNodes = prepareTargetNodes((rawGaps as GapNode[]).filter(g =>
+          // Read from every row (chapters included, before languages are swapped
+          // for skills), so each subject's book is known even when it has no gaps.
+          ragBookCodes = ncertBookCodesBySubject(rawGaps as GapNode[]);
+          const languageFilter = filterIndianLanguages(prepareTargetNodes((rawGaps as GapNode[]).filter(g =>
             targetEntry.nodeType == null || g.target_node_type === targetEntry.nodeType
-          ), Number(grade));
+          ), Number(grade)), formData.targetLanguage);
+          const allTargetNodes = languageFilter.nodes;
+          excludedLanguageSubjects = languageFilter.excluded;
 
           addDebug('rag_raw_rows', 'Raw RPC rows received', {
             rawRowCount: rawGaps.length,
@@ -1334,6 +1357,19 @@ serve(async (req) => {
       });
     }
 
+    // Plan length from the measured readiness (planForReadiness), so the
+    // estimate and phases follow the gaps; without RAG data the model's own
+    // estimate stands, as before.
+    const plan = ragAlignmentPct !== null ? planForReadiness(ragAlignmentPct) : null;
+    const [phase1Span, phase2Span, phase3Span] = plan?.phases ?? ['Months 1-3', 'Months 4-6', 'Months 7-8'];
+
+    // One bullet per month of a phase ("Months 4-5" -> 2), so no month repeats another's step.
+    const bulletSlots = (span: string) => {
+      const nums = (span.match(/\d+/g) ?? []).map(Number);
+      const months = nums.length >= 2 ? nums[nums.length - 1] - nums[0] + 1 : 1;
+      return JSON.stringify(Array.from({ length: months }, (_, i) => `<action for month ${i + 1} of this phase>`));
+    };
+
     const systemPrompt = `SYSTEM INSTRUCTIONS — ACADEMIC TRANSITION ANALYST
 
 ROLE
@@ -1373,36 +1409,33 @@ RESOURCE URL RULES
 
 SUBJECT OUTPUT RULES
 - Show detailed analysis ONLY for subjects selected by user or marked as challenging.
-- For Social Studies (Grades 2–10): DO NOT list detailed topics. Instead say: "A 2–3 month refresher on Indian social science fundamentals is advised."
 - CRITICAL: Each subject's keyGaps list must ONLY contain topics that belong to THAT subject from the RAG data. Do NOT place a Science topic under Mathematics, or a Language topic under Science. Match the subject label in the RAG [SubjectName] section exactly to the subjectAnalysis "subject" field.
 
 GAP EXPLANATION (include for each subject)
 "This gap exists because the topic is introduced earlier or emphasized more in the [target] curriculum compared to the student's [source] curriculum."
 
-BRIDGE PLAN — ALWAYS include 3 phases:
-- Phase 1 (Foundation): Months 1–3 — foundational concepts
-- Phase 2 (Concept Strengthening): Months 4–6 — concept depth
-- Phase 3 (Practice & Application): Months 7–8 — assessments, mock tests
+BRIDGE PLAN — ALWAYS include 3 phases${plan ? ` covering ${plan.months} months in total (estimated preparation: ${plan.label})` : ''}:
+- Phase 1 (Foundation): ${phase1Span} — foundational concepts
+- Phase 2 (Concept Strengthening): ${phase2Span} — concept depth
+- Phase 3 (Practice & Application): ${phase3Span} — assessments, mock tests
+- Give exactly one bullet per month of each phase (the plan shows one month per step), and never repeat a bullet.
 
 CURRICULUM CONSISTENCY RULE
 If source curriculum = target curriculum: do NOT introduce other board references.
 For IB: do NOT use NCERT references. Focus on concept understanding, inquiry-based learning, skill development.
 
 PERFORMANCE SENSITIVITY
-Adjust recommendations based on student confidence levels. Always include:
-"Recommendations are adjusted based on the student's current performance level and learning readiness."
+Adjust recommendations based on student confidence levels. Every recommendation must be a concrete action; no general statements about the report.
 
 NON-NEGOTIABLE RULES
 - NEVER hallucinate topics or curriculum references
 - NEVER generate inconsistent outputs across same grade
 - NEVER mix curriculum systems incorrectly
 - NEVER provide generic or incomplete references
-- Include the disclaimer text inside the JSON structure (not outside it)
 
 OUTPUT FORMAT
 Return ONLY valid JSON. No markdown fences, no explanation before or after the JSON object. The response must start with { and end with } — nothing else.`;
 
-    console.log(`[GEMINI] Key prefix check: ${GEMINI_API_KEY?.substring(0, 8)}... (length: ${GEMINI_API_KEY?.length})`);
     console.log(`[GEMINI] Model: gemini-3.1-flash-lite | Grade: ${formData.snapshotGrade} | Source: ${formData.currentCurriculum} | Target: ${formData.targetGoal || formData.targetCurriculum}`);
 
     // Log RAG status before calling LLM — confirms whether RAG data is injected
@@ -1450,14 +1483,14 @@ ${streamName ? `- Target Stream (Classes XI-XII): ${streamName}\n` : ''}- Subjec
 - Strong Areas: ${formData.strongestSubjects?.join(', ') || 'Not specified'}
 - Challenges: ${formData.challengingAreas?.join(', ') || 'Not specified'}
 - Languages: ${formData.languagesSpoken?.join(', ') || 'English'}
-- Timeline: ${formData.transitionTimeline || 'Standard pace'}
+${excludedLanguageSubjects.length > 0 ? `- Indian language at the new school: ${formData.targetLanguage === 'sanskrit' ? 'Sanskrit' : formData.targetLanguage === 'both' ? 'Hindi and Sanskrit' : 'Hindi'} (do not plan for ${excludedLanguageSubjects.join(', ')})\n` : ''}- Timeline: ${formData.transitionTimeline || 'Standard pace'}
 ${ragSection}
 **Return ONLY this JSON structure with SHORT bullet points (max 10 words each):**
 {
   "overallAlignment": {
     "percentage": <number 0-100>,
     "subjectsNeedingBridge": ["<subject1>", "<subject2>"],
-    "estimatedDuration": "<e.g., 6-8 months>"
+    "estimatedDuration": ${plan ? `"${plan.label}"` : '"<e.g., 6-8 months>"'}
   },
   "subjectAnalysis": [
     {
@@ -1476,18 +1509,18 @@ ${ragSection}
   "bridgeTimeline": {
     "phase1": {
       "name": "<phase name>",
-      "duration": "Months 1-3",
-      "bullets": ["<action 1>", "<action 2>", "<action 3>"]
+      "duration": "${phase1Span}",
+      "bullets": ${bulletSlots(phase1Span)}
     },
     "phase2": {
       "name": "<phase name>",
-      "duration": "Months 4-6",
-      "bullets": ["<action 1>", "<action 2>", "<action 3>"]
+      "duration": "${phase2Span}",
+      "bullets": ${bulletSlots(phase2Span)}
     },
     "phase3": {
       "name": "<phase name>",
-      "duration": "Months 7-8",
-      "bullets": ["<action 1>", "<action 2>"]
+      "duration": "${phase3Span}",
+      "bullets": ${bulletSlots(phase3Span)}
     }
   },
   "recommendations": {
@@ -1511,12 +1544,14 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
         // Measure LLM latency within the job
         const GEMINI_MODEL = 'gemini-3.1-flash-lite';
         const response = await logger.measureLLM(GEMINI_MODEL, async () => {
-          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+          // Key in a header, not the URL, so it never lands in URL logs.
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
           console.log(`[GEMINI] Calling ${GEMINI_MODEL} at generativelanguage.googleapis.com`);
           return fetch(geminiUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "x-goog-api-key": GEMINI_API_KEY,
             },
             body: JSON.stringify({
               systemInstruction: {
@@ -1832,8 +1867,18 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
         ragGapNodes,
         ragSubjectStats,
         ragSubjectClassifications,
-        sourceEntry?.label || formData.currentCurriculum || 'the student\'s current curriculum'
+        sourceEntry?.label || formData.currentCurriculum || 'the student\'s current curriculum',
+        ragBookCodes
       );
+      if (excludedLanguageSubjects.length > 0) {
+        const chosen = formData.targetLanguage === 'sanskrit' ? 'Sanskrit' : 'Hindi';
+        analysisData.excludedSubjects = excludedLanguageSubjects.map(subject => ({
+          subject,
+          reason: formData.targetLanguage === 'sanskrit' || formData.targetLanguage === 'hindi'
+            ? `${subject} isn't included: ${chosen} was chosen as the Indian language at the new school.`
+            : `${subject} isn't included: it is an alternative to ${chosen}, and no language was chosen on the form, so ${chosen} is assessed.`,
+        }));
+      }
       addDebug('subject_analysis_expansion', 'Expanded subjectAnalysis from RAG data', {
         ragSubjects: [...new Set(ragGapNodes.map(g => ((g.target_metadata || {}) as Record<string, unknown>).subject as string).filter(Boolean))],
         expansionLog,
@@ -1904,7 +1949,15 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
           ...priorOverall,
           percentage: ragAlignmentPct,
           subjectsNeedingBridge,
+          // The model is given these, but may still copy its own example.
+          ...(plan ? { estimatedDuration: plan.label } : {}),
         };
+        const timeline = analysisData.bridgeTimeline as Record<string, Record<string, unknown>> | undefined;
+        if (plan && timeline) {
+          (['phase1', 'phase2', 'phase3'] as const).forEach((key, i) => {
+            if (timeline[key]) timeline[key].duration = plan.phases[i];
+          });
+        }
         addDebug('overall_alignment_grounded', 'Overwrote LLM overallAlignment with real RAG-derived values', {
           llmPercentage: priorOverall.percentage,
           ragPercentage: ragAlignmentPct,
@@ -1991,7 +2044,7 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
       validationSummary.alignment_score = ragAlignmentPct / 100;
     }
 
-    addDebug('final_response', 'Returning success response with RAG and debug logs', {
+    addDebug('final_response', 'Returning success response with RAG', {
       rag_enabled: !!ragContext,
       rag_alignment_pct: ragAlignmentPct,
       rag_gap_count: ragGapCount,
@@ -2017,7 +2070,8 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
         // came from California's own standards and not a silent fallback.
         subject_source_audit: subjectSourceAudit,
         unavailable_subjects: unavailableSubjectKeys,
-        debug_logs: debugLogs,
+        // debug_logs are not returned: they carry form data. They stay in the
+        // function logs (addDebug -> logger.info).
       }
     }, corsHeaders, apiVersion);
 

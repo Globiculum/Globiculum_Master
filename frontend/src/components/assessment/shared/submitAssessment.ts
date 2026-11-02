@@ -39,6 +39,7 @@ export interface SubmittableFormData {
   targetGoal: string;
   targetStream: string;
   targetElectives: string[];
+  targetLanguage?: string;
   targetGrade: string;
   curriculumType: string;
   academicPath: string[];
@@ -110,9 +111,8 @@ export async function submitAssessment<T extends SubmittableFormData>({
   formData,
   prevReportId,
 }: SubmitAssessmentOptions<T>): Promise<SubmitAssessmentResult> {
-  const formDataJson = JSON.stringify(formData);
-  sessionStorage.setItem("assessment-form-data", formDataJson);
-  localStorage.setItem("assessment-form-data", formDataJson);
+  // sessionStorage only: child data must not outlive the tab (see lib/childDataStorage.ts).
+  sessionStorage.setItem("assessment-form-data", JSON.stringify(formData));
   sessionStorage.removeItem("saved-report-analysis");
   sessionStorage.removeItem("saved-report-id");
 
@@ -221,6 +221,8 @@ export async function submitAssessment<T extends SubmittableFormData>({
           targetStream: formData.targetStream || undefined,
           // Optional stream subjects the student chose; compared only when chosen.
           targetElectives: formData.targetElectives?.length ? formData.targetElectives : undefined,
+          // Classes 6-10: Hindi, Sanskrit or both; only the chosen language is scored.
+          targetLanguage: formData.targetLanguage || undefined,
           // "same" | "next": the grade entered in India. Gaps are measured
           // against that grade, not the current one.
           targetGrade: formData.targetGrade || undefined,

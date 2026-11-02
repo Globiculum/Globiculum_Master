@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Check } from "lucide-react";
 import parentLogo from "@/assets/parentlogo.png";
 import goalsAspirationsIcon from "@/assets/icons-3d/goals-aspirations.png";
@@ -24,6 +25,7 @@ import {
   normalizeTargetStream,
   targetStreamLabel,
   entryGrade,
+  NOT_OFFERED_SUBJECTS,
 } from "@/hooks/useCurriculumSubjects";
 
 // Step 2: Academic Path — current subjects, per-subject confidence, AP
@@ -102,7 +104,7 @@ const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string[]
 // applies uniformly since nothing was ever required).
 const NO_REQUIRED_SUBJECTS = new Set<string>();
 
-const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors }: ParentStepProps) => {
+const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors, validationAttempt, onSubjectsCompleteChange }: ParentStepProps) => {
   const gradeNumber = parseInt(formData.snapshotGrade, 10);
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(gradeNumber);
   const subjects = getSubjectsByGradeBand(formData.schoolStage, formData.currentCurriculum, gradeNumber);
@@ -172,6 +174,14 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
   const [coreSubjects, electiveSubjects] = showTargetList
     ? [activeSubjectList, streamOptional]
     : splitCoreElectives(activeSubjectList);
+  // Every subject card shown needs an answer: a level, or "doesn't take this".
+  const listLoading = (!!usSourceSystem && usLoading) || (showTargetList && subjectsLoading);
+  const subjectsComplete =
+    !listLoading && [...coreSubjects, ...electiveSubjects].every((s) => !!formData.subjectConfidences[s]);
+  useEffect(() => {
+    onSubjectsCompleteChange?.(subjectsComplete);
+  }, [subjectsComplete, onSubjectsCompleteChange]);
+
   const toggleTargetElective = (subject: string) => {
     const current = formData.targetElectives ?? [];
     onFieldChange(
@@ -270,7 +280,7 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
             moderate: "Understands most of it",
             "needs-help": "Could use more support",
           }}
-          excludeFromCustom={[...AP_SUBJECTS, ...electiveSubjects]}
+          excludeFromCustom={[...AP_SUBJECTS, ...electiveSubjects, ...NOT_OFFERED_SUBJECTS]}
           customCardTitle="Any other subjects?"
           customCardSubtitle="Add any subject not listed above, then note your child's confidence."
           customCardQuestion="How confident does your child seem in this subject?"
@@ -446,7 +456,13 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
         )}
 
       <div id="language-exposure-section">
-        <ParentLanguageJourneyCard formData={formData} onFieldChange={onFieldChange} onRecordFieldChange={onRecordFieldChange} />
+        <ParentLanguageJourneyCard
+          formData={formData}
+          onFieldChange={onFieldChange}
+          onRecordFieldChange={onRecordFieldChange}
+          error={fieldErrors.targetLanguage}
+          validationAttempt={validationAttempt}
+        />
       </div>
 
       {/* Same nav + FlashcardShell structure as AP Courses & University

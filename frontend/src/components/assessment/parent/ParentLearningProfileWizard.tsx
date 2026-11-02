@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, CircleAlert, HeartHandshake, MessageSquareText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -86,15 +86,22 @@ const CARD_LABEL: Record<CardId, string> = {
   support: "Preferred Support",
   notes: "Additional Notes",
 };
+// The required field each card answers (Additional Notes is optional).
+const CARD_FIELD: Partial<Record<CardId, keyof ParentFormData>> = {
+  learningStyle: "learningStyles",
+  concerns: "transitionConcerns",
+  support: "supportNeeds",
+};
 
 interface ParentLearningProfileWizardProps {
   formData: ParentFormData;
   onFieldChange: <K extends keyof ParentFormData>(field: K, value: ParentFormData[K]) => void;
   onArrayToggle: (field: keyof ParentFormData, value: string) => void;
   fieldErrors: Record<string, string>;
+  validationAttempt?: number;
 }
 
-const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, fieldErrors }: ParentLearningProfileWizardProps) => {
+const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, fieldErrors, validationAttempt = 0 }: ParentLearningProfileWizardProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const [cardIndex, setCardIndex] = useState(0);
 
@@ -102,6 +109,20 @@ const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, f
   const total = ORDER.length;
   const position = cardIndex + 1;
   const isLast = cardIndex >= total - 1;
+
+  // After a failed Continue, open the first card with a missing answer; a
+  // layout effect so the card is on screen before useScrollToFirstInvalidField
+  // looks for it. Keyed on the attempt, not the errors: answering one card
+  // clears its error and must not jump the parent to the next card.
+  useLayoutEffect(() => {
+    if (validationAttempt === 0) return;
+    const first = ORDER.findIndex((id) => {
+      const field = CARD_FIELD[id];
+      return !!field && !!fieldErrors[field];
+    });
+    if (first !== -1) setCardIndex(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validationAttempt]);
 
   const advance = () => setCardIndex((i) => Math.min(i + 1, total - 1));
   const goBack = () => setCardIndex((i) => Math.max(i - 1, 0));
@@ -129,7 +150,7 @@ const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, f
           exit={shouldReduceMotion ? undefined : { opacity: 0, x: -24 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
         >
-          <FlashcardShell accent="teal">
+          <FlashcardShell accent="teal" invalid={!!(CARD_FIELD[currentId] && fieldErrors[CARD_FIELD[currentId] as string])}>
             {currentId === "learningStyle" && (
               <>
                 <div className="relative flex flex-col items-center text-center">
@@ -179,6 +200,7 @@ const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, f
                 <div className="relative mt-6">
                   <SupportCards options={SUPPORT_NEEDS} selected={formData.supportNeeds} onToggle={(value) => onArrayToggle("supportNeeds", value)} />
                 </div>
+                <FieldError message={fieldErrors.supportNeeds} />
               </>
             )}
 

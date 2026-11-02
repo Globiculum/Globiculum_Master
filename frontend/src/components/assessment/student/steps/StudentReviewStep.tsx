@@ -105,6 +105,7 @@ const StudentReviewStep = ({ formData, prevReportId, isRetake = false, onPrev, o
       icon: academicPathIcon,
       rows: [
         { label: "Current Subjects", value: joinList(formData.academicPath) },
+        ...(formData.targetLanguage ? [{ label: "Indian Language", value: prettify(formData.targetLanguage) }] : []),
         { label: "Overall Performance", value: prettify(formData.overallPerformance) },
         { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
         { label: "Language Proficiencies", value: joinRecord(formData.languageProficiencies) },

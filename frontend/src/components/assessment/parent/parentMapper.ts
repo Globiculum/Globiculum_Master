@@ -34,6 +34,8 @@ export interface ParentFormData {
   targetStream: string; // "science-pcm" | "science-pcb" | "commerce" | "humanities" | "" (TargetStream)
   // Optional subjects chosen for the stream (e.g. Computer Science in PCM).
   targetElectives: string[];
+  // Classes 6-10: Indian language at the new school ("hindi" | "sanskrit" | "both" | "undecided" | "").
+  targetLanguage: string;
   timeline: string;
   educationHistory: EducationHistoryEntry[];
 

@@ -1,9 +1,11 @@
-import { useState, useEffect, Component, ReactNode } from "react";
+import { useState, useEffect, useRef, Component, ReactNode } from "react";
 import { useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import ReportView, { type AnalysisData } from "@/components/ReportView";
+import { ReportBody, type AnalysisData } from "@/components/report/ReportBody";
+import { generateReportPDF } from "@/lib/generateReportPDF";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Clock, LinkIcon, ShieldAlert } from "lucide-react";
@@ -63,6 +65,16 @@ const SharedReportPage = () => {
   const [report, setReport] = useState<SharedReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current) return;
+    try {
+      await generateReportPDF(reportRef.current);
+    } catch {
+      toast.error("Failed to generate PDF. Please try again.");
+    }
+  };
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -122,22 +134,17 @@ const SharedReportPage = () => {
     );
   }
 
-  const sharedBanner = (
-    <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-      <LinkIcon className="h-4 w-4 shrink-0" />
-      <span>Shared report for <strong className="text-foreground">{report.student_name}</strong></span>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-4xl">
-        <ReportView
-          formData={report.form_data}
-          analysisData={report.analysis_data}
-          sharedBanner={sharedBanner}
-        />
+      <main className="flex-1 container mx-auto max-w-5xl px-4 py-6 md:py-10">
+        <p className="no-print mb-4 inline-flex items-center gap-1.5 font-heading text-sm text-muted-foreground">
+          <LinkIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+          Shared report, view only
+        </p>
+        <div ref={reportRef}>
+          <ReportBody formData={report.form_data} analysis={report.analysis_data} onDownload={handleDownloadPDF} />
+        </div>
       </main>
       <Footer />
     </div>

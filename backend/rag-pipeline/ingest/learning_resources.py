@@ -206,6 +206,10 @@ YOUTUBE = [
 ]
 
 
+# Misspellings in NCERT's own book selector, corrected for display only.
+NCERT_TITLE_FIXES = {"It So Happend": "It So Happened"}
+
+
 def row(board, subject, gmin, gmax, rtype, provider, title, url, expect, check="title", level=None):
     return {"board": board, "subject": subject, "grade_min": gmin, "grade_max": gmax,
             "resource_type": rtype, "provider": provider, "title": title, "url": url, "level": level,
@@ -245,8 +249,9 @@ def ncert_books() -> list[dict]:
                 continue
             code = m.group(1)
             subj = NCERT_BOOK_SUBJECT.get(code, key)
+            book = o.get("text", "").strip()
             out.append(row("cbse", subj, cls, cls, "textbook", "NCERT",
-                           f"NCERT Class {cls} {o.get('text', '').strip()} (free PDF)",
+                           f"NCERT Class {cls} {NCERT_TITLE_FIXES.get(book, book)} (free PDF)",
                            # A real book page lists its chapters with this link. The
                            # selector's title text differs from the page's
                            # ("Ganita Prakash-II" vs "Ganita Prakash II"), so it can't be used.

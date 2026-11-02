@@ -1,6 +1,13 @@
 import { z } from "zod";
 import type { ParentFormData } from "./parentMapper";
 import { gradeHasStream, normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
+import {
+  SUBJECTS_INCOMPLETE_MESSAGE,
+  checkPreviousSchooling,
+  newSchoolLanguageError,
+  previousSchoolingFields,
+  type StepContext,
+} from "../shared/stepRules";
 
 // parentValidation.ts
 //
@@ -51,8 +58,10 @@ const schoolProfileStepSchema = z
     targetGrade: z.string().min(1, "Please select a target grade"),
     targetStream: z.string().optional(),
     timeline: z.string().min(1, "Please select a transition timeline"),
+    ...previousSchoolingFields,
   })
   .superRefine((data, ctx) => {
+    checkPreviousSchooling(data, ctx);
     if (data.snapshotLocation === "other" && !data.snapshotLocationOther) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please specify the country", path: ["snapshotLocationOther"] });
     }
@@ -104,9 +113,12 @@ const academicPathStepSchema = z
 // Biggest Concerns/Preferred Support/Additional Notes (formerly their own
 // Support step, was canProceedFromStep case 3) now live in this same step —
 // see ParentLearningProfileWizard.tsx.
+// Every question in the app is required unless labelled optional, so Preferred
+// Support is too; Additional Notes stays optional.
 const learningProfileStepSchema = z.object({
   learningStyles: z.array(z.string()).min(1, "Pick at least one learning style"),
   transitionConcerns: z.array(z.string()).min(1, "Select at least one concern"),
+  supportNeeds: z.array(z.string()).min(1, "Select at least one kind of support"),
 });
 
 const PARENT_STEP_SCHEMAS: (z.ZodTypeAny | null)[] = [
@@ -116,19 +128,25 @@ const PARENT_STEP_SCHEMAS: (z.ZodTypeAny | null)[] = [
   null, // Review — no field gate; the Generate Report button owns its own isSubmitting gate.
 ];
 
-export function validateParentStep(stepIndex: number, formData: ParentFormData): StepValidationResult {
+export function validateParentStep(stepIndex: number, formData: ParentFormData, context: StepContext = {}): StepValidationResult {
   const schema = PARENT_STEP_SCHEMAS[stepIndex];
   if (!schema) return { valid: true, errors: {} };
 
   const result = schema.safeParse(formData);
-  if (result.success) return { valid: true, errors: {} };
-
   const errors: Record<string, string> = {};
-  for (const issue of result.error.issues) {
-    const field = issue.path[0];
-    if (typeof field === "string" && !errors[field]) {
-      errors[field] = issue.message;
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      const field = issue.path[0];
+      if (typeof field === "string" && !errors[field]) {
+        errors[field] = issue.message;
+      }
     }
   }
-  return { valid: false, errors };
+  // Academic Path: every subject card shown needs an answer.
+  if (schema === academicPathStepSchema && context.subjectsComplete === false && !errors.academicPath) {
+    errors.academicPath = SUBJECTS_INCOMPLETE_MESSAGE;
+  }
+  const languageError = schema === academicPathStepSchema ? newSchoolLanguageError(formData) : undefined;
+  if (languageError) errors.targetLanguage = languageError;
+  return { valid: Object.keys(errors).length === 0, errors };
 }

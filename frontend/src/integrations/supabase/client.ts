@@ -2,7 +2,12 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+// Dev server opened through a tunnel (ngrok): Supabase Edge Functions reject
+// that origin (CORS), so calls go through the dev server's /supabase proxy
+// (vite.config.ts). Localhost and production builds use the real URL.
+const isTunnelDev =
+  import.meta.env.DEV && !["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+const SUPABASE_URL = isTunnelDev ? `${window.location.origin}/supabase` : import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 // Import the supabase client like this:

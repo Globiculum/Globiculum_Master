@@ -1,6 +1,13 @@
 import { z } from "zod";
 import type { AssessmentFormData } from "../../shared/types";
 import { gradeHasStream, normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
+import {
+  SUBJECTS_INCOMPLETE_MESSAGE,
+  checkPreviousSchooling,
+  newSchoolLanguageError,
+  previousSchoolingFields,
+  type StepContext,
+} from "../../shared/stepRules";
 
 // Independent from frontend/src/lib/validation/studentValidation.ts (the
 // Parent flow's schema / backend contract). This module only gates
@@ -36,11 +43,13 @@ const studentProfileStepSchema = z
     targetGrade: z.string().min(1, "Please select a target grade"),
     targetStream: z.string().optional(),
     timeline: z.string().min(1, "Please select a transition timeline"),
+    ...previousSchoolingFields,
   })
   // US State is only mandatory once the country is "us" — mirrors Parent's
   // own canProceedFromStep gate for the same field. Stream likewise only for
   // Classes XI-XII on a streamed board.
   .superRefine((data, ctx) => {
+    checkPreviousSchooling(data, ctx);
     if (data.snapshotLocation === "us" && !data.usState) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select your state", path: ["usState"] });
     }
@@ -54,8 +63,10 @@ const academicProfileStepSchema = z.object({
   overallPerformance: z.string().min(1, "Please select overall performance"),
 });
 
+// Additional notes stay optional; every other question is required.
 const wrapUpStepSchema = z.object({
   learningStyles: z.array(z.string()).min(1, "Pick at least one that sounds like you"),
+  nervousness: z.array(z.string()).min(1, "Pick at least one, or \"Not really nervous\""),
 });
 
 const STEP_SCHEMAS: Record<StudentAssessmentStepId, z.ZodTypeAny | null> = {
@@ -67,20 +78,27 @@ const STEP_SCHEMAS: Record<StudentAssessmentStepId, z.ZodTypeAny | null> = {
 
 export function validateStudentAssessmentStep(
   stepId: StudentAssessmentStepId,
-  formData: AssessmentFormData
+  formData: AssessmentFormData,
+  context: StepContext = {}
 ): StepValidationResult {
   const schema = STEP_SCHEMAS[stepId];
   if (!schema) return { valid: true, errors: {} };
 
   const result = schema.safeParse(formData);
-  if (result.success) return { valid: true, errors: {} };
-
   const errors: Record<string, string> = {};
-  for (const issue of result.error.issues) {
-    const field = issue.path[0];
-    if (typeof field === "string" && !errors[field]) {
-      errors[field] = issue.message;
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      const field = issue.path[0];
+      if (typeof field === "string" && !errors[field]) {
+        errors[field] = issue.message;
+      }
     }
   }
-  return { valid: false, errors };
+  // Academic step: every subject card shown needs an answer.
+  if (stepId === "academic" && context.subjectsComplete === false && !errors.academicPath) {
+    errors.academicPath = SUBJECTS_INCOMPLETE_MESSAGE;
+  }
+  const languageError = stepId === "academic" ? newSchoolLanguageError(formData) : undefined;
+  if (languageError) errors.targetLanguage = languageError;
+  return { valid: Object.keys(errors).length === 0, errors };
 }

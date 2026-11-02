@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -9,6 +9,7 @@ import { STUDENT_TOTAL_STEPS } from "@/components/assessment/student/StudentAsse
 import PersonaSelection, { type Persona } from "@/components/PersonaSelection";
 import { Clock, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRetakePrefill } from "@/hooks/useRetakePrefill";
 import beginJourneyImage from "@/assets/BEGIN-JOURNEY.png";
 
 // Parent (5 steps) and Student (4 steps) are different lengths — the step
@@ -27,10 +28,8 @@ const readStoredPersona = (): Persona | null => {
 };
 
 const BeginJourney = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const prefillFormData = location.state?.prefillFormData;
-  const prevReportId = location.state?.prevReportId;
+  const { pending: prefillPending, prefillFormData, prevReportId } = useRetakePrefill();
 
   // Retakes carry their own pre-filled data and skip persona selection entirely,
   // keeping the existing retake flow untouched.
@@ -41,7 +40,7 @@ const BeginJourney = () => {
   const previewTotalSteps = STEP_TOTALS[previewPersona ?? "parent"];
 
   const showPersonaStep = !isRetake && !persona;
-  const isStudentRedirect = !isRetake && persona === "student";
+  const isStudentRedirect = !isRetake && !prefillPending && persona === "student";
 
   const handlePersonaContinue = (selected: Persona) => {
     sessionStorage.setItem(PERSONA_STORAGE_KEY, selected);
@@ -70,7 +69,8 @@ const BeginJourney = () => {
     }
   }, [isStudentRedirect, navigate]);
 
-  if (isStudentRedirect) {
+  // Wait for the session check before mounting a retake (see useRetakePrefill).
+  if (isStudentRedirect || prefillPending) {
     return null;
   }
 

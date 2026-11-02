@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, Minus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { GlobiculumChecklistIcon, GlobiculumEducationIcon, GlobiculumGlobeIcon, GlobiculumIconTile } from "@/components/icons";
 import InputCard from "../shared/InputCard";
 import FlashcardShell from "../shared/FlashcardShell";
+import IndianLanguageQuestion from "../shared/IndianLanguageQuestion";
+import { newSchoolLanguageGrade, newSchoolLanguageLabel, suggestedNewSchoolLanguage } from "../shared/newSchoolLanguage";
 import type { ParentFormData } from "./parentMapper";
 import backIcon from "@/assets/icons-3d/back.png";
 
@@ -47,9 +49,10 @@ const foreignLabel = (formData: ParentFormData): string =>
     ? formData.foreignLanguageNameOther || "Other language"
     : FOREIGN_LANGUAGE_CHIPS.find((f) => f.value === formData.foreignLanguageName)?.label ?? formData.foreignLanguageName;
 
-type CardId = "indian" | "foreign";
-const ORDER: CardId[] = ["indian", "foreign"];
-const CARD_LABEL: Record<CardId, string> = { indian: "Indian Languages", foreign: "Foreign Language" };
+// "school" (the Indian language at the new school) is only asked for Classes
+// 6-10 of an Indian board; it follows the languages already known.
+type CardId = "indian" | "school" | "foreign";
+const CARD_LABEL: Record<CardId, string> = { indian: "Indian Languages", school: "New School Language", foreign: "Foreign Language" };
 
 const LevelButton = ({ label, selected, onSelect }: { label: string; selected: boolean; onSelect: () => void }) => (
   <motion.button
@@ -75,9 +78,13 @@ interface ParentLanguageJourneyCardProps {
   formData: ParentFormData;
   onFieldChange: <K extends keyof ParentFormData>(field: K, value: ParentFormData[K]) => void;
   onRecordFieldChange: (field: "languageProficiencies", key: string, value: string) => void;
+  /** Error for the new-school language (targetLanguage), which is required. */
+  error?: string;
+  /** Bumped on each failed Continue; opens the new-school card if it is the one missing. */
+  validationAttempt?: number;
 }
 
-const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChange }: ParentLanguageJourneyCardProps) => {
+const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChange, error, validationAttempt = 0 }: ParentLanguageJourneyCardProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const customIndianLanguages = formData.selectedLanguages.filter((l) => !INDIAN_LANGUAGES.includes(l));
   const hasForeign = !!formData.foreignLanguageName;
@@ -90,13 +97,40 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
   const [draftName, setDraftName] = useState("");
   const [showForeignOtherInput, setShowForeignOtherInput] = useState(formData.foreignLanguageName === "other");
   const [editingSingleCard, setEditingSingleCard] = useState(false);
+  // True while targetLanguage holds the value pre-selected from the known languages.
+  const [suggested, setSuggested] = useState(false);
 
-  const currentId = ORDER[cardIndex] ?? ORDER[0];
-  const total = ORDER.length;
+  const schoolGrade = newSchoolLanguageGrade(formData.targetGoal, formData.snapshotGrade, formData.targetGrade);
+  const order: CardId[] = schoolGrade ? ["indian", "school", "foreign"] : ["indian", "foreign"];
+  const currentId = order[cardIndex] ?? order[0];
+  const total = order.length;
+
+  // A failed Continue with no new-school language opens that card. Coming
+  // from the summary, its Continue returns there; mid-sequence it moves on.
+  useLayoutEffect(() => {
+    if (validationAttempt === 0 || !error || !schoolGrade) return;
+    setEditingSingleCard(phase === "summary");
+    setPhase("cards");
+    setCardIndex(order.indexOf("school"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validationAttempt]);
+
+  const chooseSchoolLanguage = (value: string) => {
+    onFieldChange("targetLanguage", value);
+    setSuggested(false);
+  };
   const position = cardIndex + 1;
 
   const advance = () => {
     const isLast = cardIndex >= total - 1 || editingSingleCard;
+    // Moving on to the new-school card: pre-select from the languages known.
+    if (!isLast && currentId === "indian" && schoolGrade && !formData.targetLanguage) {
+      const suggestion = suggestedNewSchoolLanguage(formData.selectedLanguages);
+      if (suggestion) {
+        onFieldChange("targetLanguage", suggestion);
+        setSuggested(true);
+      }
+    }
     if (isLast) {
       setEditingSingleCard(false);
       setPhase("summary");
@@ -183,17 +217,19 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
   const editCard = (id: CardId) => {
     setEditingSingleCard(true);
     setPhase("cards");
-    setCardIndex(ORDER.indexOf(id));
+    setCardIndex(order.indexOf(id));
   };
 
-  const navItems = ORDER.map((id, idx) => {
-    const answered = id === "indian" ? formData.selectedLanguages.length > 0 : hasForeign;
+  const navItems = order.map((id, idx) => {
+    const answered =
+      id === "indian" ? formData.selectedLanguages.length > 0 : id === "school" ? !!formData.targetLanguage : hasForeign;
     const status = answered ? "completed" : phase === "summary" ? "skipped" : idx === cardIndex ? "current" : idx < cardIndex ? "skipped" : "upcoming";
     return { id, label: CARD_LABEL[id], status, onClick: status === "completed" || status === "skipped" ? () => editCard(id) : undefined };
   });
 
   if (phase === "summary") {
-    const totalSelected = formData.selectedLanguages.length + (hasForeign ? 1 : 0);
+    const schoolLanguage = schoolGrade ? newSchoolLanguageLabel(formData.targetLanguage) : undefined;
+    const totalSelected = formData.selectedLanguages.length + (hasForeign ? 1 : 0) + (schoolLanguage ? 1 : 0);
 
     return (
       <div className="space-y-3">
@@ -243,6 +279,19 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
                   </button>
                 </div>
               ))}
+              {schoolLanguage && (
+                <button
+                  type="button"
+                  onClick={() => editCard("school")}
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
+                    Class {schoolGrade} at the new school
+                  </span>
+                  <span className="text-xs font-semibold text-muted-foreground">{schoolLanguage}</span>
+                </button>
+              )}
               {hasForeign && (
                 <div className="flex items-center gap-1.5">
                   <button
@@ -348,7 +397,7 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
             exit={shouldReduceMotion ? undefined : { opacity: 0, x: -24 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
-            <FlashcardShell accent="violet">
+            <FlashcardShell accent="violet" invalid={currentId === "school" && !!error}>
               {currentId === "indian" && (
                 <>
                   <div className="flex flex-col items-center text-center">
@@ -449,6 +498,25 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
                   >
                     {formData.selectedLanguages.length > 0 ? "Continue →" : "My child doesn't know any Indian languages →"}
                   </button>
+                </>
+              )}
+
+              {currentId === "school" && schoolGrade && (
+                <>
+                  <IndianLanguageQuestion
+                    audience="parent"
+                    grade={schoolGrade}
+                    targetGoal={formData.targetGoal}
+                    value={formData.targetLanguage ?? ""}
+                    onChange={chooseSchoolLanguage}
+                    suggested={suggested}
+                    error={error}
+                  />
+                  {formData.targetLanguage && (
+                    <button type="button" onClick={advance} className="mt-4 block w-full text-center text-xs font-medium text-secondary underline-offset-2 hover:underline">
+                      Continue →
+                    </button>
+                  )}
                 </>
               )}
 

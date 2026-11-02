@@ -5,6 +5,7 @@ import {
   validateStudentAssessmentStep,
 } from "../validation/studentAssessmentValidation";
 import type { AssessmentFormData } from "../../shared/types";
+import type { StepContext } from "../../shared/stepRules";
 
 export interface UseStudentAssessmentNavigationResult {
   stepIndex: number;
@@ -16,7 +17,7 @@ export interface UseStudentAssessmentNavigationResult {
    * shared/useScrollToFirstInvalidField without re-triggering on every
    * individual field fix (which clears one error at a time via clearError). */
   validationAttempt: number;
-  goNext: (formData: AssessmentFormData) => boolean;
+  goNext: (formData: AssessmentFormData, context?: StepContext) => boolean;
   goPrev: () => void;
   goToStep: (index: number) => void;
   clearError: (field: string) => void;
@@ -31,8 +32,8 @@ export function useStudentAssessmentNavigation(initialStepIndex = 0): UseStudent
 
   const stepId = STUDENT_ASSESSMENT_STEP_IDS[stepIndex];
 
-  const goNext = (formData: AssessmentFormData): boolean => {
-    const result = validateStudentAssessmentStep(stepId, formData);
+  const goNext = (formData: AssessmentFormData, context?: StepContext): boolean => {
+    const result = validateStudentAssessmentStep(stepId, formData, context);
     if (!result.valid) {
       setErrors(result.errors);
       setValidationAttempt((n) => n + 1);

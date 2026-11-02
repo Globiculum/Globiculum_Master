@@ -161,6 +161,8 @@ interface ParentAssessmentLayoutProps {
   currentIndex: number;
   onBack: () => void;
   onNext: () => void;
+  /** False until the step's required answers are in; Continue shows dimmed. */
+  canProceed: boolean;
   saveStatus?: "idle" | "saving" | "saved";
   isFirstStep: boolean;
   isLastStep: boolean;
@@ -178,6 +180,7 @@ const ParentAssessmentLayout = ({
   currentIndex,
   onBack,
   onNext,
+  canProceed,
   saveStatus,
   isFirstStep,
   isLastStep,
@@ -216,7 +219,7 @@ const ParentAssessmentLayout = ({
       </AnimatePresence>
       {/* Hidden on the Review step (isLastStep) — ParentStep5 supplies its own
           sticky ReviewActionBar instead, mirroring Student's equivalent gate. */}
-      {!isLastStep && <AssessmentFooter onPrev={onBack} onNext={onNext} saveStatus={saveStatus} isFirstStep={isFirstStep} canProceed />}
+      {!isLastStep && <AssessmentFooter onPrev={onBack} onNext={onNext} saveStatus={saveStatus} isFirstStep={isFirstStep} canProceed={canProceed} />}
     </div>
   </div>
 );

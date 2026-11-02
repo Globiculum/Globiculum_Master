@@ -482,7 +482,7 @@ const AcademicPathFlashcards = ({
             : status === "current"
               ? "You're here"
               : status === "skipped"
-                ? "Not taken"
+                ? subjectConfidences[subject] ? "Not taken" : "Not answered"
                 : undefined,
         onClick: status === "completed" || status === "skipped" ? () => editSubject(subject) : undefined,
       };

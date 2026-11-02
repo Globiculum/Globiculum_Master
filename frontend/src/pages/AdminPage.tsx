@@ -5,12 +5,11 @@ import Footer from "@/components/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Search, Users, FileText, Loader2 } from "lucide-react";
+import { Search, Users, FileText, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface UserRow {
@@ -58,31 +57,13 @@ const AdminPage = () => {
     (u) => u.email.toLowerCase().includes(q) || u.full_name.toLowerCase().includes(q)
   );
 
+  // Not searchable by child name, and no CSV export: child data stays on screen only.
   const filteredReports = reports.filter(
     (r) =>
       r.user_email.toLowerCase().includes(q) ||
-      r.student_name.toLowerCase().includes(q) ||
       r.previous_curriculum.toLowerCase().includes(q) ||
       r.target_curriculum.toLowerCase().includes(q)
   );
-
-  const exportCSV = (rows: Record<string, any>[], filename: string) => {
-    if (!rows.length) return;
-    const headers = Object.keys(rows[0]);
-    const csv = [
-      headers.join(","),
-      ...rows.map((r) =>
-        headers.map((h) => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(",")
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filename}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -101,23 +82,12 @@ const AdminPage = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="admin-search"
-              placeholder={activeTab === "users" ? "Search by email or name..." : "Search by email, student, or curriculum..."}
+              placeholder={activeTab === "users" ? "Search by email or name..." : "Search by parent email or curriculum..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
             />
           </div>
-          <Button
-            variant="outline"
-            onClick={() =>
-              activeTab === "users"
-                ? exportCSV(filteredUsers, "globiculum-users")
-                : exportCSV(filteredReports, "globiculum-reports")
-            }
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
         </div>
 
         {loading ? (

@@ -11,6 +11,7 @@ import targetGradeIcon from "@/assets/icons-3d/target-grade.png";
 import communicationIcon from "@/assets/icons-3d/communication.png";
 import profileIcon from "@/assets/icons-3d/profile.png";
 import emotionalWellbeingIcon from "@/assets/icons-3d/emotional-wellbeing.png";
+import strengthsIcon from "@/assets/icons-3d/strengths.png";
 
 // Step 3: Almost Done — the friendlier, shorter close to the Student journey.
 // No study-time/grades/strongest-subjects drilling (that stays Parent-only);
@@ -49,7 +50,12 @@ const NERVOUSNESS_OPTIONS: { label: string; icon: string; tone: Tone }[] = [
   { label: "New language", icon: communicationIcon, tone: "mint" },
   { label: "Making friends", icon: profileIcon, tone: "violet" },
   { label: "Everything feels new", icon: emotionalWellbeingIcon, tone: "amber" },
+  { label: "Not really nervous", icon: strengthsIcon, tone: "teal" },
 ];
+
+// The question is required, so a student with no worries needs an answer too;
+// it can't be combined with the others.
+const NOT_NERVOUS = "Not really nervous";
 
 const LearningStyleCard = ({
   title,
@@ -118,6 +124,15 @@ const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentSte
   const firstName = formData.studentName.trim();
   const title = firstName ? `Almost Done, ${firstName}!` : "Almost Done";
 
+  const toggleNervousness = (label: string) => {
+    const current = formData.nervousness;
+    if (current.includes(label)) {
+      setField("nervousness", current.filter((l) => l !== label));
+    } else {
+      setField("nervousness", label === NOT_NERVOUS ? [label] : [...current.filter((l) => l !== NOT_NERVOUS), label]);
+    }
+  };
+
   return (
     <SectionCard logo={childLogo} title={title} description="Just a couple more friendly questions.">
       <div className="-mt-4 text-sm text-muted-foreground">We&rsquo;ve got everything we need to build your personalized roadmap.</div>
@@ -137,7 +152,7 @@ const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentSte
         </div>
       </QuestionCard>
 
-      <QuestionCard label="What makes you nervous?" tooltip="Let us know what feels most stressful about the move — pick as many as apply.">
+      <QuestionCard label="What makes you nervous?" required error={errors.nervousness} tooltip="Let us know what feels most stressful about the move — pick as many as apply.">
         <div role="group" aria-label="What makes you nervous?" className="flex flex-wrap gap-2">
           {NERVOUSNESS_OPTIONS.map((option) => (
             <NervousnessChip
@@ -146,7 +161,7 @@ const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentSte
               icon={option.icon}
               tone={option.tone}
               selected={formData.nervousness.includes(option.label)}
-              onClick={() => toggleArrayField("nervousness", option.label)}
+              onClick={() => toggleNervousness(option.label)}
             />
           ))}
         </div>

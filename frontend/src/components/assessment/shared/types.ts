@@ -58,6 +58,9 @@ export interface AssessmentFormData {
   targetStream: string; // "science-pcm" | "science-pcb" | "commerce" | "humanities" | "" (TargetStream)
   // Optional subjects chosen for the stream (e.g. Computer Science in PCM).
   targetElectives: string[];
+  // Classes 6-10: the Indian language the child will take at the new school.
+  // Hindi and Sanskrit are alternatives; only the chosen one is scored.
+  targetLanguage: string; // "hindi" | "sanskrit" | "both" | "undecided" | ""
   timeline: string;
   transitionConcerns: string[];
   supportNeeds: string[];
@@ -81,7 +84,7 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   usStateOther: "",
   previousLocation: "",
   previousLocationOther: "",
-  previouslyStudiedInIndia: "no",
+  previouslyStudiedInIndia: "", // "yes" | "no" once answered — the question is required
   educationHistory: [],
 
   currentCurriculum: [],
@@ -108,6 +111,7 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   targetGrade: "",
   targetStream: "",
   targetElectives: [],
+  targetLanguage: "",
   timeline: "",
   transitionConcerns: [],
   supportNeeds: [],

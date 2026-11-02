@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { BookOpen, ClipboardCheck, User, Wand2 } from "lucide-react";
 import AssessmentLayout from "./ui/AssessmentLayout";
 import type { AssessmentStepperStep as StepperStep } from "../shared/AssessmentStepper";
 import { useStudentAssessmentState } from "./state/useStudentAssessmentState";
 import { useStudentAssessmentNavigation } from "./navigation/useStudentAssessmentNavigation";
+import { validateStudentAssessmentStep } from "./validation/studentAssessmentValidation";
 import { useScrollToFirstInvalidField } from "../shared/useScrollToFirstInvalidField";
 import StudentProfileStep from "./steps/StudentProfileStep";
 import AcademicProfileStep from "./steps/AcademicProfileStep";
@@ -44,6 +46,12 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
 
   useScrollToFirstInvalidField(navigation.validationAttempt);
 
+  // Reported by the Academic step, which alone knows which subject cards it shows.
+  const [subjectsComplete, setSubjectsComplete] = useState(false);
+  const stepContext = { subjectsComplete };
+  // Continue stays dimmed until every required answer on the step is in.
+  const canProceed = validateStudentAssessmentStep(navigation.stepId, formData, stepContext).valid;
+
   // Clears a field's error the moment the user changes it (see
   // useStudentAssessmentNavigation's clearError), so a message doesn't
   // linger once it's no longer accurate.
@@ -68,6 +76,7 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
     toggleArrayField: handleToggleArrayField,
     setRecordField: handleSetRecordField,
     errors: navigation.errors,
+    validationAttempt: navigation.validationAttempt,
   };
 
   const renderStep = () => {
@@ -75,7 +84,7 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
       case "profile":
         return <StudentProfileStep {...stepProps} />;
       case "academic":
-        return <AcademicProfileStep {...stepProps} />;
+        return <AcademicProfileStep {...stepProps} onSubjectsCompleteChange={setSubjectsComplete} />;
       case "wrapup":
         return <WrapUpStep {...stepProps} />;
       case "review":
@@ -104,7 +113,8 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
       steps={STEPS}
       currentIndex={navigation.stepIndex}
       onBack={navigation.goPrev}
-      onNext={() => navigation.goNext(formData)}
+      onNext={() => navigation.goNext(formData, stepContext)}
+      canProceed={canProceed}
       isFirstStep={navigation.isFirstStep}
       isLastStep={navigation.isLastStep}
       isRetake={isRetake}

@@ -49,12 +49,13 @@ const createDefaultParentFormData = (): ParentFormData => ({
 
   previousLocation: "",
   previousLocationOther: "",
-  previouslyStudiedInIndia: "no",
+  previouslyStudiedInIndia: "", // "yes" | "no" once answered — the question is required
   targetGoal: "",
   targetGoalOther: "",
   targetGrade: "",
   targetStream: "",
   targetElectives: [],
+  targetLanguage: "",
   timeline: "",
   educationHistory: [],
 
@@ -130,6 +131,7 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
     // Pre-split "science" is cleared so the stream question is asked again.
     targetStream: normalizeTargetStream(prefillData.targetStream) || defaults.targetStream,
     targetElectives: Array.isArray(prefillData.targetElectives) ? prefillData.targetElectives : defaults.targetElectives,
+    targetLanguage: prefillData.targetLanguage || defaults.targetLanguage,
     timeline: prefillData.timeline || defaults.timeline,
     educationHistory: Array.isArray(prefillData.educationHistory) ? prefillData.educationHistory : defaults.educationHistory,
     academicPath: Array.isArray(prefillData.academicPath) ? prefillData.academicPath : defaults.academicPath,
@@ -170,6 +172,12 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   useScrollToFirstInvalidField(validationAttempt);
+
+  // Reported by the Academic Path step, which alone knows which subject cards it shows.
+  const [subjectsComplete, setSubjectsComplete] = useState(false);
+  const stepContext = { subjectsComplete };
+  // Continue stays dimmed until every required answer on the step is in.
+  const canProceed = validateParentStep(currentStep, formData, stepContext).valid;
 
   // Auto-save (sessionStorage, same key/shape submitAssessment already persists on
   // submit — no Supabase call, no payload/validation change). Debounced so rapid
@@ -234,7 +242,7 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
   };
 
   const goNext = () => {
-    const result = validateParentStep(currentStep, formData);
+    const result = validateParentStep(currentStep, formData, stepContext);
     if (!result.valid) {
       setFieldErrors(result.errors);
       setValidationAttempt((n) => n + 1);
@@ -266,14 +274,14 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
     setCurrentStep(0);
   };
 
-  const stepProps = { formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors };
+  const stepProps = { formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors, validationAttempt };
 
   const renderStep = () => {
     switch (currentStep) {
       case 0:
         return <ParentStep1 {...stepProps} />;
       case 1:
-        return <ParentStep2 {...stepProps} />;
+        return <ParentStep2 {...stepProps} onSubjectsCompleteChange={setSubjectsComplete} />;
       case 2:
         return <ParentStep3 {...stepProps} />;
       case 3:
@@ -304,6 +312,7 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
       currentIndex={currentStep}
       onBack={goPrev}
       onNext={goNext}
+      canProceed={canProceed}
       saveStatus={saveStatus}
       isFirstStep={currentStep === 0}
       isLastStep={currentStep === PARENT_TOTAL_STEPS - 1}

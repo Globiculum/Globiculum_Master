@@ -34,6 +34,7 @@ export default {
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
+          contrast: "hsl(var(--secondary-contrast))",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",

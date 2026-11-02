@@ -13,6 +13,9 @@ export interface PremiumButtonProps {
   variant?: "primary" | "secondary";
   size?: "default" | "lg";
   disabled?: boolean;
+  /** Looks disabled (dimmed, no shine or lift) but still clicks — for a
+   * Continue whose click explains what is missing instead of doing nothing. */
+  dimmed?: boolean;
   loading?: boolean;
   onClick?: () => void;
   type?: "button" | "submit";
@@ -45,6 +48,7 @@ const PremiumButton = ({
   variant = "primary",
   size = "default",
   disabled,
+  dimmed = false,
   loading,
   onClick,
   type = "button",
@@ -52,9 +56,9 @@ const PremiumButton = ({
   children,
 }: PremiumButtonProps) => {
   const [ripples, setRipples] = useState<Ripple[]>([]);
-  const isInteractive = !disabled && !loading;
+  const isInteractive = !disabled && !loading && !dimmed;
   const isPrimary = variant === "primary";
-  const showShimmer = isPrimary && !disabled;
+  const showShimmer = isPrimary && !disabled && !dimmed;
 
   const handlePointerDown = (event: MouseEvent<HTMLButtonElement>) => {
     if (!isInteractive || !isPrimary) return;
@@ -72,6 +76,7 @@ const PremiumButton = ({
       size={size === "lg" ? "lg" : "default"}
       disabled={disabled || loading}
       onClick={onClick}
+      aria-disabled={dimmed || undefined}
       onMouseDown={handlePointerDown}
       variants={wrapperVariants}
       initial="rest"
@@ -90,6 +95,7 @@ const PremiumButton = ({
         // still applies since the native `disabled` attribute is true
         // while loading too.
         disabled && !loading && "opacity-40",
+        dimmed && "opacity-40 shadow-none hover:shadow-none",
         loading && "disabled:opacity-100",
         size === "lg" ? "px-8 py-6 text-base" : "px-5",
         className

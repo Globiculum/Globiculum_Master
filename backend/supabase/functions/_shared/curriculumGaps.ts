@@ -1093,8 +1093,8 @@ export function preferLanguageSkillNodes<T extends {
     return SKILL_LANGUAGE_DOMAINS.includes(d) ? d : null;
   };
   const isCore = (label: string) => !/elective/i.test(label);
-  // A language with no skills for the student's own class (CBSE Class 4 isn't
-  // loaded yet) uses the closest earlier class's skills rather than that
+  // A language with no skills for the student's own class uses the closest
+  // earlier class's skills rather than that
   // class's chapter titles. Later classes' skills are never used: they'd
   // measure the student against work ahead of them. Not across Class 10 -> 11:
   // Hindi and Sanskrit aren't Class 11-12 stream subjects here, so Class 10
@@ -1557,7 +1557,9 @@ export function buildGapReason(gap: GapNode, domainCovered: boolean, sourceLabel
   // Domain is genuinely covered, but this specific topic still landed in the
   // gap bucket — ground the "why" in the nearest match actually found rather
   // than guessing from keywords.
-  const pct = gap.best_similarity != null ? Math.round(gap.best_similarity * 100) : null;
+  // Rounded down: 0.549 is below COVERAGE_SIMILARITY_FLOOR, and showing it as
+  // "55% related" next to a 55% cut-off read as a contradiction.
+  const pct = gap.best_similarity != null ? Math.floor(gap.best_similarity * 100) : null;
   // Below GAP_UNRELATED_BELOW the "closest match" is merely the least-unrelated
   // standard and quoting it misleads ("Mechanical Properties of Solids" <-
   // "Explain the physiology of skeletal muscle"), so it is not named.
@@ -1572,8 +1574,10 @@ export function buildGapReason(gap: GapNode, domainCovered: boolean, sourceLabel
     return `Your ${sourceLabel} coursework only partly covers this — "${topic}" goes beyond what you've studied.`;
   }
   if (gap.best_source_match && pct != null) {
+    // Kept short: the report lists every partly covered topic of a subject,
+    // and the group heading already says these go beyond what was studied.
     const match = truncateAtWord(gap.best_source_match, 110);
-    return `Closest match in your ${sourceLabel} coursework was "${match}" — only about ${pct}% conceptually related, so "${topic}" introduces meaningfully new content beyond what you've studied.`;
+    return `Closest in your coursework: "${match}" (${pct}% related).`;
   }
   return `No closely related topic was found in your ${sourceLabel} coursework — "${topic}" introduces new content.`;
 }
@@ -1683,4 +1687,85 @@ export function mergeBestSourceMatch(primary: GapNode[], supplement: GapNode[]):
     }
   }
   return [...byId.values()];
+}
+
+// =============================================================================
+// INDIAN LANGUAGE CHOICE (Classes 1-10)
+// =============================================================================
+
+/** The form's "Indian language at the new school" answer. */
+export type TargetLanguageChoice = 'hindi' | 'sanskrit' | 'both' | 'undecided';
+
+/**
+ * Hindi and Sanskrit are alternatives: a student takes the one their school
+ * offers or they choose, and the gap engine used to score both, so every
+ * report carried a 0% Sanskrit card and a lower readiness. Only the chosen
+ * language is kept; with no choice ('undecided' or a report from before the
+ * question existed) Hindi is kept, the usual second language. Returns the
+ * kept nodes and the subject labels that were left out, for the report note.
+ */
+export function filterIndianLanguages<T extends { target_metadata?: Record<string, unknown> | null }>(
+  nodes: T[],
+  choice: TargetLanguageChoice | undefined
+): { nodes: T[]; excluded: string[] } {
+  const keep = new Set<SubjectDomain>(
+    choice === 'sanskrit' ? ['sanskrit'] : choice === 'both' ? ['hindi', 'sanskrit'] : ['hindi']
+  );
+  const excluded = new Set<string>();
+  const kept = nodes.filter(n => {
+    const label = getNodeSubjectLabel(n);
+    const domain = canonicalSubjectDomain(label);
+    if ((domain === 'hindi' || domain === 'sanskrit') && !keep.has(domain)) {
+      excluded.add(label);
+      return false;
+    }
+    return true;
+  });
+  return { nodes: kept, excluded: [...excluded] };
+}
+
+// =============================================================================
+// PREPARATION PLAN LENGTH
+// =============================================================================
+
+/**
+ * Plan length from the computed readiness, so the estimate and the bridge
+ * plan follow the gaps instead of the prompt's example (every report used to
+ * say "6-8 months" in three phases of Months 1-3, 4-6 and 7-8). Bands are a
+ * planning convention, stated in the report as an estimate.
+ */
+export function planForReadiness(readinessPct: number): { months: number; label: string; phases: [string, string, string] } {
+  const bands: [number, number, string][] = [
+    [80, 3, '2-3 months'],
+    [65, 4, '3-4 months'],
+    [50, 6, '4-6 months'],
+    [35, 8, '6-8 months'],
+    [0, 12, '9-12 months'],
+  ];
+  const [, months, label] = bands.find(([min]) => readinessPct >= min) ?? bands[bands.length - 1];
+  const a = Math.max(1, Math.round(months / 3));
+  const b = Math.max(a + 1, Math.round((2 * months) / 3));
+  const span = (from: number, to: number) => (from === to ? `Month ${from}` : `Months ${from}-${to}`);
+  return { months, label, phases: [span(1, a), span(a + 1, b), span(b + 1, months)] };
+}
+
+/**
+ * NCERT book codes ("hegp" = Ganita Prakash) behind a subject's chapters,
+ * read from chapter links (ncert.nic.in/textbook.php?hegp1=2-7). The report
+ * uses them to show the book these topics come from, not an older edition.
+ */
+export function ncertBookCodesBySubject(
+  nodes: { target_metadata?: Record<string, unknown> | null }[]
+): Map<string, string[]> {
+  const bySubject = new Map<string, Set<string>>();
+  for (const n of nodes) {
+    const m = (n.target_metadata || {}) as Record<string, unknown>;
+    const url = (m.url as string) || '';
+    const code = /textbook\.php\?([a-z]+)\d+=/i.exec(url)?.[1]?.toLowerCase();
+    if (!code) continue;
+    const subject = getNodeSubjectLabel(n);
+    if (!bySubject.has(subject)) bySubject.set(subject, new Set());
+    bySubject.get(subject)!.add(code);
+  }
+  return new Map([...bySubject].map(([s, codes]) => [s, [...codes]]));
 }

@@ -13,4 +13,8 @@ export interface ParentStepProps {
     value: string
   ) => void;
   fieldErrors: Record<string, string>;
+  /** Bumped on each Continue click that fails validation. */
+  validationAttempt?: number;
+  /** Academic Path only: reports whether every subject card it shows has an answer. */
+  onSubjectsCompleteChange?: (complete: boolean) => void;
 }

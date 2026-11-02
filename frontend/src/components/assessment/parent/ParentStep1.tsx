@@ -30,8 +30,13 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
   // Schools already captures country + curriculum per entry, so asking for a
   // single board here first just asked the same thing twice. Yes/No now
   // drives previousLocation/previouslyStudiedInIndia directly instead.
+  // Unanswered until Yes or No is picked: the question is required.
   const [hasPreviousSchool, setHasPreviousSchool] = useState<boolean | null>(
-    formData.previousLocation ? true : null
+    formData.previouslyStudiedInIndia === "yes" || formData.previousLocation
+      ? true
+      : formData.previouslyStudiedInIndia === "no"
+        ? false
+        : null
   );
 
   const answerHasPreviousSchool = (value: boolean) => {
@@ -53,7 +58,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         </div>
 
         <div className="space-y-4">
-          <QuestionCard label="Did your child attend an Indian school before?">
+          <QuestionCard label="Did your child attend an Indian school before?" error={fieldErrors.previouslyStudiedInIndia}>
             <div role="radiogroup" aria-label="Did your child attend an Indian school before?" className="flex flex-wrap gap-2">
               <InputCard variant="chip" mode="radio" label="Yes" selected={hasPreviousSchool === true} onClick={() => answerHasPreviousSchool(true)} />
               <InputCard variant="chip" mode="radio" label="No" selected={hasPreviousSchool === false} onClick={() => answerHasPreviousSchool(false)} />
@@ -71,7 +76,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
                 style={{ overflow: "hidden" }}
               >
                 <div className="pt-1">
-                  <QuestionCard label="Prior Schools">
+                  <QuestionCard label="Prior Schools" error={fieldErrors.educationHistory}>
                     <p className="-mt-1 mb-3 text-sm text-muted-foreground">
                       Tell us where your child studied before and any prior schools or curricula they attended, so we can understand their journey.
                     </p>

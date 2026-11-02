@@ -452,7 +452,7 @@ def call_gemini(prompt: str, retries: int = 4) -> dict | None:
     for attempt in range(1, retries + 1):
         try:
             resp = requests.post(
-                url, params={"key": GEMINI_API_KEY}, json=payload, timeout=120
+                url, headers={"x-goog-api-key": GEMINI_API_KEY}, json=payload, timeout=120
             )
             if resp.status_code == 200:
                 body = resp.json()

@@ -25,6 +25,8 @@ interface Props {
   languageProficiencies?: Record<string, string>;
   /** Extra class on links (the report page hides them when printing). */
   linkClassName?: string;
+  /** NCERT book codes behind the subject's chapters: show that textbook only. */
+  bookCodes?: string[];
 }
 
 const isFamiliarity = (v: unknown): v is LanguageFamiliarity =>
@@ -37,9 +39,23 @@ function ResourceList({ items, linkClassName }: { items: LearningResource[]; lin
         <li key={r.url} className="flex gap-1.5">
           <span className="text-secondary" aria-hidden="true">•</span>
           <span>
-            <a href={r.url} target="_blank" rel="noopener noreferrer" className={`underline hover:text-secondary ${linkClassName}`}>
-              {r.title}
-            </a>
+            {r.parts ? (
+              <>
+                {r.title}{" "}
+                {r.parts.map((part, i) => (
+                  <span key={part.url}>
+                    {i > 0 && " · "}
+                    <a href={part.url} target="_blank" rel="noopener noreferrer" className={`underline hover:text-secondary ${linkClassName}`}>
+                      {part.label}
+                    </a>
+                  </span>
+                ))}
+              </>
+            ) : (
+              <a href={r.url} target="_blank" rel="noopener noreferrer" className={`underline hover:text-secondary ${linkClassName}`}>
+                {r.title}
+              </a>
+            )}
             <span className="ml-1 text-[10px] text-muted-foreground">{RESOURCE_TYPE_LABEL[r.resource_type]}</span>
           </span>
         </li>
@@ -48,11 +64,11 @@ function ResourceList({ items, linkClassName }: { items: LearningResource[]; lin
   );
 }
 
-export function SubjectResources({ subject, grade, learning, languageProficiencies, linkClassName = "" }: Props) {
+export function SubjectResources({ subject, grade, learning, languageProficiencies, linkClassName = "", bookCodes }: Props) {
   if (levelledLanguage(subject) && grade) {
     const picked = Object.entries(languageProficiencies ?? {}).find(([lang]) => lang.toLowerCase() === subject.toLowerCase())?.[1];
     const familiarity = isFamiliarity(picked) ? picked : undefined;
-    const groups = learning.forLanguage(subject, familiarity);
+    const groups = learning.forLanguage(subject, familiarity, 3, bookCodes);
     return (
       <div className="space-y-2">
         <p className="text-xs text-foreground/90">{languageStartNote(subject, grade, familiarity)}</p>
@@ -66,7 +82,7 @@ export function SubjectResources({ subject, grade, learning, languageProficienci
     );
   }
 
-  const resources = learning.forSubject(subject);
+  const resources = learning.forSubject(subject, 4, bookCodes);
   return resources.length > 0 ? (
     <ResourceList items={resources} linkClassName={linkClassName} />
   ) : (

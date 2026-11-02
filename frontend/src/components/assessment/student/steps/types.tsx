@@ -7,4 +7,8 @@ export interface StudentStepProps {
   toggleArrayField: (field: keyof AssessmentFormData, value: string) => void;
   setRecordField: (field: "languageProficiencies" | "subjectConfidences", key: string, value: string) => void;
   errors: Record<string, string>;
+  /** Bumped on each Continue click that fails validation. */
+  validationAttempt?: number;
+  /** Academic step only: reports whether every subject card it shows has an answer. */
+  onSubjectsCompleteChange?: (complete: boolean) => void;
 }

@@ -20,6 +20,8 @@ export interface LearningResource {
   url: string;
   /** Hindi/Sanskrit material pitched at a learner's level rather than a class; null = class material. */
   level: "beginner" | "intermediate" | null;
+  /** A textbook published in parts (Part-I, Part-II): one entry, a link per part. */
+  parts?: { label: string; url: string }[];
 }
 
 /** Familiarity picked on the form's language card (languageProficiencies). */
@@ -91,6 +93,36 @@ export function resourceSubjectKeys(label: string, grade?: number): string[] {
 
 const TYPE_ORDER: Record<ResourceType, number> = { textbook: 0, video: 1, practice: 2 };
 
+/** NCERT book code from a catalogue link (textbook.php?hegp1=0-7 -> "hegp"); parts of one book share it. */
+const bookCode = (url: string): string | undefined => /textbook\.php\?([a-z]+)\d+=/i.exec(url)?.[1]?.toLowerCase();
+
+/**
+ * Textbooks for a subject card. With the book codes behind the subject's
+ * chapters (sent by analyze-curriculum), only that book is shown: the
+ * catalogue also lists the editions NCERT replaced (Class 8 "Mathematics"
+ * next to "Ganita Prakash"). Without them (older reports, ISC) up to two
+ * books are kept. A book's parts are always one entry.
+ */
+function pickTextbooks(textbooks: LearningResource[], codes: string[] | undefined): LearningResource[] {
+  const matching = codes?.length ? textbooks.filter((t) => codes.includes(bookCode(t.url) ?? "")) : [];
+  const pool = matching.length > 0 ? matching : textbooks;
+  const books = new Map<string, LearningResource[]>();
+  for (const t of pool) {
+    const key = bookCode(t.url) ?? t.url;
+    books.set(key, [...(books.get(key) ?? []), t]);
+  }
+  const merged = [...books.values()].map((parts) =>
+    parts.length === 1
+      ? parts[0]
+      : {
+          ...parts[0],
+          title: parts[0].title.replace(/\s*Part-?\s*[IVX]+\b/i, ""),
+          parts: parts.map((p, i) => ({ label: `Part ${/Part-?\s*([IVX]+)/i.exec(p.title)?.[1] ?? i + 1}`, url: p.url })),
+        }
+  );
+  return merged.slice(0, matching.length > 0 ? 1 : 2);
+}
+
 export function useLearningResources(targetGoal: string | undefined, grade: number | undefined) {
   const [resources, setResources] = useState<LearningResource[]>([]);
   const board = resourceBoard(targetGoal, grade);
@@ -124,29 +156,30 @@ export function useLearningResources(targetGoal: string | undefined, grade: numb
     };
   }, [board, grade]);
 
-  /** Class material for one report subject: textbooks first, then videos, then practice. */
-  const forSubject = (label: string, limit = 4): LearningResource[] => {
+  /** Class material for one report subject: its textbook first, then videos, then practice. */
+  const forSubject = (label: string, limit = 4, bookCodes?: string[]): LearningResource[] => {
     const keys = resourceSubjectKeys(label, grade);
     const seen = new Set<string>();
-    return resources
+    const items = resources
       .filter((r) => !r.level && keys.includes(r.subject))
       .sort((a, b) => TYPE_ORDER[a.resource_type] - TYPE_ORDER[b.resource_type])
-      .filter((r) => !seen.has(r.url) && seen.add(r.url))
-      .slice(0, limit);
+      .filter((r) => !seen.has(r.url) && seen.add(r.url));
+    const textbooks = pickTextbooks(items.filter((r) => r.resource_type === "textbook"), bookCodes);
+    return [...textbooks, ...items.filter((r) => r.resource_type !== "textbook")].slice(0, limit);
   };
 
   /**
    * Hindi/Sanskrit resources grouped by where the student should start: a
    * newcomer gets starter material first, a fluent speaker only class material.
    */
-  const forLanguage = (label: string, familiarity?: LanguageFamiliarity, perGroup = 3): ResourceGroup[] => {
+  const forLanguage = (label: string, familiarity?: LanguageFamiliarity, perGroup = 3, bookCodes?: string[]): ResourceGroup[] => {
     const lang = levelledLanguage(label);
     const atLevel = (level: "beginner" | "intermediate") =>
       resources.filter((r) => r.subject === lang && r.level === level).slice(0, perGroup);
     const groups: ResourceGroup[] = [
       { heading: "Start here (new to the language)", items: familiarity === "fluent" || familiarity === "intermediate" ? [] : atLevel("beginner") },
       { heading: "Next step", items: familiarity === "fluent" ? [] : atLevel("intermediate") },
-      { heading: `Class ${grade} material`, items: forSubject(label, perGroup + 1) },
+      { heading: `Class ${grade} material`, items: forSubject(label, perGroup + 1, bookCodes) },
     ];
     // A book can be both a next step and class material (Class 10 Vyakaranavithi): show it once.
     const seen = new Set<string>();

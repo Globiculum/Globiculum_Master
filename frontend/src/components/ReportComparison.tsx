@@ -2,13 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TrendingUp, TrendingDown, CheckCircle2, AlertCircle } from "lucide-react";
+import { topicOf, type GapItem } from "@/lib/subjectGaps";
 
 interface SubjectAnalysis {
   subject: string;
   topicsCovered: number;
   totalTopics: number;
   alignmentLevel: "strong" | "moderate" | "high_gap";
-  keyGaps: string[];
+  keyGaps: GapItem[];
 }
 
 interface AnalysisData {
@@ -18,7 +19,7 @@ interface AnalysisData {
     estimatedDuration: string;
   };
   subjectAnalysis: SubjectAnalysis[];
-  criticalGaps: string[];
+  criticalGaps: GapItem[];
 }
 
 interface ReportComparisonProps {
@@ -41,9 +42,9 @@ const ReportComparison = ({ previousAnalysis, currentAnalysis, previousDate }: R
     ...(currentAnalysis.subjectAnalysis?.map(s => s.subject) || []),
   ]));
 
-  // Gaps analysis
-  const prevGaps = new Set(previousAnalysis.criticalGaps || []);
-  const currGaps = new Set(currentAnalysis.criticalGaps || []);
+  // Gaps analysis, by topic name: gaps are objects in newer reports, plain strings in older ones.
+  const prevGaps = new Set((previousAnalysis.criticalGaps || []).map(topicOf));
+  const currGaps = new Set((currentAnalysis.criticalGaps || []).map(topicOf));
   const closedGaps = [...prevGaps].filter(g => !currGaps.has(g));
   const newGaps = [...currGaps].filter(g => !prevGaps.has(g));
 

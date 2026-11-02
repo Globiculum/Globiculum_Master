@@ -652,10 +652,11 @@ SOURCE_DOCUMENTS = {
     **{f"NCERT-SANSKILL-{g}": "CBSE Sanskrit (122) curriculum" for g in (9, 10)},
 }
 
-# Sets defined but not inserted yet. CBSE Class 4 has no other nodes in the
-# database (T11): inserting only its language skills would make them the sole
-# Class 4 subjects in the form and the report. Insert them together with T11.
-PENDING_PREFIXES = {"NCERT-ENGSKILL-4", "NCERT-HINSKILL-4"}
+# Sets defined but not inserted yet, e.g. for a class whose chapters aren't in
+# the database: inserting only its language skills would make them the sole
+# subjects for that class in the form and the report. (CBSE Class 4's sets were
+# released when its chapters were fixed to grade 4, T11.)
+PENDING_PREFIXES: set[str] = set()
 
 
 def build_nodes(include_pending: bool = False) -> list[dict]:
@@ -696,7 +697,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Insert language skill nodes and embed them")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--include-pending", action="store_true",
-                        help="also insert sets in PENDING_PREFIXES (CBSE Class 4, once T11 is loaded)")
+                        help="also insert sets in PENDING_PREFIXES")
     args = parser.parse_args()
 
     nodes = build_nodes(args.include_pending)

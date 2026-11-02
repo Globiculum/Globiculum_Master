@@ -150,6 +150,19 @@ const CANONICAL_ORDER = [
   "World Languages", "Arts", "Physical Education & Health", "Personal Finance",
 ];
 
+// World Languages is left out at every grade on advisory guidance, although
+// states publish standards for it; the Language Exposure section asks about
+// foreign languages instead. It is not a core domain in the gap engine, so the
+// report is unchanged. Arts and Physical Education & Health stay at every grade
+// the state has them: most states require both from elementary school
+// (ArtScan 2026; Shape of the Nation 2016), and our data has them from Grade 1
+// in 44 and 48 of 51 states.
+export const NOT_OFFERED_SUBJECTS = ["World Languages"];
+
+function isOfferedSubject(subject: string): boolean {
+  return !NOT_OFFERED_SUBJECTS.includes(subject);
+}
+
 export interface CanonicalSubject {
   subject: string;
   domain: string;
@@ -229,6 +242,7 @@ export function useCanonicalSubjects({
         };
         setSubjects(
           (data ?? [])
+            .filter((row) => isOfferedSubject(row.canonical_subject))
             .map((row) => ({
               subject: row.canonical_subject,
               domain: row.domain,

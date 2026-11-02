@@ -52,10 +52,14 @@ export function LearningStyleObservations({ selectedStyles, onToggle }: Learning
               id={`style-${style.id}`}
               checked={selectedStyles.includes(style.id)}
               onCheckedChange={() => onToggle(style.id)}
+              // The card's own onClick toggles too; without this a click on
+              // the box toggled twice and the pick didn't stick.
+              onClick={(e) => e.stopPropagation()}
               className="mt-1"
             />
             <div className="flex-1">
-              <Label htmlFor={`style-${style.id}`} className="font-medium cursor-pointer">
+              {/* Label clicks reach the checkbox via htmlFor, so they stop here too. */}
+              <Label htmlFor={`style-${style.id}`} className="font-medium cursor-pointer" onClick={(e) => e.stopPropagation()}>
                 {style.label}
               </Label>
               <p className="text-xs text-muted-foreground mt-1">{style.description}</p>

@@ -13,8 +13,10 @@ interface AssessmentFooterProps {
   canProceed: boolean;
 }
 
-// Previous always calls onPrev; Continue always calls onNext (which is
-// gated by canProceedFromStep) — shared bottom nav for both assessments.
+// Previous always calls onPrev; Continue always calls onNext, which validates
+// the step — shared bottom nav for both assessments. Until the step's required
+// answers are in (canProceed), Continue is dimmed rather than disabled: a click
+// still runs validation, which marks what is missing and doesn't move on.
 const AssessmentFooter = ({ onPrev, onNext, saveStatus = "idle", isFirstStep, canProceed }: AssessmentFooterProps) => (
   <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-border bg-background/90 px-4 py-4 backdrop-blur-sm sm:mx-0 sm:rounded-2xl sm:border sm:shadow-soft">
     <div className="flex items-center justify-between gap-3">
@@ -45,7 +47,7 @@ const AssessmentFooter = ({ onPrev, onNext, saveStatus = "idle", isFirstStep, ca
             </>
           )}
         </span>
-        <PremiumButton variant="primary" size="lg" onClick={onNext} disabled={!canProceed} className="gap-2 px-8">
+        <PremiumButton variant="primary" size="lg" onClick={onNext} dimmed={!canProceed} className="gap-2 px-8">
           Continue
           <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
         </PremiumButton>
