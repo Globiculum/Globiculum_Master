@@ -56,14 +56,17 @@ export function languageStartNote(subject: string, grade: number, familiarity?: 
 }
 
 /**
- * Resource board for a target board and entry grade. ISC is CISCE's Classes
- * 11-12 syllabus; below that the report compares against NCERT, so NCERT
- * material is what matches it.
+ * Resource board for a target board and entry grade. CISCE has two syllabuses:
+ * ISC for Classes 11-12 and ICSE for 9-10; below that the report compares
+ * against NCERT, so NCERT material is what matches it.
  */
-export function resourceBoard(targetGoal: string | undefined, grade: number | undefined): "cbse" | "isc" | null {
+export function resourceBoard(targetGoal: string | undefined, grade: number | undefined): "cbse" | "isc" | "icse" | null {
   const board = (targetGoal || "").toLowerCase();
   if (board === "cbse" || board === "ncert") return "cbse";
-  if (board === "icse" || board === "isc" || board === "cisce") return grade && grade >= 11 ? "isc" : "cbse";
+  if (board === "icse" || board === "isc" || board === "cisce") {
+    if (grade && grade >= 11) return "isc";
+    return grade && grade >= 9 ? "icse" : "cbse";
+  }
   return null; // IB / Cambridge: no catalogue yet
 }
 
@@ -76,6 +79,7 @@ export function resourceSubjectKeys(label: string, grade?: number): string[] {
   else if (/social science|social studies/.test(s)) keys.push("social-science");
   else if (/evs|world around|environmental/.test(s)) keys.push("evs");
   else if (/business/.test(s)) keys.push("business-studies");
+  else if (/commercial/.test(s)) keys.push("commercial-studies");
   else if (/political/.test(s)) keys.push("political-science");
   else if (/computer/.test(s)) keys.push("computer-science");
   else if (/accountan|accounts/.test(s)) keys.push("accountancy");

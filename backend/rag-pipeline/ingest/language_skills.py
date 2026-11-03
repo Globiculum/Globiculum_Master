@@ -604,6 +604,51 @@ SKILL_SETS: list[tuple[str, str, int, int, str, str, list[tuple[str, str]]]] = [
          "Listen to and understand spoken Hindi and speak fluently and accurately in "
          "presentations and discussion; carry out a project."),
     ]),
+    # ── ICSE Classes IX-X (CISCE ICSE 2028): English (01) and Hindi (05) ──────
+    *[("icse-cisce", "English", g, g, f"ICSE-ENGSKILL-{g}", "ICSE", [
+        ("Composition writing",
+         "Write a 300-350 word composition from a choice of subjects, some suggested by "
+         "pictures: describe, narrate, report, explain, persuade or argue, compare ideas and "
+         "reach conclusions, with accurate grammar, punctuation and spelling."),
+        ("Letter writing",
+         "Write a formal or friendly letter with the correct format (address, introduction, "
+         "conclusion) and a tone and vocabulary suited to the context."),
+        ("Notice and e-mail writing",
+         "Write a notice from given directions and an e-mail on the same content."),
+        ("Reading comprehension and summary",
+         "Read an unseen prose passage of about 500 words; explain words in context, answer "
+         "questions on explicit content and inferred intention and attitude, and write a summary "
+         "separating main ideas from supporting detail."),
+        ("Grammar and usage",
+         "Use prepositions, conjunctions and verbs correctly and transform the structure of sentences."),
+        ("Listening and speaking skills",
+         "Listen to and understand spoken English, and speak fluently and accurately in "
+         "presentations and discussion."),
+        ("Critical reading of literature", literature),
+    ]) for g, literature in (
+        (9, "Understand and respond in their own words to drama, short stories and poems: "
+            "Julius Caesar (Acts I-II) and the Treasure Chest stories and poems prescribed for Class IX."),
+        (10, "Understand and respond in their own words to drama, short stories and poems: "
+             "Julius Caesar (Acts III-V) and the Treasure Chest stories and poems prescribed for Class X."),
+    )],
+    *[("icse-cisce", "Hindi", g, g, f"ICSE-HINSKILL-{g}", "ICSE", [
+        ("Composition (nibandh)",
+         "Write a composition in Hindi from a choice of subjects, some suggested by pictures: "
+         "explanations, directions, descriptions or narratives."),
+        ("Letter writing (patra lekhan)",
+         "Write a letter in Hindi with the correct layout (address, introduction, conclusion)."),
+        ("Unseen passage (apathit gadyansh)",
+         "Read an unseen Hindi passage of about 250 words and answer questions on its content in Hindi."),
+        ("Grammar: vocabulary, idioms and sentence construction",
+         "Use Hindi vocabulary, syntax and idioms (muhavare) correctly; combine sentences and form "
+         "sentences that use given words or forms."),
+        ("Literature", literature),
+    ]) for g, literature in (
+        (9, "Answer questions in Hindi on two of the prescribed books for Class IX: Sahitya Sagar "
+            "stories and poems (e.g. Kabirdas, Dinkar), the novel Naya Raasta, or the one-act plays of Ekanki Sanchay."),
+        (10, "Answer questions in Hindi on two of the prescribed books for Class X: Sahitya Sagar "
+             "stories and poems (e.g. Premchand, Surdas, Tulsidas, Nirala), the novel Naya Raasta, or Ekanki Sanchay."),
+    )],
     # ── CBSE Sanskrit Classes VI-X ───────────────────────────────────────────
     ("ncert-cbse", "Sanskrit", 6, 6, "NCERT-SANSKILL-6", "CBSE", [
         ("Script and pronunciation (varnamala)",
@@ -698,6 +743,8 @@ SOURCE_DOCUMENTS = {
        for g in range(1, 9)},
     **{f"NCERT-HINSKILL-{g}": "CBSE Hindi Course A (002) curriculum" for g in (9, 10)},
     **{f"NCERT-HINSKILL-{g}": "CBSE Hindi Core (302) curriculum 2025-26" for g in (11, 12)},
+    **{f"ICSE-ENGSKILL-{g}": "CISCE ICSE 2028 English (01) syllabus" for g in (9, 10)},
+    **{f"ICSE-HINSKILL-{g}": "CISCE ICSE 2028 Indian Languages (Hindi 05) syllabus and Appendix I" for g in (9, 10)},
     **{f"NCERT-SANSKILL-{g}": "NCERT Sanskrit learning outcomes and Deepakam/Ruchira textbooks"
        for g in (6, 7, 8)},
     **{f"NCERT-SANSKILL-{g}": "CBSE Sanskrit (122) curriculum" for g in (9, 10)},
@@ -707,6 +754,7 @@ SOURCE_DOCUMENTS = {
 # the database: inserting only its language skills would make them the sole
 # subjects for that class in the form and the report. (CBSE Class 4's sets were
 # released when its chapters were fixed to grade 4, T11.)
+# (ICSE IX-X sets were released when the ICSE subject units were loaded, T15.)
 PENDING_PREFIXES: set[str] = set()
 
 

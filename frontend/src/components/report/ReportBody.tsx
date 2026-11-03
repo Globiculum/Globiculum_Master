@@ -293,7 +293,7 @@ export function ReportBody({ formData, analysis, onDownload, onShare, isSharing 
   }
 
   const targetLabel = [humanizeSlug(formData.targetGoal) || "the target curriculum", targetGradeLabel].filter(Boolean).join(" ");
-  const notes = [boardComparisonNote(formData.targetGoal, entry), ...(analysis.excludedSubjects ?? []).map((e) => e.reason)].filter(
+  const notes = [boardComparisonNote(formData.targetGoal, entry, analysis.subjectAnalysis.map((s) => s.subject)), ...(analysis.excludedSubjects ?? []).map((e) => e.reason)].filter(
     (n): n is string => !!n
   );
   const orderedSubjects = orderSubjectsByNeed(analysis.subjectAnalysis, formData.subjectConfidences, formData.academicPath);

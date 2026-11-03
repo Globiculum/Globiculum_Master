@@ -422,10 +422,15 @@ export function boardLabel(targetGoal?: string, entryGrade?: number): string | u
 }
 
 /**
- * ICSE Classes 1-10 aren't in the curriculum data yet; the backend compares
- * them with CBSE/NCERT (mapToDBEntry), and the report says so.
+ * ICSE Classes 1-8 aren't in the curriculum data; the backend compares them
+ * with CBSE/NCERT (mapToDBEntry), and the report says so. Classes 9-10 use
+ * ICSE's own syllabus, except reports saved before it was loaded: those have
+ * NCERT's combined "Science" / "Social Science" subjects instead of ICSE's
+ * Physics, Chemistry, Biology, History & Civics and Geography.
  */
-export function boardComparisonNote(targetGoal?: string, entryGrade?: number): string | undefined {
+export function boardComparisonNote(targetGoal?: string, entryGrade?: number, subjects: string[] = []): string | undefined {
   if ((targetGoal || "").toLowerCase() !== "icse" || !entryGrade || entryGrade > 10) return undefined;
-  return `ICSE Class ${entryGrade} is compared with the CBSE (NCERT) syllabus, because ICSE's own Classes 1–10 syllabus isn't in our data yet. Most subjects match closely, but topic names, textbooks and some content differ from ICSE's.`;
+  if (entryGrade >= 9 && !subjects.some((s) => /^(science|social science)$/i.test(s.trim()))) return undefined;
+  const reason = entryGrade >= 9 ? "ICSE's own syllabus wasn't in our data when this report was made" : "ICSE's own Classes 1–8 syllabus isn't in our data";
+  return `ICSE Class ${entryGrade} is compared with the CBSE (NCERT) syllabus, because ${reason}. Most subjects match closely, but topic names, textbooks and some content differ from ICSE's.`;
 }

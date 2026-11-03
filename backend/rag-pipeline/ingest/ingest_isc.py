@@ -1,4 +1,5 @@
-"""Load structured ISC syllabus JSON into curriculum_nodes + curriculum_edges.
+"""Load structured CISCE syllabus JSON (ISC XI-XII, or ICSE IX-X with --board icse)
+into curriculum_nodes + curriculum_edges.
 
 Mirrors the NCERT shape so the existing gap engine needs no new code path:
 
@@ -9,11 +10,12 @@ Mirrors the NCERT shape so the existing gap engine needs no new code path:
 metadata.embedding_text is pre-built here, which is what generate_embeddings.py's
 generic branch already prefers - so embeddings need no ISC-specific change either.
 
-Run isc_structure.py first. Usage (from backend/rag-pipeline/):
+Run isc_structure.py (or icse_structure.py) first. Usage (from backend/rag-pipeline/):
     python ingest/ingest_isc.py --dry-run
     python ingest/ingest_isc.py --only physics
     python ingest/ingest_isc.py --core
     python ingest/ingest_isc.py --core --fresh     # delete existing ISC rows first
+    python ingest/ingest_isc.py --board icse       # ICSE Classes IX-X
 """
 
 from __future__ import annotations
@@ -37,9 +39,15 @@ from db.supabase_client import (  # noqa: E402
 from subject_streams import subject_streams  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-STRUCTURED_DIR = REPO_ROOT / "backend" / "data" / "isc" / "structured"
 
-CURRICULUM_ISC = "isc-cisce"
+# Both CISCE boards share this loader; only the folder, curriculum_system and
+# label differ. ISC keeps its original source_ids ("ISC-...").
+BOARDS = {
+    "isc": {"dir": REPO_ROOT / "backend" / "data" / "isc" / "structured", "system": "isc-cisce", "label": "ISC"},
+    "icse": {"dir": REPO_ROOT / "backend" / "data" / "ICSE" / "structured", "system": "icse-cisce", "label": "ICSE"},
+}
+STRUCTURED_DIR = BOARDS["isc"]["dir"]
+CURRICULUM_ISC = BOARDS["isc"]["system"]
 
 CORE_SUBJECTS = [
     "mathematics", "physics", "chemistry", "biology", "english", "history",
@@ -55,9 +63,16 @@ def subject_code(slug: str) -> str:
     return re.sub(r"[^A-Z0-9]+", "", slug.upper())[:14] or "SUBJ"
 
 
+def clean_text(text: str) -> str:
+    """Collapse whitespace and repair U+FFFD from the PDF text: an apostrophe
+    between letters ("Ohm�s"), otherwise a dash."""
+    text = re.sub(r"(?<=[A-Za-z])�(?=[A-Za-z])", "'", text).replace("�", "-")
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def build_embedding_text(subject: str, grade: int, unit_name: str,
-                         name: str, description: str, is_unit: bool) -> str:
-    parts = [f"ISC Class {grade}", subject]
+                         name: str, description: str, is_unit: bool, label: str = "ISC") -> str:
+    parts = [f"{label} Class {grade}", subject]
     if is_unit:
         parts += [f"Unit: {unit_name}", description[:200]]
     else:
@@ -65,8 +80,9 @@ def build_embedding_text(subject: str, grade: int, unit_name: str,
     return " - ".join(p for p in parts if p).strip()
 
 
-def build_nodes(doc: dict, existing: set[str]) -> tuple[list[dict], list[tuple[dict, str]]]:
+def build_nodes(doc: dict, existing: set[str], board: dict = BOARDS["isc"]) -> tuple[list[dict], list[tuple[dict, str]]]:
     """Return (unit_nodes, [(subtopic_node, parent_source_id), ...])."""
+    label, system = board["label"], board["system"]
     subject = doc["subject"]
     code = subject_code(doc["slug"])
     unit_nodes: list[dict] = []
@@ -85,8 +101,8 @@ def build_nodes(doc: dict, existing: set[str]) -> tuple[list[dict], list[tuple[d
             # alone collides. Single-grade ids keep their original shape so
             # already-ingested subjects are not re-inserted as new rows.
             span = f"{gmin}" if gmin == gmax else f"{gmin}-{gmax}"
-            unit_sid = f"ISC-{code}-{span}-U{unit['number']}"
-            unit_desc = re.sub(r"\s+", " ", unit.get("text", ""))[:2000]
+            unit_sid = f"{label}-{code}-{span}-U{unit['number']}"
+            unit_desc = clean_text(unit.get("text", ""))[:2000]
 
             if unit_sid not in existing:
                 unit_nodes.append(
@@ -96,20 +112,20 @@ def build_nodes(doc: dict, existing: set[str]) -> tuple[list[dict], list[tuple[d
                         "description": unit_desc or None,
                         "grade_level_min": gmin,
                         "grade_level_max": gmax,
-                        "curriculum_system": CURRICULUM_ISC,
+                        "curriculum_system": system,
                         "metadata": {
                             "source_id": unit_sid,
                             "source_type": "unit",
                             "subject": subject,
                             "streams": subject_streams(subject, gmin),
-                            "board": "ISC",
+                            "board": label,
                             "class_label": cls["class_label"],
                             "unit_number": unit["number"],
                             "exam_weightage": unit.get("weightage"),
                             "syllabus_year": doc.get("syllabus_year"),
                             "source_url": doc.get("source_url"),
                             "embedding_text": build_embedding_text(
-                                subject, gmin, unit["name"], unit["name"], unit_desc, True
+                                subject, gmin, unit["name"], unit["name"], unit_desc, True, label
                             ),
                         },
                     }
@@ -129,13 +145,13 @@ def build_nodes(doc: dict, existing: set[str]) -> tuple[list[dict], list[tuple[d
                             "description": description[:2000],
                             "grade_level_min": gmin,
                             "grade_level_max": gmax,
-                            "curriculum_system": CURRICULUM_ISC,
+                            "curriculum_system": system,
                             "metadata": {
                                 "source_id": sub_sid,
                                 "source_type": "subtopic",
                                 "subject": subject,
                                 "streams": subject_streams(subject, gmin),
-                                "board": "ISC",
+                                "board": label,
                                 "class_label": cls["class_label"],
                                 "unit_number": unit["number"],
                                 "unit": unit["name"],
@@ -145,7 +161,7 @@ def build_nodes(doc: dict, existing: set[str]) -> tuple[list[dict], list[tuple[d
                                 "syllabus_year": doc.get("syllabus_year"),
                                 "source_url": doc.get("source_url"),
                                 "embedding_text": build_embedding_text(
-                                    subject, gmin, unit["name"], sub["name"], description, False
+                                    subject, gmin, unit["name"], sub["name"], description, False, label
                                 ),
                             },
                         },
@@ -157,7 +173,7 @@ def build_nodes(doc: dict, existing: set[str]) -> tuple[list[dict], list[tuple[d
     return unit_nodes, subtopic_nodes
 
 
-def resolve_ids(client, source_ids: list[str]) -> dict[str, str]:
+def resolve_ids(client, source_ids: list[str], system: str = CURRICULUM_ISC) -> dict[str, str]:
     """Map metadata.source_id -> node id for units already in the DB."""
     found: dict[str, str] = {}
     for i in range(0, len(source_ids), 200):
@@ -165,7 +181,7 @@ def resolve_ids(client, source_ids: list[str]) -> dict[str, str]:
         resp = (
             client.table("curriculum_nodes")
             .select("id, metadata->>source_id")
-            .eq("curriculum_system", CURRICULUM_ISC)
+            .eq("curriculum_system", system)
             .in_("metadata->>source_id", chunk)
             .execute()
         )
@@ -176,29 +192,32 @@ def resolve_ids(client, source_ids: list[str]) -> dict[str, str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Ingest ISC syllabus into Supabase")
+    parser = argparse.ArgumentParser(description="Ingest ISC / ICSE syllabus into Supabase")
+    parser.add_argument("--board", choices=sorted(BOARDS), default="isc")
     parser.add_argument("--only", help="substring filter on subject slug")
     parser.add_argument("--core", action="store_true", help="the 12 core subjects")
-    parser.add_argument("--fresh", action="store_true", help="delete existing ISC rows first")
+    parser.add_argument("--fresh", action="store_true", help="delete this board's existing rows first")
     parser.add_argument("--dry-run", action="store_true", help="build nodes but do not write")
     args = parser.parse_args()
+    board = BOARDS[args.board]
+    system = board["system"]
 
-    files = sorted(STRUCTURED_DIR.glob("*.json"))
+    files = sorted(board["dir"].glob("*.json"))
     if args.core:
         files = [f for f in files if f.stem in CORE_SUBJECTS]
     if args.only:
         files = [f for f in files if args.only.lower() in f.stem]
     if not files:
-        print("[ERROR] no structured files matched - run isc_structure.py first")
+        print(f"[ERROR] no structured files matched in {board['dir']}")
         return 1
 
-    print(f"\n=== ISC Ingestion ({len(files)} subjects) ===")
+    print(f"\n=== {board['label']} Ingestion ({len(files)} subjects) ===")
 
     if args.dry_run:
         total_u = total_s = 0
         for f in files:
             doc = json.loads(f.read_text(encoding="utf-8"))
-            units, subs = build_nodes(doc, set())
+            units, subs = build_nodes(doc, set(), board)
             total_u += len(units)
             total_s += len(subs)
             print(f"  {doc['subject']:<20} units={len(units):>3} subtopics={len(subs):>4}")
@@ -210,8 +229,8 @@ def main() -> int:
     client = get_client()
 
     if args.fresh:
-        print("[INFO] --fresh: deleting existing ISC edges, embeddings and nodes")
-        n = delete_edges_for_curriculum(client, CURRICULUM_ISC)
+        print(f"[INFO] --fresh: deleting existing {board['label']} edges, embeddings and nodes")
+        n = delete_edges_for_curriculum(client, system)
         print(f"       edges cleared for {n} nodes")
         # The live curriculum_embeddings_node_id_fkey has no ON DELETE CASCADE,
         # despite the migration that created it declaring one, so embeddings
@@ -220,7 +239,7 @@ def main() -> int:
         offset = 0
         while True:
             page = (client.table("curriculum_nodes").select("id")
-                    .eq("curriculum_system", CURRICULUM_ISC)
+                    .eq("curriculum_system", system)
                     .range(offset, offset + 999).execute().data or [])
             node_ids += [row["id"] for row in page]
             if len(page) < 1000:
@@ -230,17 +249,17 @@ def main() -> int:
             client.table("curriculum_embeddings").delete().in_("node_id", node_ids[i:i + 100]).execute()
         print(f"       embeddings cleared for {len(node_ids)} nodes")
         client.table("curriculum_nodes").delete().eq(
-            "curriculum_system", CURRICULUM_ISC
+            "curriculum_system", system
         ).execute()
 
-    existing = get_existing_source_ids(client, CURRICULUM_ISC)
-    print(f"[INFO] {len(existing)} ISC source_ids already in DB")
+    existing = get_existing_source_ids(client, system)
+    print(f"[INFO] {len(existing)} {board['label']} source_ids already in DB")
 
     all_units: list[dict] = []
     all_subs: list[tuple[dict, str]] = []
     for f in files:
         doc = json.loads(f.read_text(encoding="utf-8"))
-        units, subs = build_nodes(doc, existing)
+        units, subs = build_nodes(doc, existing, board)
         all_units.extend(units)
         all_subs.extend(subs)
         print(f"  {doc['subject']:<20} +{len(units):>3} units  +{len(subs):>4} subtopics")
@@ -264,7 +283,7 @@ def main() -> int:
     }
     missing = {parent for _, parent in all_subs if parent not in code_to_id}
     if missing:
-        code_to_id.update(resolve_ids(client, sorted(missing)))
+        code_to_id.update(resolve_ids(client, sorted(missing), system))
 
     sub_id_by_sid = {
         r["metadata"]["source_id"]: r["id"]
@@ -295,7 +314,7 @@ def main() -> int:
     inserted_edges = batch_insert(client, "curriculum_edges", edges, INSERT_BATCH_SIZE)
     refresh_subject_index(client)
 
-    print("\n[DONE] ISC ingestion complete")
+    print(f"\n[DONE] {board['label']} ingestion complete")
     print(f"       units={len(inserted_units)} subtopics={len(inserted_subs)} edges={len(inserted_edges)}")
     return 0
 

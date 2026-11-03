@@ -76,11 +76,16 @@ export const CURRICULUM_DB_REGISTRY: Record<string, CurriculumEntry> = {
   // 'learning_outcome', matching the NCERT shape, so the same retrieval path
   // works unchanged. ISC only exists for grades 11-12 — a grade-10-or-below
   // request will correctly find nothing here rather than mis-matching.
-  // NOTE: 'icse' above still points at ncert-cbse. ICSE is the CISCE board's
-  // grade 9-10 syllabus and is NOT this data; leave it until ICSE is ingested.
+  // NOTE: 'icse' above still points at ncert-cbse: that is Classes 1-8, which
+  // have no CISCE syllabus in the data (the ICSE regulations cover IX-X).
+  // Classes 9-10 resolve to 'icse-cisce' below (see mapToDBEntry).
   'isc':           { dbSystem: 'isc-cisce', nodeType: 'topic', label: 'Indian ISC (CISCE)' },
   'isc-cisce':     { dbSystem: 'isc-cisce', nodeType: 'topic', label: 'Indian ISC (CISCE)' },
   'cisce':         { dbSystem: 'isc-cisce', nodeType: 'topic', label: 'Indian ISC (CISCE)' },
+  // ── ICSE (CISCE, Classes IX-X) ─────────────────────────────────────────
+  // Ingested from the official CISCE ICSE 2028 syllabuses (icse_structure.py):
+  // same unit/subtopic shape as ISC; English and Hindi as language skills.
+  'icse-cisce':    { dbSystem: 'icse-cisce', nodeType: 'topic', label: 'Indian ICSE (CISCE)' },
   // ── Future curricula (uncomment when ingested into DB) ─────────────────
   // 'ib-myp':     { dbSystem: 'ib-myp',            nodeType: 'objective', label: 'IB MYP' },
   // 'cambridge':  { dbSystem: 'cambridge-igcse',    nodeType: 'topic',    label: 'Cambridge IGCSE' },
@@ -93,13 +98,14 @@ export const CURRICULUM_DB_REGISTRY: Record<string, CurriculumEntry> = {
 // ISC in practice, so the same label has to resolve differently by grade.
 const CISCE_FAMILY_SELECTIONS = new Set(['icse', 'isc', 'cisce', 'isc-cisce']);
 const ISC_FIRST_GRADE = 11;
+const ICSE_FIRST_GRADE = 9;
 
 /**
  * Resolve a curriculum string to its DB entry. Returns null if not yet ingested.
  *
  * `grade` is optional and only changes the outcome for CISCE selections: at
- * grade 11-12 they resolve to the ISC syllabus, below that they keep falling
- * back to ncert-cbse because ICSE's own 9-10 syllabus is not ingested yet.
+ * grade 11-12 they resolve to the ISC syllabus, at 9-10 to the ICSE syllabus,
+ * and below that to ncert-cbse (no CISCE Class 1-8 syllabus in the data).
  * Omitting grade preserves the previous behaviour for every caller.
  */
 export function mapToDBEntry(curriculum?: string, grade?: number): CurriculumEntry | null {
@@ -108,6 +114,9 @@ export function mapToDBEntry(curriculum?: string, grade?: number): CurriculumEnt
 
   if (CISCE_FAMILY_SELECTIONS.has(c) && typeof grade === 'number' && grade >= ISC_FIRST_GRADE) {
     return CURRICULUM_DB_REGISTRY['isc-cisce'];
+  }
+  if (CISCE_FAMILY_SELECTIONS.has(c) && typeof grade === 'number' && grade >= ICSE_FIRST_GRADE) {
+    return CURRICULUM_DB_REGISTRY['icse-cisce'];
   }
 
   if (CURRICULUM_DB_REGISTRY[c]) return CURRICULUM_DB_REGISTRY[c];
@@ -174,7 +183,8 @@ const DOMAIN_KEYWORDS: [SubjectDomain, RegExp][] = [
   // domain rather than falling to 'other' because states DO publish real CS
   // standards (California has 89 nodes at grade 11) — it is Common Core and NGSS
   // that have none, which SOURCE_SYSTEM_DOMAINS already expresses per system.
-  ['computer-science', /computer science|informatics|information technology|\bcomp\.? sci/i],
+  // "Computer Applications" is ICSE's Java programming subject (Classes IX-X).
+  ['computer-science', /computer science|computer applications|informatics|information technology|\bcomp\.? sci/i],
   ['science', /science|physics|chemistry|biology|evs \(/i],
   ['sanskrit', /sanskrit/i],
   ['hindi', /^hindi/i],
@@ -206,6 +216,7 @@ export const SOURCE_SYSTEM_DOMAINS: Record<string, SubjectDomain[] | null> = {
   // have no domain here, so as source material they could only contribute
   // cross-domain similarity noise.
   'isc-cisce': ['mathematics', 'english', 'science', 'social-science', 'computer-science'],
+  'icse-cisce': ['mathematics', 'english', 'science', 'social-science', 'computer-science'],
 };
 
 // The DB holds all 51 US state curricula in full (math, ELA, science, social
@@ -661,6 +672,9 @@ async function loadStateLabelsByDomain(
   return byDomain;
 }
 
+/** ICSE IX-X subjects a student takes instead of a science (Group II). */
+const ICSE_ALTERNATIVE_SUBJECTS = new Set(['Economics', 'Commercial Studies']);
+
 /**
  * The target board's own subject names across the grade window, optionally
  * narrowed to a stream, grouped by domain. Reading names from the board is
@@ -719,6 +733,16 @@ export async function loadTargetSubjects(
     const added = [...(optional ?? [])].filter(n => chosen.has(n.toLowerCase()));
     for (const n of added) names.add(n);
     debug('rag_target_electives', 'Chosen electives added to the stream subjects', { stream, electives, added });
+  }
+
+  // ICSE Group II lets a student take Economics or Commercial Studies in place
+  // of a science; most take Maths and the sciences. Like a stream's optional
+  // subjects, they are compared only when chosen.
+  if (targetCurriculum === 'icse-cisce') {
+    const chosen = new Set(electives.map(e => e.toLowerCase().trim()));
+    const dropped = [...names].filter(n => ICSE_ALTERNATIVE_SUBJECTS.has(n) && !chosen.has(n.toLowerCase()));
+    for (const n of dropped) names.delete(n);
+    if (dropped.length) debug('rag_icse_alternatives', 'ICSE Group II alternatives left out', { dropped });
   }
 
   const byDomain = new Map<SubjectDomain, string[]>();

@@ -1062,6 +1062,13 @@ serve(async (req) => {
           targetSubjects = streamSubjects?.all.length ? streamSubjects.all : undefined;
         } else if (grade >= 11 && (formData.snapshotLocation || '').toLowerCase() !== 'us') {
           targetSubjects = expandSubjectFilter(formData.academicPath);
+        } else if (targetEntry.dbSystem === 'icse-cisce') {
+          // ICSE IX-X: the board's subjects without its Group II alternatives
+          // (Economics, Commercial Studies), as on the US state path.
+          const icseSubjects = await loadTargetSubjects(
+            rpcNamed, targetEntry.dbSystem, grade, grade, null, addDebug, formData.targetElectives ?? []
+          );
+          targetSubjects = icseSubjects?.all.length ? icseSubjects.all : undefined;
         }
 
         let rawGaps: GapNode[];

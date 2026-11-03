@@ -94,7 +94,9 @@ export function targetBoardToCurriculumSystem(
   if (!board) return null;
 
   if (board === "icse" || board === "isc" || board === "cisce") {
-    return typeof grade === "number" && grade >= 11 ? "isc-cisce" : "ncert-cbse";
+    if (typeof grade === "number" && grade >= 11) return "isc-cisce";
+    // ICSE Classes 9-10 have their own syllabus; 1-8 are compared with NCERT.
+    return typeof grade === "number" && grade >= 9 ? "icse-cisce" : "ncert-cbse";
   }
   if (board === "cbse" || board === "ncert") return "ncert-cbse";
   // IB and Cambridge are not ingested yet; returning null lets the caller fall

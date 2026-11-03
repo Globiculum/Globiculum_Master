@@ -21,6 +21,7 @@ Sources:
 Usage (from backend/rag-pipeline/):
     python ingest/learning_resources.py --verify      # build + verify -> JSON
     python ingest/learning_resources.py --refresh-languages   # only the Hindi/Sanskrit level rows
+    python ingest/learning_resources.py --refresh-icse        # only the ICSE IX-X rows (JSON + DB)
     python ingest/learning_resources.py --load        # replace DB rows from JSON
 """
 
@@ -132,6 +133,35 @@ ISC_SYLLABUS = {
     "computer-science": "2025/04/25.-ISC-Computer-Science.doc.pdf",
 }
 ISC_PRESCRIBED_BOOKS = "https://cisce.org/wp-content/uploads/2026/04/40.-ISC-Appendix-I-List-of-Prescribed-Textbooks.pdf"
+
+# ICSE Classes IX-X (board "icse"). Only CISCE's own documents: the ICSE 2028
+# syllabus per subject (cisce.org/regulations-and-syllabuses-icse-2028), the
+# list of prescribed books (English and Indian-language literature only - CISCE
+# prescribes none for other subjects) and its Class X competency-focused
+# practice questions with answer keys. Each is checked to be a PDF.
+ICSE_UPLOADS = "https://cisce.org/wp-content/uploads"
+ICSE_SYLLABUS = {
+    "english": ("English", "2026/01/2.-English.pdf"),
+    "hindi": ("Hindi (Second Languages)", "2026/04/3.-Second-Languages-1.pdf"),
+    "history": ("History & Civics", "2026/01/5.-History-Civics.pdf"),
+    "geography": ("Geography", "2026/01/6.-Geography.pdf"),
+    "mathematics": ("Mathematics", "2026/01/9.-Mathematics.pdf"),
+    "physics": ("Physics", "2026/01/10.-Physics.pdf"),
+    "chemistry": ("Chemistry", "2026/01/11.-Chemistry.pdf"),
+    "biology": ("Biology", "2026/01/12.-Biology.pdf"),
+    "economics": ("Economics", "2026/01/13.-Economics.pdf"),
+    "commercial-studies": ("Commercial Studies", "2026/01/14.-Commercial-Studies.pdf"),
+    "computer-science": ("Computer Applications", "2026/01/18.-Computer-Applications.pdf"),
+}
+ICSE_PRESCRIBED_BOOKS = f"{ICSE_UPLOADS}/2026/04/ICSE-2028-Appendix-I-List-of-Prescribed-Textbooks.pdf"
+ICSE_PRACTICE = [  # (subject, title, path) - Class X only; CISCE's Mathematics and Physics sets are no longer online
+    ("english", "English Language", "2025/11/ICSE-English-Language-X.pdf"),
+    ("english", "Literature in English", "2025/11/ICSE-Literature-in-English-X.pdf"),
+    ("chemistry", "Chemistry", "2025/11/ICSE-Chemistry.pdf"),
+    ("history", "History & Civics", "2025/11/ICSE_History-and-Civics-X.pdf"),
+    ("geography", "Geography", "2025/11/ICSE-Geography.pdf"),
+    ("commercial-studies", "Commercial Studies", "2025/11/ICSE-Commercial-Studies-X.pdf"),
+]
 
 # Free solutions to the textbooks ISC schools use (ICSEHELP, KnowledgeBoat),
 # links taken from each site's ISC Class 11 / 12 index pages.
@@ -314,6 +344,48 @@ def candidates() -> list[dict]:
     return rows
 
 
+def icse_candidates() -> list[dict]:
+    rows = []
+    for s, (label, path) in ICSE_SYLLABUS.items():
+        rows.append(row("icse", s, 9, 10, "textbook", "CISCE", f"Official ICSE 2028 {label} syllabus (CISCE)",
+                        f"{ICSE_UPLOADS}/{path}", [], "pdf"))
+    for s in ("english", "hindi"):
+        rows.append(row("icse", s, 9, 10, "textbook", "CISCE", "CISCE list of prescribed ICSE books (literature)",
+                        ICSE_PRESCRIBED_BOOKS, [], "pdf"))
+    for s, label, path in ICSE_PRACTICE:
+        rows.append(row("icse", s, 10, 10, "practice", "CISCE",
+                        f"CISCE ICSE Class X practice questions with answers: {label}", f"{ICSE_UPLOADS}/{path}", [], "pdf"))
+    return rows
+
+
+def verify_pdfs(rows: list[dict]) -> list[dict]:
+    """Keep rows whose link downloads as a PDF (plain request; cisce.org serves these to any client)."""
+    kept = []
+    for r in rows:
+        try:
+            resp = requests.get(r["url"], timeout=90)
+            ok = resp.status_code == 200 and resp.content[:4] == b"%PDF"
+        except requests.RequestException:
+            ok = False
+        print(f"{'OK ' if ok else 'BAD'} {r['url']}")
+        if ok:
+            kept.append(r)
+    return kept
+
+
+def load_board(rows: list[dict], board: str) -> None:
+    """Replace one board's rows only (load() replaces the whole catalogue)."""
+    from db.supabase_client import get_client
+
+    client = get_client()
+    client.table("learning_resources").delete().eq("board", board).execute()
+    clean = [{**{k: v for k, v in r.items() if not k.startswith("_")}, "level": r.get("level")}
+             for r in rows if r["board"] == board]
+    if clean:
+        client.table("learning_resources").insert(clean).execute()
+    print(f"loaded {len(clean)} {board} rows")
+
+
 def verify(rows: list[dict], ncert_sample: int) -> list[dict]:
     from playwright.sync_api import sync_playwright
 
@@ -392,7 +464,16 @@ def main() -> int:
                         help="re-verify only ISC rows and merge them into the existing JSON")
     parser.add_argument("--refresh-languages", action="store_true",
                         help="re-verify only the Hindi/Sanskrit level resources and merge them into the JSON")
+    parser.add_argument("--refresh-icse", action="store_true",
+                        help="verify the ICSE IX-X rows, merge them into the JSON and replace only ICSE rows in the DB")
     args = parser.parse_args()
+    if args.refresh_icse:
+        icse = verify_pdfs(icse_candidates())
+        kept = [r for r in json.loads(OUT.read_text(encoding="utf-8")) if r["board"] != "icse"] if OUT.exists() else []
+        OUT.parent.mkdir(parents=True, exist_ok=True)
+        OUT.write_text(json.dumps(kept + icse, indent=1, ensure_ascii=False), encoding="utf-8")
+        print(f"{len(icse)} ICSE rows verified, {len(kept) + len(icse)} rows -> {OUT}")
+        load_board(icse, "icse")
     if args.refresh_languages:
         kept = [r for r in json.loads(OUT.read_text(encoding="utf-8")) if not r.get("level")]
         kept += verify(language_level_rows(), 0)
