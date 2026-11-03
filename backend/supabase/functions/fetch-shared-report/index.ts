@@ -1,5 +1,17 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Form fields the shared report displays (frontend components/report). Anything
+// else in form_data (last name, age, free-text notes, prior schools) is not sent
+// to whoever holds the link; the child appears by first name only.
+const SHARED_FORM_FIELDS = [
+  "childName", "studentName", "schoolStage", "snapshotGrade", "snapshotLocation", "usState",
+  "currentCurriculum", "targetGoal", "targetGrade", "targetStream", "targetElectives", "targetLanguage",
+  "academicPath", "subjectConfidences", "selectedLanguages", "languageProficiencies", "supportNeeds", "timeline",
+];
+
+const sharedFormData = (formData: Record<string, unknown> | null) =>
+  Object.fromEntries(SHARED_FORM_FIELDS.filter((k) => formData?.[k] !== undefined).map((k) => [k, formData![k]]));
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -61,29 +73,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch student profile for the report owner
-    const { data: savedReport } = await client
-      .from("saved_reports")
-      .select("user_id")
-      .eq("id", shared.report_id)
-      .single();
-
-    let studentName = "Student";
-    if (savedReport) {
-      const { data: profile } = await client
-        .from("student_profiles")
-        .select("student_name")
-        .eq("user_id", savedReport.user_id)
-        .is("deleted_at", null)
-        .maybeSingle();
-      if (profile) studentName = profile.student_name;
-    }
-
     return new Response(
       JSON.stringify({
         report: {
-          ...report,
-          student_name: studentName,
+          id: report.id,
+          created_at: report.created_at,
+          form_data: sharedFormData(report.form_data),
+          analysis_data: report.analysis_data,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -5,7 +5,11 @@
 export const prettify = (value: string) =>
   value ? value.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
 
-export const targetGradeLabel = (targetGrade: string, snapshotGrade: string) => {
+// Same labels as the board options in the profile wizards ("CBSE", not prettify's "Cbse").
+const TARGET_BOARD_LABELS: Record<string, string> = { cbse: "CBSE", icse: "ICSE", ib: "IB", "cambridge-igcse": "Cambridge" };
+export const targetBoardLabel = (value: string) => TARGET_BOARD_LABELS[value] ?? prettify(value);
+
+export const targetGradeLabel =(targetGrade: string, snapshotGrade: string) => {
   const current = parseInt(snapshotGrade, 10);
   if (targetGrade === "same") return Number.isFinite(current) ? `Same Grade (Grade ${current})` : "Same Grade";
   if (targetGrade === "next") return Number.isFinite(current) ? `Next Grade (Grade ${current + 1})` : "Next Grade";

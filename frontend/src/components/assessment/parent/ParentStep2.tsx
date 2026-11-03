@@ -132,9 +132,11 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
   const boardLabel = formData.targetGoal === "icse" ? (boardIsHigherSecondary ? "ISC" : "ICSE") : formData.targetGoal?.toUpperCase();
   const streamName = targetStreamLabel(formData.targetStream);
   const streamLabel = streamName ? `${streamName} stream` : "subjects";
+  // Optional subjects picked in School Profile are compared too.
+  const comparedSubjects = [...dbSubjects.map((s) => s.subject), ...(formData.targetElectives ?? [])];
   const comparisonNote =
     usSourceSystem && boardIsHigherSecondary && dbSubjects.length > 0
-      ? `These are the subjects your child studies now. The report compares them with the ${boardLabel} Class ${boardGrade} ${streamLabel}: ${dbSubjects.map((s) => s.subject).join(", ")}.`
+      ? `These are the subjects your child studies now. The report compares them with the ${boardLabel} Class ${boardGrade} ${streamLabel}: ${comparedSubjects.join(", ")}.`
       : null;
 
   // A student on the regular US curriculum gets their own state's subjects at
@@ -158,15 +160,15 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
       ? dbSubjects.map((s) => s.subject)
       : subjects;
 
-  // The stream's optional subjects (Computer Science in PCM, Maths in PCB...).
-  // A US student picks the ones they will take in India; for a student already
-  // on the board they are the electives of their current list.
+  // The stream's optional subjects (Computer Science in PCM, Maths in PCB...),
+  // for a student already on the board: the electives of their current list. A
+  // US student picks the ones they will take in India in School Profile.
   const stream = normalizeTargetStream(formData.targetStream);
   const { subjects: optionalDb } = useCurriculumSubjects({
     curriculumSystem,
     grade: boardGrade,
     stream: stream ? `${stream}:optional` : null,
-    enabled: boardIsHigherSecondary && !!curriculumSystem && !!stream,
+    enabled: showTargetList && !!curriculumSystem && !!stream,
   });
   const streamOptional = optionalDb.map((s) => s.subject);
 
@@ -181,14 +183,6 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
   useEffect(() => {
     onSubjectsCompleteChange?.(subjectsComplete);
   }, [subjectsComplete, onSubjectsCompleteChange]);
-
-  const toggleTargetElective = (subject: string) => {
-    const current = formData.targetElectives ?? [];
-    onFieldChange(
-      "targetElectives",
-      current.includes(subject) ? current.filter((s) => s !== subject) : [...current, subject]
-    );
-  };
 
   // Same two-step pattern as the Foreign Language / Indian Languages cards
   // in ParentLanguageJourneyCard.tsx: pick which apply from the chip grid
@@ -213,25 +207,6 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
         <div className="rounded-lg border border-secondary/30 bg-secondary/5 px-4 py-3 text-sm text-foreground">
           {comparisonNote}
         </div>
-      )}
-
-      {usSourceSystem && boardIsHigherSecondary && streamOptional.length > 0 && (
-        <QuestionCard
-          label={`Electives in ${boardLabel} Class ${boardGrade}`}
-          tooltip="Optional subjects in this stream. Only the ones you tick are included in the report."
-        >
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {streamOptional.map((subject) => (
-              <InputCard
-                key={subject}
-                variant="chip"
-                label={subject}
-                selected={(formData.targetElectives ?? []).includes(subject)}
-                onClick={() => toggleTargetElective(subject)}
-              />
-            ))}
-          </div>
-        </QuestionCard>
       )}
 
       {usSourceSystem && usLoading && (
@@ -298,7 +273,7 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
           subjectConfidences={formData.subjectConfidences}
           setAcademicPath={(value) => onFieldChange("academicPath", value)}
           setConfidence={(subject, value) => onRecordFieldChange("subjectConfidences", subject, value)}
-          navTitle="Electives"
+          navTitle={usSourceSystem ? "Current Electives (US School)" : "Electives"}
           navSubtitle="Optional subjects - mark the ones your child doesn't take."
           microcopy={{
             strong: "Seems confident",

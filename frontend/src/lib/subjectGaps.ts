@@ -1,6 +1,6 @@
 /**
  * Gap items in a saved analysis and the per-subject lists built from them.
- * Used by SubjectGapList (the subject cards in ReportPreview and ReportView).
+ * Used by the subject cards (components/report/SubjectBreakdown.tsx).
  */
 
 export type GapSeverity = "CRITICAL" | "MAJOR" | "MODERATE";

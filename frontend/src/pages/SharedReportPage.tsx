@@ -12,12 +12,11 @@ import { Loader2, Clock, LinkIcon, ShieldAlert } from "lucide-react";
 
 interface SharedReportData {
   id: string;
-  title: string;
+  /** Only the fields the report displays, first name only (fetch-shared-report). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form_data: any;
   analysis_data: AnalysisData;
   created_at: string;
-  student_name: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,7 +84,9 @@ const SharedReportPage = () => {
       });
 
       if (fnError || data?.error) {
-        setError(data?.error || fnError?.message || "Failed to load report");
+        // A 404/410 arrives as fnError; its body says why ("expired", "not found").
+        const reason = await fnError?.context?.json?.().then((b: { error?: string }) => b?.error).catch(() => undefined);
+        setError(data?.error || reason || "Failed to load report");
       } else if (data?.report) {
         setReport(data.report as SharedReportData);
       } else {

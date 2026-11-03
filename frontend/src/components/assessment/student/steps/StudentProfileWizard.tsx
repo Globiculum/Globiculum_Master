@@ -30,11 +30,19 @@ import {
 import InputCard from "../../shared/InputCard";
 import FieldError from "../../shared/FieldError";
 import FlashcardShell from "../../shared/FlashcardShell";
-import VoiceInputButton from "../../shared/VoiceInputButton";
 import TimelineSelector, { type TimelineOption } from "../../shared/TimelineSelector";
 import { targetGradeLabel } from "../../shared/reviewFormatting";
 import type { AssessmentFormData } from "../../shared/types";
-import { TARGET_STREAMS, gradeHasStream, normalizeTargetStream, targetStreamLabel } from "@/hooks/useCurriculumSubjects";
+import {
+  TARGET_STREAMS,
+  electivesForStream,
+  entryGrade,
+  gradeHasStream,
+  normalizeTargetStream,
+  targetStreamLabel,
+  useStreamElectives,
+  type TargetStream,
+} from "@/hooks/useCurriculumSubjects";
 
 // The reusable Globiculum icon family (frontend/src/components/icons)
 // replaces generic Lucide glyphs for the 8 explicitly-requested card-badge
@@ -189,6 +197,7 @@ type ProfileFieldId =
   | "targetBoard"
   | "targetGrade"
   | "targetStream"
+  | "targetElectives"
   | "timeline";
 
 // Static forward order for the 8 base cards — conditional cards (usState /
@@ -204,8 +213,11 @@ const BASE_ORDER: ProfileFieldId[] = [
   "targetBoard",
   "targetGrade",
   "targetStream",
+  "targetElectives",
   "timeline",
 ];
+
+type StreamElectives = Record<TargetStream, string[]>;
 
 // A subset of GlobiculumIconTile's four tones — three families only, so the
 // icon system stays cohesive rather than a different color per field. Amber
@@ -230,7 +242,7 @@ interface ProfileCard {
   errorField: keyof AssessmentFormData | null;
 }
 
-const buildCardSequence = (formData: AssessmentFormData): ProfileCard[] => {
+const buildCardSequence = (formData: AssessmentFormData, streamElectives: StreamElectives): ProfileCard[] => {
   const cards: ProfileCard[] = [
     {
       id: "name",
@@ -349,6 +361,19 @@ const buildCardSequence = (formData: AssessmentFormData): ProfileCard[] => {
       hint: "Indian boards split Classes XI-XII into streams. This decides which subjects your report analyses.",
       errorField: "targetStream" as const,
     }] : []),
+    // The stream's optional subjects the student will take at the new school
+    // (e.g. Computer Science in PCM). Only the ones picked are compared.
+    ...(gradeHasStream(formData.snapshotGrade, formData.targetGoal, formData.targetGrade) &&
+    electivesForStream(streamElectives, formData.targetStream).length > 0 ? [{
+      id: "targetElectives" as const,
+      icon: BookOpen,
+      tileColor: "violet" as TileColor,
+      milestone: "Your Goal" as Milestone,
+      navLabel: "Optional subjects",
+      title: `Which optional subjects will you take in Class ${entryGrade(formData.snapshotGrade, formData.targetGrade)}?`,
+      hint: "Pick any you will take on top of the stream's main subjects. Only these are added to your report. Skip if none.",
+      errorField: null,
+    }] : []),
     {
       id: "timeline",
       icon: GlobiculumTimelineIcon,
@@ -374,7 +399,9 @@ const nextCardId = (
   currentCurriculum: string[],
   snapshotGrade: string,
   targetGoal: string,
-  targetGrade: string
+  targetGrade: string,
+  targetStream: string,
+  streamElectives: StreamElectives
 ): ProfileFieldId | null => {
   if (id === "country") {
     if (snapshotLocation === "us") return "usState";
@@ -388,12 +415,12 @@ const nextCardId = (
   if (id === "curriculumOther") return "targetBoard";
 
   const idx = BASE_ORDER.indexOf(id);
-  if (idx === -1 || idx === BASE_ORDER.length - 1) return null;
-  const next = BASE_ORDER[idx + 1];
-  if (next === "targetStream" && !gradeHasStream(snapshotGrade, targetGoal, targetGrade)) {
-    return BASE_ORDER[idx + 2] ?? null;
-  }
-  return next;
+  if (idx === -1) return null;
+  const hasStream = gradeHasStream(snapshotGrade, targetGoal, targetGrade);
+  const skip = (next: ProfileFieldId) =>
+    (next === "targetStream" && !hasStream) ||
+    (next === "targetElectives" && !(hasStream && electivesForStream(streamElectives, targetStream).length > 0));
+  return BASE_ORDER.slice(idx + 1).find((next) => !skip(next)) ?? null;
 };
 
 const cardHasError = (card: ProfileCard, errors: Record<string, string>): boolean => {
@@ -425,6 +452,8 @@ const isCardAnswered = (card: ProfileCard, formData: AssessmentFormData): boolea
       return !!formData.targetGrade;
     case "targetStream":
       return !!formData.targetStream;
+    case "targetElectives":
+      return (formData.targetElectives ?? []).length > 0;
     case "timeline":
       return !!formData.timeline;
     default:
@@ -466,6 +495,8 @@ const displayValue = (id: ProfileFieldId, formData: AssessmentFormData): string 
       return TARGET_GRADE_OPTIONS.find((g) => g.value === formData.targetGrade)?.label;
     case "targetStream":
       return targetStreamLabel(formData.targetStream);
+    case "targetElectives":
+      return (formData.targetElectives ?? []).length > 0 ? formData.targetElectives.join(", ") : "None";
     case "timeline":
       return TIMELINES.find((t) => t.value === formData.timeline)?.label;
     default:
@@ -486,7 +517,7 @@ interface SummarySection {
 // summary card actually shows — Location folds country + state into one
 // line, Goal folds target board + target grade into one line, so the
 // summary reads as 7 short rows instead of up to 11 raw fields.
-const buildSummarySections = (formData: AssessmentFormData): SummarySection[] => {
+const buildSummarySections = (formData: AssessmentFormData, streamElectives: StreamElectives): SummarySection[] => {
   const stateLabel = formData.snapshotLocation === "us" ? displayValue("usState", formData) : undefined;
   const locationValue =
     formData.snapshotLocation === "other"
@@ -521,6 +552,10 @@ const buildSummarySections = (formData: AssessmentFormData): SummarySection[] =>
     // opens the board card, which never leads on to the stream when editing.
     ...(gradeHasStream(formData.snapshotGrade, formData.targetGoal, formData.targetGrade)
       ? [{ key: "stream", icon: GlobiculumTargetIcon, tileColor: "violet" as TileColor, label: "Stream", value: displayValue("targetStream", formData), editCardId: "targetStream" as const }]
+      : []),
+    ...(gradeHasStream(formData.snapshotGrade, formData.targetGoal, formData.targetGrade) &&
+    electivesForStream(streamElectives, formData.targetStream).length > 0
+      ? [{ key: "electives", icon: BookOpen, tileColor: "violet" as TileColor, label: "Optional Subjects", value: displayValue("targetElectives", formData), editCardId: "targetElectives" as const }]
       : []),
     { key: "timeline", icon: GlobiculumTimelineIcon, tileColor: "teal", label: "Timeline", value: displayValue("timeline", formData), editCardId: "timeline" },
   ];
@@ -754,7 +789,8 @@ const ADVANCE_DELAY_MS = 420;
 
 const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWizardProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
-  const sequence = buildCardSequence(formData);
+  const streamElectives = useStreamElectives(formData);
+  const sequence = buildCardSequence(formData, streamElectives);
 
   // targetStream is in BASE_ORDER but not always in the sequence, so a
   // missing card counts as unanswered instead of crashing the page.
@@ -773,7 +809,6 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
   const [currentCardId, setCurrentCardId] = useState<ProfileFieldId>(firstUnansweredId());
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [editingSingleCard, setEditingSingleCard] = useState(false);
-  const [focusedNameField, setFocusedNameField] = useState<"first" | "last">("first");
 
   const currentIndex = Math.max(0, sequence.findIndex((c) => c.id === currentCardId));
   const currentCard = sequence[currentIndex] ?? sequence[0];
@@ -824,7 +859,9 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
       currentCard.id === "curriculum" ? (value as string[]) : formData.currentCurriculum,
       currentCard.id === "grade" ? (value as string) : formData.snapshotGrade,
       currentCard.id === "targetBoard" ? (value as string) : formData.targetGoal,
-      currentCard.id === "targetGrade" ? (value as string) : formData.targetGrade
+      currentCard.id === "targetGrade" ? (value as string) : formData.targetGrade,
+      currentCard.id === "targetStream" ? (value as string) : formData.targetStream,
+      streamElectives
     );
     // Editing the grade, board or same/next answer from the summary can make a
     // stream required (Grade 10 -> 11, IB -> CBSE, Grade 10 moving up). Ask for
@@ -843,13 +880,13 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
 
   const continueFromText = () => {
     if (isTransitioning) return;
-    advanceTo(nextCardId(currentCard.id, formData.snapshotLocation, formData.currentCurriculum, formData.snapshotGrade, formData.targetGoal, formData.targetGrade));
+    advanceTo(nextCardId(currentCard.id, formData.snapshotLocation, formData.currentCurriculum, formData.snapshotGrade, formData.targetGoal, formData.targetGrade, formData.targetStream, streamElectives));
   };
 
   const continueFromName = () => {
     if (isTransitioning) return;
     if (!formData.studentName.trim() || !formData.studentLastName.trim()) return;
-    advanceTo(nextCardId("name", formData.snapshotLocation, formData.currentCurriculum, formData.snapshotGrade, formData.targetGoal, formData.targetGrade));
+    advanceTo(nextCardId("name", formData.snapshotLocation, formData.currentCurriculum, formData.snapshotGrade, formData.targetGoal, formData.targetGrade, formData.targetStream, streamElectives));
   };
 
   const goBackOneCard = () => {
@@ -907,7 +944,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
   });
 
   if (phase === "summary") {
-    const sections = buildSummarySections(formData);
+    const sections = buildSummarySections(formData, streamElectives);
     const answeredCount = sections.filter((s) => s.value).length;
 
     return (
@@ -992,7 +1029,6 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
                       id="student-first-name"
                       placeholder="First name"
                       value={formData.studentName}
-                      onFocus={() => setFocusedNameField("first")}
                       onChange={(e) => setField("studentName", e.target.value)}
                     />
                     <FieldError message={errors.studentName} />
@@ -1002,18 +1038,12 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
                       id="student-last-name"
                       placeholder="Last name"
                       value={formData.studentLastName}
-                      onFocus={() => setFocusedNameField("last")}
                       onChange={(e) => setField("studentLastName", e.target.value)}
                     />
                     <FieldError message={errors.studentLastName} />
                   </div>
                 </div>
-                <div className="mt-2 flex justify-end">
-                  <VoiceInputButton
-                    label="Say your name"
-                    onResult={(text) => setField(focusedNameField === "last" ? "studentLastName" : "studentName", text)}
-                  />
-                </div>
+                {/* No voice input here: browser speech recognition sends the audio to Google. */}
                 <div className="mt-4 flex justify-end">
                   <button
                     type="button"
@@ -1220,9 +1250,51 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
                       label={stream.label}
                       description={stream.hint}
                       selected={formData.targetStream === stream.value}
-                      onClick={() => selectChoice("targetStream", stream.value)}
+                      onClick={() =>
+                        // Keep only the optional subjects the new stream offers.
+                        selectChoice("targetStream", stream.value, () =>
+                          setField("targetElectives", (formData.targetElectives ?? []).filter((s) => streamElectives[stream.value].includes(s)))
+                        )
+                      }
                     />
                   ))}
+                </div>
+              </CardFrame>
+            )}
+
+            {currentCard.id === "targetElectives" && (
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint}>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {electivesForStream(streamElectives, formData.targetStream).map((subject) => {
+                    const chosen = (formData.targetElectives ?? []).includes(subject);
+                    return (
+                      <InputCard
+                        key={subject}
+                        variant="large"
+                        mode="checkbox"
+                        label={subject}
+                        selected={chosen}
+                        onClick={() =>
+                          setField(
+                            "targetElectives",
+                            chosen ? formData.targetElectives.filter((s) => s !== subject) : [...(formData.targetElectives ?? []), subject]
+                          )
+                        }
+                      />
+                    );
+                  })}
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={continueFromText}
+                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
+                  >
+                    {(formData.targetElectives ?? []).length > 0 ? "Next" : "Skip, none of these"}
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </span>
+                  </button>
                 </div>
               </CardFrame>
             )}

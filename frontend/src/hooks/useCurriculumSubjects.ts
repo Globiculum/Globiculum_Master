@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -358,4 +358,55 @@ export function useCurriculumSubjects({
     error,
     empty: !loading && !error && subjects.length === 0,
   };
+}
+
+// Optional subjects the report has no comparison for (the gap engine has no
+// Physical Education domain), so choosing one would change nothing.
+const UNCOMPARED_OPTIONAL_SUBJECTS = ["Physical Education"];
+
+/**
+ * Each stream's optional subjects at the grade being entered, loaded together so
+ * the School Profile knows, as soon as a stream is picked, whether to ask which
+ * ones the student will take. Only subjects the report compares are returned.
+ *
+ * Only a US student is asked: a student already on the board rates the board's
+ * electives as their current subjects on the Academic Path step.
+ */
+export function useStreamElectives(form: {
+  snapshotLocation: string;
+  usState: string;
+  currentCurriculum: string[];
+  snapshotGrade: string;
+  targetGoal: string;
+  targetGrade: string;
+}): Record<TargetStream, string[]> {
+  const grade = entryGrade(form.snapshotGrade, form.targetGrade);
+  const options = {
+    curriculumSystem: targetBoardToCurriculumSystem(form.targetGoal, grade),
+    grade,
+    enabled:
+      !!usStateSourceSystem(form.snapshotLocation, form.usState, form.currentCurriculum) &&
+      gradeHasStream(form.snapshotGrade, form.targetGoal, form.targetGrade),
+  };
+  const pcm = useCurriculumSubjects({ ...options, stream: "science-pcm:optional" }).subjects;
+  const pcb = useCurriculumSubjects({ ...options, stream: "science-pcb:optional" }).subjects;
+  const commerce = useCurriculumSubjects({ ...options, stream: "commerce:optional" }).subjects;
+  const humanities = useCurriculumSubjects({ ...options, stream: "humanities:optional" }).subjects;
+
+  return useMemo(() => {
+    const names = (list: CurriculumSubject[]) =>
+      list.map((s) => s.subject).filter((s) => !UNCOMPARED_OPTIONAL_SUBJECTS.includes(s));
+    return {
+      "science-pcm": names(pcm),
+      "science-pcb": names(pcb),
+      commerce: names(commerce),
+      humanities: names(humanities),
+    };
+  }, [pcm, pcb, commerce, humanities]);
+}
+
+/** The optional subjects offered for a stream value as the form holds it. */
+export function electivesForStream(electives: Record<TargetStream, string[]>, stream: string | undefined): string[] {
+  const s = normalizeTargetStream(stream);
+  return s ? electives[s] : [];
 }

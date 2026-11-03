@@ -19,23 +19,11 @@ function SubjectGrid({ items }: { items: { name: string; readiness: Readiness }[
 }
 
 /**
- * Classes XI-XII: readiness for the chosen stream's subjects or, with no
- * stream chosen, which streams the current coursework suits.
+ * Classes XI-XII with no stream chosen (reports saved before the form asked
+ * for one): which streams the current coursework suits.
  */
-export function StreamReadiness({ subjects, academicPath, chosenStream }: { subjects: ReportSubject[]; academicPath: string[]; chosenStream?: string }) {
+export function StreamReadiness({ subjects, academicPath }: { subjects: ReportSubject[]; academicPath: string[] }) {
   const levelOf = (level?: string): Readiness => (level === "strong" ? "strong" : level === "moderate" ? "moderate" : "preparation");
-
-  if (chosenStream) {
-    return (
-      <Panel className="mt-4 p-4 sm:p-5">
-        <p className="font-heading text-sm font-semibold text-secondary-contrast">Stream readiness</p>
-        <p className="mt-0.5 font-body text-[15px] text-muted-foreground">
-          Chosen stream: <span className="text-foreground">{chosenStream}</span>. Readiness in each of its subjects, from current coursework.
-        </p>
-        <SubjectGrid items={subjects.map((s) => ({ name: s.subject, readiness: levelOf(s.alignmentLevel) }))} />
-      </Panel>
-    );
-  }
 
   const getReadiness = (keywords: RegExp): Readiness => levelOf(subjects.find((s) => keywords.test(s.subject))?.alignmentLevel);
   const has = (keywords: RegExp) => academicPath.some((s) => keywords.test(s));

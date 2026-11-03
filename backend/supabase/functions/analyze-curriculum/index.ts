@@ -1539,14 +1539,19 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
     // ASYNC JOB EXECUTION WITH TIMEOUT, RETRIES, AND DLQ
     // ==========================================================================
     
+    const GEMINI_MODEL = 'gemini-3.1-flash-lite';
+    // Same lite family, used only when the main model is overloaded or rate
+    // limited (Google returns 503 "high demand" for a model at busy times).
+    const GEMINI_BACKUP_MODEL = 'gemini-flash-lite-latest';
+    let modelUsed = GEMINI_MODEL;
+
     const aiJobResult = await executeJob(
       async () => {
         // Measure LLM latency within the job
-        const GEMINI_MODEL = 'gemini-3.1-flash-lite';
-        const response = await logger.measureLLM(GEMINI_MODEL, async () => {
+        const callGemini = (model: string) => logger.measureLLM(model, async () => {
           // Key in a header, not the URL, so it never lands in URL logs.
-          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-          console.log(`[GEMINI] Calling ${GEMINI_MODEL} at generativelanguage.googleapis.com`);
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+          console.log(`[GEMINI] Calling ${model} at generativelanguage.googleapis.com`);
           return fetch(geminiUrl, {
             method: "POST",
             headers: {
@@ -1571,7 +1576,20 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
             }),
           });
         });
-        
+
+        modelUsed = GEMINI_MODEL;
+        let response = await callGemini(GEMINI_MODEL);
+        if (response.status === 503 || response.status === 429) {
+          const busyText = await response.text();
+          console.warn(`[GEMINI] ${GEMINI_MODEL} returned ${response.status}, trying ${GEMINI_BACKUP_MODEL}`);
+          addDebug('gemini_backup_model', `${GEMINI_MODEL} busy, using ${GEMINI_BACKUP_MODEL}`, {
+            status: response.status,
+            errorPreview: busyText.substring(0, 200),
+          });
+          modelUsed = GEMINI_BACKUP_MODEL;
+          response = await callGemini(GEMINI_BACKUP_MODEL);
+        }
+
         // Check response status and throw appropriate errors for retry logic
         if (!response.ok) {
           const errorText = await response.text();
@@ -1596,7 +1614,7 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
             throw new Error(`${response.status}:UPSTREAM_ERROR:Gemini API authentication failed — check GEMINI_API_KEY secret: ${errorText.substring(0, 200)}`);
           }
           if (response.status === 404) {
-            throw new Error(`404:UPSTREAM_ERROR:Gemini model not found (${GEMINI_MODEL}): ${errorText.substring(0, 200)}`);
+            throw new Error(`404:UPSTREAM_ERROR:Gemini model not found (${modelUsed}): ${errorText.substring(0, 200)}`);
           }
           if (response.status === 408 || response.status === 504) {
             throw new Error(`${response.status}:TIMEOUT:${errorText}`);
@@ -1670,7 +1688,7 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
         logger.logSummary(false);
         return createErrorResponse(
           ErrorCodes.AI_OVERLOADED,
-          'AI service is experiencing high demand',
+          'The AI service is busy right now. Please try again in a few minutes.',
           503,
           { ...corsHeaders, 'X-Job-Id': aiJobResult.jobId },
           apiVersion
@@ -1729,14 +1747,14 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
     
     // Log AI response metadata (tokens, timing) without PII
     const llmLatency = performance.now() - (logger as any).context?.startTime || 0;
-    logger.logAIResponse('google/gemini-3.1-flash-lite', aiResponse, llmLatency);
+    logger.logAIResponse(`google/${modelUsed}`, aiResponse, llmLatency);
     
     const content = aiResponse.choices?.[0]?.message?.content;
 
     addDebug('llm_response', 'LLM response received', {
       status: response.status,
       statusText: response.statusText,
-      model: 'google/gemini-3.1-flash-lite',
+      model: `google/${modelUsed}`,
       latencyMs: llmLatency.toFixed(2),
       promptTokens: aiResponse.usage?.prompt_tokens,
       completionTokens: aiResponse.usage?.completion_tokens,

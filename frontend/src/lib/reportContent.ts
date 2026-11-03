@@ -2,8 +2,8 @@ import type { GapItem } from "./subjectGaps";
 
 /**
  * Report text built from the analysis: summary, takeaways, why-start-now,
- * the Action Plan and the parent Q&A. Shared by ReportPreview (the report
- * page) and ReportView (shared links), so both say the same thing.
+ * the Action Plan and the parent Q&A. Used by ReportBody, which both the
+ * report page and shared links render, so both say the same thing.
  *
  * One priority order is used everywhere (prioritySubjects): before it, the
  * summary named the lowest-% subject, "Why Start Now" the first critical gap

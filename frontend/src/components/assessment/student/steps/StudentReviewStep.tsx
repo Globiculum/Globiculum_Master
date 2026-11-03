@@ -11,7 +11,8 @@ import type { AssessmentFormData } from "../../shared/types";
 import SectionCard from "../../shared/SectionCard";
 import ReviewActionBar from "../../shared/ReviewActionBar";
 import ReviewSection from "../../shared/ReviewSection";
-import { prettify, targetGradeLabel, joinList, joinPrettyList, joinRecord, curriculumLabel } from "../../shared/reviewFormatting";
+import { newSchoolLanguageLabel } from "../../shared/newSchoolLanguage";
+import { prettify, targetBoardLabel, targetGradeLabel, joinList, joinPrettyList, joinRecord, curriculumLabel } from "../../shared/reviewFormatting";
 
 // Step 4: Review.
 // Mirrors ParentStep5's Review pattern (editable summary + per-section Edit
@@ -94,7 +95,7 @@ const StudentReviewStep = ({ formData, prevReportId, isRetake = false, onPrev, o
             formData.currentCurriculum.map((c) => (c === "other" ? formData.currentCurriculumOther || "Other" : curriculumLabel(c, formData.usState)))
           ),
         },
-        { label: "Target Indian Board", value: prettify(formData.targetGoal) },
+        { label: "Target Indian Board", value: targetBoardLabel(formData.targetGoal) },
         { label: "Target Grade", value: targetGradeLabel(formData.targetGrade, formData.snapshotGrade) },
         { label: "Transition Timeline", value: prettify(formData.timeline) },
       ],
@@ -105,7 +106,7 @@ const StudentReviewStep = ({ formData, prevReportId, isRetake = false, onPrev, o
       icon: academicPathIcon,
       rows: [
         { label: "Current Subjects", value: joinList(formData.academicPath) },
-        ...(formData.targetLanguage ? [{ label: "Indian Language", value: prettify(formData.targetLanguage) }] : []),
+        ...(formData.targetLanguage ? [{ label: "Indian Language", value: newSchoolLanguageLabel(formData.targetLanguage) ?? prettify(formData.targetLanguage) }] : []),
         { label: "Overall Performance", value: prettify(formData.overallPerformance) },
         { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
         { label: "Language Proficiencies", value: joinRecord(formData.languageProficiencies) },

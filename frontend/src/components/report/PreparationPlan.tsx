@@ -58,7 +58,8 @@ export function PreparationPlan({ months }: { months: PlanMonth[] }) {
                 <ul className={`mt-3 space-y-2.5 border-l-2 pl-3.5 ${tone.rule}`}>
                   {phase.months.map((m) => (
                     <li key={m.month}>
-                      <p className="font-heading text-xs font-medium text-secondary-contrast">Month {m.month}</p>
+                      {/* A one-month phase already names its month under the phase name. */}
+                      {phase.months.length > 1 && <p className="font-heading text-xs font-medium text-secondary-contrast">Month {m.month}</p>}
                       {m.focusAreas.map((f) => (
                         <p key={f} className="font-body text-[15px] leading-snug text-foreground/85">{f}</p>
                       ))}

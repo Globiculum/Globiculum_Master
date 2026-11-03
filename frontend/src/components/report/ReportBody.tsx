@@ -159,7 +159,8 @@ const buildMonthlyBridgePlan = (
   const phases = [analysis.bridgeTimeline.phase1, analysis.bridgeTimeline.phase2, analysis.bridgeTimeline.phase3];
 
   const parsedRanges = phases.map((p): [number, number] | null => {
-    const nums = (p.duration.match(/\d+/g) ?? []).map(Number);
+    // Some saved reports have a phase without a duration; those split evenly.
+    const nums = ((p?.duration ?? "").match(/\d+/g) ?? []).map(Number);
     if (nums.length >= 2) return [nums[0], nums[nums.length - 1]];
     if (nums.length === 1) return [nums[0], nums[0]];
     return null;
@@ -186,7 +187,7 @@ const buildMonthlyBridgePlan = (
 
   const bulletsPerPhaseMonth = phaseSpans.map(([start, end], i) => {
     const span = Math.max(1, end - start + 1);
-    return distributeAcrossMonths(phases[i].bullets, span);
+    return distributeAcrossMonths(phases[i]?.bullets ?? [], span);
   });
 
   return Array.from({ length: monthCount }, (_, idx) => {
@@ -206,7 +207,7 @@ const buildMonthlyBridgePlan = (
   });
 };
 
-// Gap items (GapItem, from SubjectGapList): a plain string (legacy) or { topic, resourceUrl?, severity?, ... }
+// Gap items (GapItem, from lib/subjectGaps): a plain string (legacy) or { topic, resourceUrl?, severity?, ... }
 // Resource items: AI returns either a plain string (legacy) or { name, url? }
 export type ResourceItem = string | { name: string; url?: string };
 
@@ -295,8 +296,8 @@ export function ReportBody({ formData, analysis, onDownload, onShare, isSharing 
   const notes = [boardComparisonNote(formData.targetGoal, entry), ...(analysis.excludedSubjects ?? []).map((e) => e.reason)].filter(
     (n): n is string => !!n
   );
-  const subjects = analysis.subjectAnalysis.map((s) => s.subject);
   const orderedSubjects = orderSubjectsByNeed(analysis.subjectAnalysis, formData.subjectConfidences, formData.academicPath);
+  const subjects = orderedSubjects.map((s) => s.subject);
   const actionPlan = buildActionPlan(analysis, (subject) => {
     const codes = analysis.subjectAnalysis.find((s) => s.subject === subject)?.textbooks;
     return levelledLanguage(subject)
@@ -362,8 +363,10 @@ export function ReportBody({ formData, analysis, onDownload, onShare, isSharing 
           learning={learning}
           languageProficiencies={formData.languageProficiencies}
         />
-        {formData.schoolStage === "high" && (entry ?? 0) >= 11 && (
-          <StreamReadiness subjects={analysis.subjectAnalysis} academicPath={formData.academicPath || []} chosenStream={stream || undefined} />
+        {/* With a stream chosen the subject cards already show each subject's
+            readiness; only older reports saved without one get a suggestion. */}
+        {formData.schoolStage === "high" && (entry ?? 0) >= 11 && !stream && (
+          <StreamReadiness subjects={analysis.subjectAnalysis} academicPath={formData.academicPath || []} />
         )}
       </ReportSection>
 

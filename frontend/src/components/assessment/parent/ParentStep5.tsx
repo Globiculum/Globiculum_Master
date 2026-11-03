@@ -10,7 +10,8 @@ import ReportGenerationLoader from "../shared/ReportGenerationLoader";
 import SectionCard from "../shared/SectionCard";
 import ReviewActionBar from "../shared/ReviewActionBar";
 import ReviewSection from "../shared/ReviewSection";
-import { prettify, targetGradeLabel, joinList, joinPrettyList, joinRecord, curriculumLabel } from "../shared/reviewFormatting";
+import { newSchoolLanguageLabel } from "../shared/newSchoolLanguage";
+import { prettify, targetBoardLabel, targetGradeLabel, joinList, joinPrettyList, joinRecord, curriculumLabel } from "../shared/reviewFormatting";
 import type { ParentFormData } from "./parentMapper";
 
 // Step 5: Review. Submits through the same shared/submitAssessment.ts
@@ -81,7 +82,7 @@ const ParentStep5 = ({ formData, prevReportId, isRetake = false, onPrev, onValid
       title: "School Profile",
       icon: locationIcon,
       rows: [
-        { label: "Child's Name", value: formData.childName || "—" },
+        { label: "Child's Name", value: [formData.childName, formData.childLastName].filter(Boolean).join(" ") || "—" },
         { label: "School Stage", value: prettify(formData.schoolStage) },
         { label: "Current Grade", value: formData.snapshotGrade ? `Grade ${formData.snapshotGrade}` : "—" },
         {
@@ -97,7 +98,7 @@ const ParentStep5 = ({ formData, prevReportId, isRetake = false, onPrev, onValid
             formData.currentCurriculum.map((c) => (c === "other" ? formData.currentCurriculumOther || "Other" : curriculumLabel(c, formData.usState)))
           ),
         },
-        { label: "Target Indian Board", value: prettify(formData.targetGoal) },
+        { label: "Target Indian Board", value: targetBoardLabel(formData.targetGoal) },
         { label: "Target Grade", value: targetGradeLabel(formData.targetGrade, formData.snapshotGrade) },
         { label: "Transition Timeline", value: prettify(formData.timeline) },
       ],
@@ -108,7 +109,7 @@ const ParentStep5 = ({ formData, prevReportId, isRetake = false, onPrev, onValid
       icon: academicPathIcon,
       rows: [
         { label: "Current Subjects", value: joinList(formData.academicPath) },
-        ...(formData.targetLanguage ? [{ label: "Indian Language", value: prettify(formData.targetLanguage) }] : []),
+        ...(formData.targetLanguage ? [{ label: "Indian Language", value: newSchoolLanguageLabel(formData.targetLanguage) ?? prettify(formData.targetLanguage) }] : []),
         { label: "Overall Performance", value: prettify(formData.overallPerformance) },
         { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
         { label: "Language Proficiencies", value: joinRecord(formData.languageProficiencies) },

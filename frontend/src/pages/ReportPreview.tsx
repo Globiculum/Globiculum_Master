@@ -368,9 +368,10 @@ const ReportPreview = () => {
       return session.access_token;
     };
 
-    const parseFunctionError = (fnError: any): { status?: number; message: string } => {
+    const parseFunctionError = async (fnError: any): Promise<{ status?: number; message: string }> => {
       const status = fnError?.context?.status as number | undefined;
-      const body = fnError?.context?.body;
+      // context is the fetch Response: its body is a stream, so read it as JSON.
+      const body = await fnError?.context?.json?.().catch(() => undefined) ?? fnError?.context?.body;
 
       // Best-effort JSON parsing of standardized error responses
       try {
@@ -537,7 +538,7 @@ const ReportPreview = () => {
           });
 
           if (fnError) {
-            const { status, message } = parseFunctionError(fnError);
+            const { status, message } = await parseFunctionError(fnError);
             console.error("[ReportPreview] Function error:", { status, message, fnError });
 
             // Retry once on auth/network-ish failures

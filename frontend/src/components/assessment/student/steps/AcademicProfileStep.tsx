@@ -103,9 +103,11 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
   const boardLabel = formData.targetGoal === "icse" ? (boardIsHigherSecondary ? "ISC" : "ICSE") : formData.targetGoal?.toUpperCase();
   const streamName = targetStreamLabel(formData.targetStream);
   const streamLabel = streamName ? `${streamName} stream` : "subjects";
+  // Optional subjects picked in School Profile are compared too.
+  const comparedSubjects = [...dbSubjects.map((s) => s.subject), ...(formData.targetElectives ?? [])];
   const comparisonNote =
     usSourceSystem && boardIsHigherSecondary && dbSubjects.length > 0
-      ? `These are the subjects you study now. Your report compares them with the ${boardLabel} Class ${boardGrade} ${streamLabel}: ${dbSubjects.map((s) => s.subject).join(", ")}.`
+      ? `These are the subjects you study now. Your report compares them with the ${boardLabel} Class ${boardGrade} ${streamLabel}: ${comparedSubjects.join(", ")}.`
       : null;
 
   const activeSubjectList = usSourceSystem
@@ -123,7 +125,7 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
     curriculumSystem,
     grade: boardGrade,
     stream: stream ? `${stream}:optional` : null,
-    enabled: boardIsHigherSecondary && !!curriculumSystem && !!stream,
+    enabled: showTargetList && !!curriculumSystem && !!stream,
   });
   const streamOptional = optionalDb.map((s) => s.subject);
   const [coreSubjects, electiveSubjects] = showTargetList
@@ -137,10 +139,6 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
     onSubjectsCompleteChange?.(subjectsComplete);
   }, [subjectsComplete, onSubjectsCompleteChange]);
 
-  const toggleTargetElective = (subject: string) => {
-    const current = formData.targetElectives ?? [];
-    setField("targetElectives", current.includes(subject) ? current.filter((s) => s !== subject) : [...current, subject]);
-  };
   return (
     <SectionCard logo={childLogo} title="Academic Path">
       <div className="-mt-4 text-sm text-muted-foreground">Tell us what you're studying right now.</div>
@@ -149,25 +147,6 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
         <div className="rounded-lg border border-secondary/30 bg-secondary/5 px-4 py-3 text-sm text-foreground">
           {comparisonNote}
         </div>
-      )}
-
-      {usSourceSystem && boardIsHigherSecondary && streamOptional.length > 0 && (
-        <QuestionCard
-          label={`Electives in ${boardLabel} Class ${boardGrade}`}
-          tooltip="Optional subjects in this stream. Only the ones you tick are included in your report."
-        >
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {streamOptional.map((subject) => (
-              <InputCard
-                key={subject}
-                variant="chip"
-                label={subject}
-                selected={(formData.targetElectives ?? []).includes(subject)}
-                onClick={() => toggleTargetElective(subject)}
-              />
-            ))}
-          </div>
-        </QuestionCard>
       )}
 
       {usSourceSystem && usLoading ? (
@@ -196,7 +175,7 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
               subjectConfidences={formData.subjectConfidences}
               setAcademicPath={(value) => setField("academicPath", value)}
               setConfidence={(subject, value) => setRecordField("subjectConfidences", subject, value)}
-              navTitle="Electives"
+              navTitle={usSourceSystem ? "Current Electives (US School)" : "Electives"}
               navSubtitle="Optional subjects - mark the ones you don't take."
               summaryTitle="Electives are ready."
               showCustomCard={false}

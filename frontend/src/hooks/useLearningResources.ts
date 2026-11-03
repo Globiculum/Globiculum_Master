@@ -188,14 +188,23 @@ export function useLearningResources(targetGoal: string | undefined, grade: numb
       .filter((g) => g.items.length > 0);
   };
 
-  /** One type across the report's subjects, plus resources for every subject ('*'). Class material only. */
+  /**
+   * One type across the report's subjects, class material only: resources for
+   * every subject ('*') first, then one per subject in the given order before
+   * any subject gets a second, so the last subjects aren't cut off by the limit.
+   */
   const ofType = (type: ResourceType, subjectLabels: string[], limit = 6): LearningResource[] => {
-    const keys = new Set(subjectLabels.flatMap((l) => resourceSubjectKeys(l, grade)));
+    const ofThisType = resources.filter((r) => !r.level && r.resource_type === type);
+    const perSubject = subjectLabels.map((l) => {
+      const keys = resourceSubjectKeys(l, grade);
+      return ofThisType.filter((r) => keys.includes(r.subject));
+    });
+    const picked = ofThisType.filter((r) => r.subject === "*");
+    for (let i = 0; perSubject.some((list) => i < list.length); i++) {
+      for (const list of perSubject) if (list[i]) picked.push(list[i]);
+    }
     const seen = new Set<string>();
-    return resources
-      .filter((r) => !r.level && r.resource_type === type && (r.subject === "*" || keys.has(r.subject)))
-      .filter((r) => !seen.has(r.url) && seen.add(r.url))
-      .slice(0, limit);
+    return picked.filter((r) => !seen.has(r.url) && seen.add(r.url)).slice(0, limit);
   };
 
   return { resources, forSubject, forLanguage, ofType };
