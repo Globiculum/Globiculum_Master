@@ -27,6 +27,21 @@ export function clearChildData(): void {
 }
 
 /**
+ * Router state that carries a child's answers or report (report-preview,
+ * retake) lives in browser history, which sign-out cannot clear: after parent
+ * A signs out and parent B signs in in the same tab, Back would reopen A's
+ * child. Such state is tagged with the user it was created for and is only
+ * used by that user.
+ */
+export function withOwner<T extends object>(state: T, ownerId: string | undefined): T & { ownerId?: string } {
+  return { ...state, ownerId };
+}
+
+export function isOwnedBy(state: unknown, userId: string | undefined): boolean {
+  return !!userId && typeof state === "object" && state !== null && (state as { ownerId?: unknown }).ownerId === userId;
+}
+
+/**
  * Called once at startup. Removes child data left in localStorage by older
  * versions, and clears child data on every sign-out: the Header button,
  * password reset, an expired session, or a refresh token that failed.

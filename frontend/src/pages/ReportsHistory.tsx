@@ -5,9 +5,9 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Trash2, Eye, Loader2, Clock, Target, GraduationCap, TrendingUp, RotateCcw, Share2, Copy, Check } from "lucide-react";
+import { withOwner } from "@/lib/childDataStorage";
+import { FileText, Trash2, Eye, Loader2, Clock, Target, RotateCcw, Share2, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -60,22 +60,12 @@ interface SavedReport {
   created_at: string;
 }
 
-interface AssessmentRecord {
-  id: string;
-  assessment_data: Record<string, unknown>;
-  status: string;
-  completed_at: string;
-  created_at: string;
-  student_profile_id: string;
-  student_profiles?: {
-    student_name: string;
-  };
-}
-
 const ReportsHistory = () => {
   const navigate = useNavigate();
   const [reports, setReports] = useState<SavedReport[]>([]);
-  const [assessments, setAssessments] = useState<AssessmentRecord[]>([]);
+  // The signed-in user the listed reports belong to; tags the router state of
+  // View / Retake (see withOwner in lib/childDataStorage.ts).
+  const [userId, setUserId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
@@ -84,13 +74,13 @@ const ReportsHistory = () => {
 
   useEffect(() => {
     fetchReports();
-    fetchAssessments();
   }, []);
 
   const fetchReports = async () => {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) { setLoading(false); return; }
+    setUserId(session.user.id);
 
     const { data, error } = await supabase
       .from("saved_reports" as any)
@@ -106,25 +96,6 @@ const ReportsHistory = () => {
       setReports((data as unknown as SavedReport[]) || []);
     }
     setLoading(false);
-  };
-
-  const fetchAssessments = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-
-    const { data, error } = await supabase
-      .from("assessments")
-      .select("id, assessment_data, status, completed_at, created_at, student_profile_id")
-      .eq("user_id", session.user.id)
-      .eq("status", "completed")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Failed to fetch assessments:", error);
-    } else {
-      setAssessments((data as unknown as AssessmentRecord[]) || []);
-    }
   };
 
   const handleDelete = async (id: string) => {
@@ -259,94 +230,13 @@ const ReportsHistory = () => {
             </Button>
           </div>
 
-          {/* Assessment Results Section */}
-          {assessments.length > 0 && (
-            <div className="mb-10">
-              <div className="flex items-center gap-2 mb-4">
-                <GraduationCap className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Assessment Results</h2>
-                <Badge variant="secondary" className="ml-1">{assessments.length}</Badge>
-              </div>
-              <div className="space-y-4">
-                {assessments.map((assessment) => {
-                  const data = assessment.assessment_data as Record<string, unknown>;
-                  const analysisResult = data?.analysisResult as Record<string, unknown> | undefined;
-                  const overallAlignment = (analysisResult?.overallAlignment as Record<string, unknown>)?.percentage as number | undefined;
-                  const grade = data?.snapshotGrade;
-                  const studentName = (data?.childName as string) || (data?.studentName as string) || `Grade ${String(grade || "N/A")} Student`;
-
-                  return (
-                    <Card key={assessment.id} className="hover:border-primary/50 transition-colors">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                              <GraduationCap className="h-4 w-4 text-primary" />
-                              {studentName}
-                            </CardTitle>
-                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5" />
-                                <span>{formatDate(assessment.completed_at)}</span>
-                              </div>
-                              {grade && (
-                                <span>Grade {String(grade)}</span>
-                              )}
-                            </div>
-                          </div>
-                          {overallAlignment !== undefined && (
-                            <div className="flex flex-col items-end gap-1">
-                              <Badge
-                                className={
-                                  overallAlignment >= 80
-                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                    : overallAlignment >= 60
-                                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                      : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
-                                }
-                              >
-                                {overallAlignment}% Aligned
-                              </Badge>
-                              <Progress value={overallAlignment} className="w-24 h-1.5" />
-                            </div>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center justify-between">
-                          <Badge variant="outline" className="text-xs">
-                            <TrendingUp className="h-3 w-3 mr-1" />
-                            {assessment.status}
-                          </Badge>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/report-preview?assessmentId=${assessment.id}`, {
-                              state: {
-                                formData: assessment.assessment_data,
-                                savedAnalysis: (assessment.assessment_data as any)?.analysisResult,
-                              }
-                            })}
-                          >
-                            <Eye className="h-4 w-4 mr-1.5" />
-                            View Report
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {loading ? (
             <Card>
               <CardContent className="flex items-center justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </CardContent>
             </Card>
-          ) : reports.length === 0 && assessments.length === 0 ? (
+          ) : reports.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-16 space-y-4">
                 <div className="p-4 bg-muted rounded-full">
@@ -408,11 +298,11 @@ const ReportsHistory = () => {
                             size="sm"
                             onClick={() =>
                               navigate("/report-preview", {
-                                state: {
+                                state: withOwner({
                                   formData: report.form_data,
                                   savedAnalysis: report.analysis_data,
                                   savedReportId: report.id,
-                                },
+                                }, userId),
                               })
                             }
                           >
@@ -432,10 +322,10 @@ const ReportsHistory = () => {
                               sessionStorage.setItem("globiculum-selected-persona", isParent ? "parent" : "student");
                               const destination = isParent ? "/begin-journey" : "/student-assessment";
                               navigate(destination, {
-                                state: {
+                                state: withOwner({
                                   prefillFormData: report.form_data,
                                   prevReportId: report.id,
-                                },
+                                }, userId),
                               });
                             }}
                           >

@@ -1,10 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
-import { logAuditEvent } from "@/lib/logAuditEvent";
+import { withOwner } from "@/lib/childDataStorage";
 
 /**
  * Shared submission pipeline used by both the Parent and Student flows:
- * validate-student-data -> save `assessments` row -> analyze-curriculum
- * -> hand back where to navigate. Intentionally UI-agnostic (no toast/
+ * validate-student-data -> analyze-curriculum -> hand back where to
+ * navigate; ReportPreview saves the report. Intentionally UI-agnostic (no toast/
  * navigate calls) so it can be driven by either flow's own step components.
  *
  * diagnostics-engine used to run here too (in parallel with
@@ -20,12 +20,11 @@ import { logAuditEvent } from "@/lib/logAuditEvent";
  *
  * Generic over `T` rather than importing AssessmentFormData directly: the
  * Parent and Student flows keep their own formData shapes (e.g. `childName`
- * vs `studentName`) since that full object is stored verbatim as
- * `assessment_data`. This type only pins down the subset of fields this
- * pipeline actually reads to build the validate-student-data /
- * analyze-curriculum payloads — both flows' formData types satisfy it
- * structurally, so each flow's exact current wire payload (and its stored
- * assessment_data shape) is preserved byte-for-byte.
+ * vs `studentName`) since that full object is saved with the report. This
+ * type only pins down the subset of fields this pipeline actually reads to
+ * build the validate-student-data / analyze-curriculum payloads — both flows'
+ * formData types satisfy it structurally, so each flow's exact current wire
+ * payload is preserved byte-for-byte.
  */
 export interface SubmittableFormData {
   schoolStage: string;
@@ -101,9 +100,9 @@ export interface SubmitAssessmentOptions<T extends SubmittableFormData> {
   prevReportId?: string;
 }
 
-const fallbackResult = <T extends SubmittableFormData>(formData: T, prevReportId?: string): SubmitAssessmentResult => ({
+const fallbackResult = <T extends SubmittableFormData>(formData: T, prevReportId?: string, userId?: string): SubmitAssessmentResult => ({
   path: "/report-preview",
-  state: { formData, prevReportId },
+  state: withOwner({ formData, prevReportId }, userId),
   warnings: [],
 });
 
@@ -162,30 +161,11 @@ export async function submitAssessment<T extends SubmittableFormData>({
     .maybeSingle();
 
   if (!studentProfile) {
-    return { ...fallbackResult(formData, prevReportId), warnings };
+    return { ...fallbackResult(formData, prevReportId, userId), warnings };
   }
 
-  const { data: assessment, error: assessmentError } = await supabase
-    .from("assessments")
-    .insert({
-      user_id: userId,
-      student_profile_id: studentProfile.id,
-      assessment_data: formData as any,
-      status: "completed",
-    })
-    .select("id")
-    .single();
-
-  if (assessmentError || !assessment) {
-    return { ...fallbackResult(formData, prevReportId), warnings };
-  }
-
-  logAuditEvent({
-    action: "update_student_profile",
-    tableName: "assessments",
-    recordId: assessment.id,
-    newData: { student_profile_id: studentProfile.id, status: "completed" },
-  });
+  // No `assessments` row is written: the report itself (saved_reports, saved by
+  // ReportPreview) is the record that history, retake and sharing read (T04).
 
   // analyze-curriculum used to be fire-and-forget here AND called again,
   // synchronously, by ReportPreview.tsx — two full Gemini + RAG round trips
@@ -264,12 +244,7 @@ export async function submitAssessment<T extends SubmittableFormData>({
 
   return {
     path: "/report-preview",
-    state: {
-      formData,
-      assessmentId: assessment.id,
-      prevReportId,
-      prefetchedAnalysis,
-    },
+    state: withOwner({ formData, prevReportId, prefetchedAnalysis }, userId),
     warnings,
   };
 }

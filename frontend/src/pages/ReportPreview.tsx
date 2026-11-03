@@ -16,6 +16,8 @@ import Footer from "@/components/Footer";
 import { ArrowLeft, AlertTriangle, Loader2, Copy, Check } from "lucide-react";
 import ReportComparison from "@/components/ReportComparison";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { isOwnedBy } from "@/lib/childDataStorage";
 import { toast } from "sonner";
 import { generateReportPDF } from "@/lib/generateReportPDF";
 import { ReportBody, type AnalysisData } from "@/components/report/ReportBody";
@@ -460,24 +462,6 @@ const ReportPreview = () => {
             console.error("[ReportPreview] Email fire-and-forget error:", err);
           });
         }
-
-        // Also update the assessment record with the full analysis result
-        const assessmentId = location.state?.assessmentId;
-        if (assessmentId) {
-          const { error: updateError } = await supabase
-            .from("assessments")
-            .update({
-              assessment_data: { ...formData, analysisResult: analysisData } as any,
-              status: "completed",
-            })
-            .eq("id", assessmentId);
-
-          if (updateError) {
-            console.error("Failed to update assessment with analysis:", updateError);
-          } else {
-            console.log("[ReportPreview] Assessment updated with analysis result");
-          }
-        }
       } catch (err) {
         console.error("Error saving report:", err);
       }
@@ -773,4 +757,39 @@ const ReportPreview = () => {
   );
 };
 
-export default ReportPreview;
+/**
+ * Router state with a child's report or answers can reach this page through
+ * Back after another parent signed in in the same tab. It is only used by the
+ * user it was created for (withOwner); anyone else is sent to their own
+ * reports before the report is shown or saved to their account.
+ */
+const ReportPreviewForOwner = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, loading } = useAuth();
+  const state = location.state as Record<string, unknown> | null;
+  const carriesChildData = !!state && ["formData", "savedAnalysis", "prefetchedAnalysis"].some((k) => !!state[k]);
+  const foreign = carriesChildData && !loading && !isOwnedBy(state, user?.id);
+
+  useEffect(() => {
+    if (!foreign) return;
+    toast.error("That report belongs to another account.");
+    navigate("/reports", { replace: true });
+  }, [foreign, navigate]);
+
+  if (carriesChildData && (loading || foreign)) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <div role="status" aria-live="polite" className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+          <span className="sr-only">Loading report…</span>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+  return <ReportPreview />;
+};
+
+export default ReportPreviewForOwner;
