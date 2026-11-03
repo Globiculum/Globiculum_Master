@@ -1,4 +1,4 @@
-"""Languages as SKILLS: English (CBSE I-XII, ISC XI-XII), Hindi (CBSE I-X) and
+"""Languages as SKILLS: English (CBSE I-XII, ISC XI-XII), Hindi (CBSE I-XII) and
 Sanskrit (CBSE VI-X).
 
 Hindi and Sanskrit: their nodes are chapter and poem titles in Devanagari, and
@@ -38,6 +38,9 @@ Sources:
   Hindi I-VIII - NCERT "Learning Outcomes at the Elementary Stage" (2017), Hindi.
   Hindi IX-X   - CBSE Hindi Course A (002) / Course B (085) curriculum: unseen
          passages, applied grammar, writing, and the prescribed literature.
+  Hindi XI-XII - CBSE Hindi Core (302) curriculum 2025-26: Section A unseen
+         passages, Section B writing from Abhivyakti aur Madhyam, Section C
+         Aaroh and Vitan, plus listening, speaking and project work.
   Sanskrit VI-VIII - NCERT Sanskrit learning outcomes and the Deepakam / Ruchira
          textbooks (script, word and verb forms, sandhi, pratyaya, translation).
   Sanskrit IX-X    - CBSE Sanskrit (122) curriculum: apathita-avabodhanam,
@@ -554,6 +557,53 @@ SKILL_SETS: list[tuple[str, str, int, int, str, str, list[tuple[str, str]]]] = [
          "Understand and analyse the prescribed prose and poetry, including poets such as "
          "Surdas and Tulsidas: theme, context and style."),
     ]),
+    # ── CBSE Hindi Core (302) Classes XI-XII: an optional subject in every stream ──
+    ("ncert-cbse", "Hindi", 11, 11, "NCERT-HINSKILL-11", "CBSE", [
+        ("Unseen passages (apathit gadyansh, kavyansh)",
+         "Read an unseen prose passage of about 250 words and an unseen poem of about "
+         "100 words; answer questions on comprehension, appreciation, reflection and analysis."),
+        ("Creative writing on unseen topics (rachnatmak lekhan)",
+         "Write about 120 words on one of three unfamiliar topics, organising ideas "
+         "clearly in standard written Hindi."),
+        ("Formal letter writing (aupcharik patra)",
+         "Write formal letters in the correct format, tone and language."),
+        ("Mass media and journalism (jansanchar, patrakarita)",
+         "Explain the forms and roles of mass media and the different dimensions of "
+         "journalism (Abhivyakti aur Madhyam)."),
+        ("Practical writing: diary, screenplay, official writing and resume",
+         "Write a diary entry, turn a story into a screenplay (katha-patkatha), do official "
+         "writing (karyalayi lekhan), write a resume and job application, and use a Hindi "
+         "dictionary (kosh) (Abhivyakti aur Madhyam)."),
+        ("Literature (Aaroh, Vitan)",
+         "Read and analyse the prescribed poetry and prose of Aaroh Part 1 for meaning, "
+         "appreciation, context and style, and answer questions on the supplementary reader Vitan Part 1."),
+        ("Listening and speaking (shravan tatha vachan)",
+         "Listen to and understand spoken Hindi and speak fluently and accurately in "
+         "presentations and discussion; carry out a project."),
+    ]),
+    ("ncert-cbse", "Hindi", 12, 12, "NCERT-HINSKILL-12", "CBSE", [
+        ("Unseen passages (apathit gadyansh, kavyansh)",
+         "Read an unseen prose passage of about 250 words and an unseen poem of about "
+         "100 words; answer questions on comprehension, appreciation, reflection and analysis."),
+        ("Writing on new and unexpected topics (naye aur apratyashit vishay)",
+         "Write about 120 words on one of three unfamiliar topics, developing ideas "
+         "originally and clearly in standard written Hindi."),
+        ("Writing for different media",
+         "Write for print, radio, television and the internet, adapting language and "
+         "structure to each medium (Abhivyakti aur Madhyam)."),
+        ("Journalistic and special writing (patrakariya, vishesh lekhan)",
+         "Write news reports, features, articles and editorials following the writing "
+         "process, and specialised beat writing on areas such as business, sport or science."),
+        ("Drama writing: stage adaptation and radio play",
+         "Adapt a story into a play (natya rupantaran) and write for a radio play, with "
+         "dialogue, scenes and sound (Abhivyakti aur Madhyam)."),
+        ("Literature (Aaroh, Vitan)",
+         "Read and analyse the prescribed poetry and prose of Aaroh Part 2 for meaning, "
+         "appreciation, context and style, and answer questions on the supplementary reader Vitan Part 2."),
+        ("Listening and speaking (shravan tatha vachan)",
+         "Listen to and understand spoken Hindi and speak fluently and accurately in "
+         "presentations and discussion; carry out a project."),
+    ]),
     # ── CBSE Sanskrit Classes VI-X ───────────────────────────────────────────
     ("ncert-cbse", "Sanskrit", 6, 6, "NCERT-SANSKILL-6", "CBSE", [
         ("Script and pronunciation (varnamala)",
@@ -647,6 +697,7 @@ SOURCE_DOCUMENTS = {
     **{f"NCERT-HINSKILL-{g}": "NCERT Learning Outcomes at the Elementary Stage (2017), Hindi"
        for g in range(1, 9)},
     **{f"NCERT-HINSKILL-{g}": "CBSE Hindi Course A (002) curriculum" for g in (9, 10)},
+    **{f"NCERT-HINSKILL-{g}": "CBSE Hindi Core (302) curriculum 2025-26" for g in (11, 12)},
     **{f"NCERT-SANSKILL-{g}": "NCERT Sanskrit learning outcomes and Deepakam/Ruchira textbooks"
        for g in (6, 7, 8)},
     **{f"NCERT-SANSKILL-{g}": "CBSE Sanskrit (122) curriculum" for g in (9, 10)},

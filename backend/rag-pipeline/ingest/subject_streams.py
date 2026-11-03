@@ -13,6 +13,7 @@ in the form's Electives section:
                Economics
   humanities   English, History, Political Science,        Economics, English Elective, Physical Education
                Geography
+  (every stream: Hindi as an optional language)
 
 Sources: the stream folders under backend/data/Ncret, and the CBSE / CISCE
 scheme of studies: Science = Physics + Chemistry + Mathematics or Biology;
@@ -60,6 +61,9 @@ SUBJECT_STREAMS: dict[str, list[str]] = {
     "Geography":          [HUMANITIES],
     "Political Science":  [HUMANITIES],
     "Physical Education": optional(*ALL_STREAMS),
+    # Hindi Core (302): a language a student may add in any stream. Its Class
+    # XI-XII nodes are skills (language_skills.py), not chapters.
+    "Hindi":              optional(*ALL_STREAMS),
 }
 
 STREAM_FIRST_GRADE = 11

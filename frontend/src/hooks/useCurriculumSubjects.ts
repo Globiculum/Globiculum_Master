@@ -360,8 +360,10 @@ export function useCurriculumSubjects({
   };
 }
 
-// Optional subjects the report has no comparison for (the gap engine has no
-// Physical Education domain), so choosing one would change nothing.
+// Optional subjects with no US-side comparison: the gap engine compares US
+// standards only in Maths, English, Science, Social Studies and Computer
+// Science, so a US student who picked PE would get a card scoring every PE
+// chapter as new (0%), though they do take PE at school.
 const UNCOMPARED_OPTIONAL_SUBJECTS = ["Physical Education"];
 
 /**
