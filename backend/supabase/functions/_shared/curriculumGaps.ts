@@ -1581,9 +1581,6 @@ export function buildGapReason(gap: GapNode, domainCovered: boolean, sourceLabel
   // Domain is genuinely covered, but this specific topic still landed in the
   // gap bucket — ground the "why" in the nearest match actually found rather
   // than guessing from keywords.
-  // Rounded down: 0.549 is below COVERAGE_SIMILARITY_FLOOR, and showing it as
-  // "55% related" next to a 55% cut-off read as a contradiction.
-  const pct = gap.best_similarity != null ? Math.floor(gap.best_similarity * 100) : null;
   // Below GAP_UNRELATED_BELOW the "closest match" is merely the least-unrelated
   // standard and quoting it misleads ("Mechanical Properties of Solids" <-
   // "Explain the physiology of skeletal muscle"), so it is not named.
@@ -1597,11 +1594,14 @@ export function buildGapReason(gap: GapNode, domainCovered: boolean, sourceLabel
   if (gap.best_source_match && isStub(gap.best_source_match)) {
     return `Your ${sourceLabel} coursework only partly covers this — "${topic}" goes beyond what you've studied.`;
   }
-  if (gap.best_source_match && pct != null) {
-    // Kept short: the report lists every partly covered topic of a subject,
-    // and the group heading already says these go beyond what was studied.
-    const match = truncateAtWord(gap.best_source_match, 110);
-    return `Closest in your coursework: "${match}" (${pct}% related).`;
+  if (gap.best_source_match && gap.best_similarity != null) {
+    // Every quoted match is 50-54% related (above the floor it isn't a gap), so
+    // it is a starting point, often a more basic standard ("Develop an
+    // understanding of fractions" for Class 8 fractions), not an equivalent.
+    // No percentage: parents read "52% related" as half covered (T48 b).
+    // Kept short: the report lists every partly covered topic of a subject.
+    const match = truncateAtWord(gap.best_source_match, 110).replace(/\.+$/, '');
+    return `Builds on what your child has studied: "${match}". This topic goes further.`;
   }
   return `No closely related topic was found in your ${sourceLabel} coursework — "${topic}" introduces new content.`;
 }

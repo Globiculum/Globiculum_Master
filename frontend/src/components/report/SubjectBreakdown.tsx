@@ -7,7 +7,7 @@ import {
   type LanguageFamiliarity,
   type useLearningResources,
 } from "@/hooks/useLearningResources";
-import { languageStartNote, subjectGapItems, topicOf, type GapItem } from "@/lib/subjectGaps";
+import { displayGapReason, languageStartNote, subjectGapItems, topicOf, type GapItem } from "@/lib/subjectGaps";
 import { getGapReason } from "@/lib/gapExplanations";
 import { subjectPercent, type ReportSubject } from "@/lib/reportContent";
 import { alignBadgeClass, SUBJECT_COVERAGE, SUBJECT_PACE, SUBJECT_STATUS } from "@/lib/reportDesign";
@@ -85,7 +85,7 @@ function SubjectDetail({ subject, criticalGaps, entryGrade, learning, familiarit
 
   const toRow = (g: GapItem, hideGeneric: boolean): TopicRow => {
     const grade = typeof g === "string" ? undefined : g.grade;
-    const reason = typeof g !== "string" && g.reason ? g.reason : getGapReason(topicOf(g), subject.subject);
+    const reason = typeof g !== "string" && g.reason ? displayGapReason(g.reason) : getGapReason(topicOf(g), subject.subject);
     return {
       topic: topicOf(g),
       url: typeof g === "string" ? undefined : g.resourceUrl,
@@ -128,7 +128,7 @@ function SubjectDetail({ subject, criticalGaps, entryGrade, learning, familiarit
         )}
 
         <TopicGroup title="New to your child" caption="Nothing related appears in their current coursework." rows={fresh} startIndex={0} limit={limit} />
-        <TopicGroup title="Partly covered" caption="Something related was studied; the closest match is shown." rows={partial} startIndex={fresh.length} limit={limit} />
+        <TopicGroup title="Partly covered" caption="Your child has studied something related, shown under each topic; these topics go further." rows={partial} startIndex={fresh.length} limit={limit} />
         <TopicGroup title="Topics to cover" caption="Topics in the new curriculum that need attention." rows={ungraded} startIndex={0} limit={limit} />
 
         {total === 0 && !unassessedReason && <p className="font-body text-[15px] text-muted-foreground">No gaps found in this subject.</p>}

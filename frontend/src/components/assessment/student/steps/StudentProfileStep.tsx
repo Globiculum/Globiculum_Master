@@ -32,7 +32,7 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
   // Schools already captures country + curriculum per entry, so asking for a
   // single board here first just asked the same thing twice. Yes/No now
   // drives previousLocation/previouslyStudiedInIndia directly instead.
-  // Unanswered until Yes or No is picked: the question is required.
+  // Unanswered until Yes or No is picked; the question is optional.
   const [hasPreviousSchool, setHasPreviousSchool] = useState<boolean | null>(
     formData.previouslyStudiedInIndia === "yes" || formData.previousLocation
       ? true
@@ -64,7 +64,7 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
         </div>
 
         <div className="space-y-4">
-          <QuestionCard label="Did you attend an Indian school before?" error={errors.previouslyStudiedInIndia}>
+          <QuestionCard label="Did you attend an Indian school before?" optional error={errors.previouslyStudiedInIndia}>
             <div role="radiogroup" aria-label="Did you attend an Indian school before?" className="flex flex-wrap gap-2">
               <InputCard mode="radio" label="Yes" selected={hasPreviousSchool === true} onClick={() => answerHasPreviousSchool(true)} />
               <InputCard mode="radio" label="No" selected={hasPreviousSchool === false} onClick={() => answerHasPreviousSchool(false)} />

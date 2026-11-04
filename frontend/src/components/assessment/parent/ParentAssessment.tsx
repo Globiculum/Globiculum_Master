@@ -49,7 +49,7 @@ const createDefaultParentFormData = (): ParentFormData => ({
 
   previousLocation: "",
   previousLocationOther: "",
-  previouslyStudiedInIndia: "", // "yes" | "no" once answered — the question is required
+  previouslyStudiedInIndia: "", // "yes" | "no" once answered — the question is optional
   targetGoal: "",
   targetGoalOther: "",
   targetGrade: "",

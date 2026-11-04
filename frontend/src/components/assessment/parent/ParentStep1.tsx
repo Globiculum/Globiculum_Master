@@ -30,7 +30,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
   // Schools already captures country + curriculum per entry, so asking for a
   // single board here first just asked the same thing twice. Yes/No now
   // drives previousLocation/previouslyStudiedInIndia directly instead.
-  // Unanswered until Yes or No is picked: the question is required.
+  // Unanswered until Yes or No is picked; the question is optional.
   const [hasPreviousSchool, setHasPreviousSchool] = useState<boolean | null>(
     formData.previouslyStudiedInIndia === "yes" || formData.previousLocation
       ? true
@@ -58,7 +58,7 @@ const ParentStep1 = ({ formData, onFieldChange, fieldErrors }: ParentStepProps) 
         </div>
 
         <div className="space-y-4">
-          <QuestionCard label="Did your child attend an Indian school before?" error={fieldErrors.previouslyStudiedInIndia}>
+          <QuestionCard label="Did your child attend an Indian school before?" optional error={fieldErrors.previouslyStudiedInIndia}>
             <div role="radiogroup" aria-label="Did your child attend an Indian school before?" className="flex flex-wrap gap-2">
               <InputCard variant="chip" mode="radio" label="Yes" selected={hasPreviousSchool === true} onClick={() => answerHasPreviousSchool(true)} />
               <InputCard variant="chip" mode="radio" label="No" selected={hasPreviousSchool === false} onClick={() => answerHasPreviousSchool(false)} />

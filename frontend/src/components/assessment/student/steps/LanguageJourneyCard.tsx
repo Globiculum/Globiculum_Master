@@ -9,6 +9,7 @@ import InputCard from "../../shared/InputCard";
 import FlashcardShell from "../../shared/FlashcardShell";
 import IndianLanguageQuestion from "../../shared/IndianLanguageQuestion";
 import { newSchoolLanguageGrade, newSchoolLanguageLabel, suggestedNewSchoolLanguage } from "../../shared/newSchoolLanguage";
+import { LANGUAGE_LEVEL_MESSAGE } from "../../shared/stepRules";
 import type { AssessmentFormData } from "../../shared/types";
 import backIcon from "@/assets/icons-3d/back.png";
 
@@ -78,11 +79,13 @@ interface LanguageJourneyCardProps {
   setRecordField: (field: "languageProficiencies", key: string, value: string) => void;
   /** Error for the new-school language (targetLanguage), which is required. */
   error?: string;
-  /** Bumped on each failed Continue; opens the new-school card if it is the one missing. */
+  /** Error when a known Indian language has no familiarity level (languageProficiencies). */
+  levelError?: string;
+  /** Bumped on each failed Continue; opens the card with the missing answer. */
   validationAttempt?: number;
 }
 
-const LanguageJourneyCard = ({ formData, setField, setRecordField, error, validationAttempt = 0 }: LanguageJourneyCardProps) => {
+const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelError, validationAttempt = 0 }: LanguageJourneyCardProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const customIndianLanguages = formData.selectedLanguages.filter((l) => !INDIAN_LANGUAGES.includes(l));
   const hasForeign = !!formData.foreignLanguageName;
@@ -103,15 +106,21 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, valida
   const currentId = order[cardIndex] ?? order[0];
   const total = order.length;
 
-  // A failed Continue with no new-school language opens that card. Coming
-  // from the summary, its Continue returns there; mid-sequence it moves on.
+  // A failed Continue opens the card with the missing answer: a language with
+  // no level, else the new-school language. Coming from the summary, its
+  // Continue returns there; mid-sequence it moves on.
   useLayoutEffect(() => {
-    if (validationAttempt === 0 || !error || !schoolGrade) return;
+    if (validationAttempt === 0) return;
+    const target = levelError ? "indian" : error && schoolGrade ? "school" : null;
+    if (!target) return;
     setEditingSingleCard(phase === "summary");
     setPhase("cards");
-    setCardIndex(order.indexOf("school"));
+    setCardIndex(order.indexOf(target));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validationAttempt]);
+
+  // Every language marked as known needs a level before moving on.
+  const unratedLanguages = formData.selectedLanguages.filter((lang) => !formData.languageProficiencies[lang]);
 
   const chooseSchoolLanguage = (value: string) => {
     setField("targetLanguage", value);
@@ -395,7 +404,7 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, valida
             exit={shouldReduceMotion ? undefined : { opacity: 0, x: -24 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
-            <FlashcardShell accent="violet" invalid={currentId === "school" && !!error}>
+            <FlashcardShell accent="violet" invalid={(currentId === "school" && !!error) || (currentId === "indian" && !!levelError && unratedLanguages.length > 0)}>
               {currentId === "indian" && (
                 <>
                   <div className="flex flex-col items-center text-center">
@@ -471,8 +480,12 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, valida
                           <span className="text-base font-bold text-foreground">{lang}</span>
                           <Select value={formData.languageProficiencies[lang]} onValueChange={(value) => rateIndianLanguage(lang, value)}>
                             <SelectTrigger
-                              className="h-8 w-auto min-w-[132px] gap-1.5 rounded-full border-none bg-muted/60 px-3 text-sm font-semibold text-secondary shadow-none hover:bg-muted"
+                              className={cn(
+                                "h-8 w-auto min-w-[132px] gap-1.5 rounded-full border-none bg-muted/60 px-3 text-sm font-semibold text-secondary shadow-none hover:bg-muted",
+                                !formData.languageProficiencies[lang] && "ring-1 ring-amber-400"
+                              )}
                               aria-label={`${lang} familiarity`}
+                              aria-invalid={!formData.languageProficiencies[lang]}
                             >
                               <SelectValue placeholder="Rate familiarity" />
                             </SelectTrigger>
@@ -489,10 +502,16 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, valida
                     </div>
                   )}
 
+                  {unratedLanguages.length > 0 && (
+                    <p role="status" className="mt-4 text-center text-xs font-medium text-amber-700 dark:text-amber-400">
+                      {LANGUAGE_LEVEL_MESSAGE}
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={advance}
-                    className="mt-5 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    disabled={unratedLanguages.length > 0}
+                    className="mt-5 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:no-underline"
                   >
                     {formData.selectedLanguages.length > 0 ? "Continue →" : "I don't know any Indian languages →"}
                   </button>

@@ -84,7 +84,7 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   usStateOther: "",
   previousLocation: "",
   previousLocationOther: "",
-  previouslyStudiedInIndia: "", // "yes" | "no" once answered — the question is required
+  previouslyStudiedInIndia: "", // "yes" | "no" once answered — the question is optional
   educationHistory: [],
 
   currentCurriculum: [],

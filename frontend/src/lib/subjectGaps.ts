@@ -25,6 +25,18 @@ export function subjectGapItems(subject: string, keyGaps: GapItem[], criticalGap
   return [...keyGaps, ...extra];
 }
 
+/**
+ * A gap's "why" as shown. Reports saved before 4 Nov quote the nearest US
+ * standard as `Closest in your coursework: "..." (52% related).`; every such
+ * match is a weak 50-54%, often a more basic standard, and parents read the
+ * number as "half covered". Shown in the current wording (curriculumGaps.ts
+ * gapReason, T48 b): the starting point, no percentage.
+ */
+export function displayGapReason(reason: string): string {
+  const m = /^Closest in your coursework: "(.*)" \(\d+% related\)\.?$/s.exec(reason.trim());
+  return m ? `Builds on what your child has studied: "${m[1].replace(/\.+$/, "")}". This topic goes further.` : reason;
+}
+
 /** Where to start, for a language the student has never studied (Hindi, Sanskrit). */
 export function languageStartNote(subject: string, criticalGaps: GapItem[]): string | undefined {
   const g = criticalGaps.find((c) => typeof c !== "string" && norm(c.topic) === norm(subject));

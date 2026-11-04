@@ -228,6 +228,7 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
         setField={setField}
         setRecordField={setRecordField}
         error={errors.targetLanguage}
+        levelError={errors.languageProficiencies}
         validationAttempt={validationAttempt}
       />
 

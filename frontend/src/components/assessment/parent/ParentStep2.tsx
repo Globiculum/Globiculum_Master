@@ -436,6 +436,7 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
           onFieldChange={onFieldChange}
           onRecordFieldChange={onRecordFieldChange}
           error={fieldErrors.targetLanguage}
+          levelError={fieldErrors.languageProficiencies}
           validationAttempt={validationAttempt}
         />
       </div>

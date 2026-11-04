@@ -4,6 +4,7 @@ import { gradeHasStream, normalizeTargetStream } from "@/hooks/useCurriculumSubj
 import {
   SUBJECTS_INCOMPLETE_MESSAGE,
   checkPreviousSchooling,
+  languageLevelError,
   newSchoolLanguageError,
   previousSchoolingFields,
   type StepContext,
@@ -100,5 +101,7 @@ export function validateStudentAssessmentStep(
   }
   const languageError = stepId === "academic" ? newSchoolLanguageError(formData) : undefined;
   if (languageError) errors.targetLanguage = languageError;
+  const levelError = stepId === "academic" ? languageLevelError(formData) : undefined;
+  if (levelError) errors.languageProficiencies = levelError;
   return { valid: Object.keys(errors).length === 0, errors };
 }

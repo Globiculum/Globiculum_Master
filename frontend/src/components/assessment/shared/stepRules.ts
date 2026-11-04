@@ -24,6 +24,18 @@ export function newSchoolLanguageError(data: {
   return "Choose the Indian language at the new school, or Not decided yet";
 }
 
+export const LANGUAGE_LEVEL_MESSAGE = "Pick a level for each language";
+
+/** Each Indian language marked as known needs a familiarity level: without it
+ * the report can't tell a beginner from a fluent speaker and starts the child
+ * at beginner material (T48 c). */
+export function languageLevelError(data: {
+  selectedLanguages: string[];
+  languageProficiencies: Record<string, string>;
+}): string | undefined {
+  return data.selectedLanguages.some((lang) => !data.languageProficiencies?.[lang]) ? LANGUAGE_LEVEL_MESSAGE : undefined;
+}
+
 export const SUBJECTS_INCOMPLETE_MESSAGE = "Answer every subject: pick a level, or mark it as not taken";
 
 export const previousSchoolingFields = {
@@ -31,16 +43,12 @@ export const previousSchoolingFields = {
   educationHistory: z.array(z.custom<EducationHistoryEntry>()),
 };
 
-/** "Attended an Indian school before?" must be answered; a Yes needs at least
- * one prior school with every field filled. */
+/** "Attended an Indian school before?" is optional; a Yes needs at least one
+ * prior school with every field filled. */
 export function checkPreviousSchooling(
   data: { previouslyStudiedInIndia?: string; educationHistory?: EducationHistoryEntry[] },
   ctx: z.RefinementCtx
 ) {
-  if (data.previouslyStudiedInIndia !== "yes" && data.previouslyStudiedInIndia !== "no") {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please answer Yes or No", path: ["previouslyStudiedInIndia"] });
-    return;
-  }
   if (data.previouslyStudiedInIndia !== "yes") return;
   const complete = (e: EducationHistoryEntry) => !!(e?.fromGrade && e?.toGrade && e?.country && e?.curriculum);
   const entries = data.educationHistory ?? [];
