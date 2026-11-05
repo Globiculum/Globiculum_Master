@@ -165,7 +165,7 @@ function SubjectDetail({ subject, criticalGaps, entryGrade, learning, familiarit
   );
 }
 
-const isFamiliarity = (v: unknown): v is LanguageFamiliarity => v === "beginner" || v === "intermediate" || v === "fluent";
+const isFamiliarity = (v: unknown): v is LanguageFamiliarity => v === "new" || v === "beginner" || v === "intermediate" || v === "fluent";
 
 /**
  * One card per subject, in the earlier report's card style and order:

@@ -24,8 +24,9 @@ export interface LearningResource {
   parts?: { label: string; url: string }[];
 }
 
-/** Familiarity picked on the form's language card (languageProficiencies). */
-export type LanguageFamiliarity = "beginner" | "intermediate" | "fluent";
+/** Familiarity picked on the form's language card (languageProficiencies);
+ * "new": never studied, picked for the new-school language. */
+export type LanguageFamiliarity = "new" | "beginner" | "intermediate" | "fluent";
 
 export interface ResourceGroup {
   heading: string;
@@ -50,6 +51,8 @@ export function languageStartNote(subject: string, grade: number, familiarity?: 
       return `Marked as Intermediate: the basics are there; focus on grammar and writing with the next-step and Class ${grade} material.`;
     case "beginner":
       return `Marked as Beginner: build the script and everyday words with the starter resources first, then move up to Class ${grade} material.`;
+    case "new":
+      return `Marked as New to ${subject}: start from the script and everyday words with the starter resources, then work up to Class ${grade} material.`;
     default:
       return `Not marked as known on the form: start with the starter resources, then work up to Class ${grade} material.`;
   }

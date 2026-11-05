@@ -18,10 +18,13 @@ export interface UseStudentAssessmentStateResult {
 }
 
 export function useStudentAssessmentState(
-  prefillData?: Partial<AssessmentFormData>
+  prefillData?: Partial<AssessmentFormData>,
+  /** Answers restored from this tab's saved draft; used instead of prefillData. */
+  restoredData?: Partial<AssessmentFormData>
 ): UseStudentAssessmentStateResult {
   const [formData, setFormData] = useState<AssessmentFormData>(() => {
     const defaults = createDefaultAssessmentFormData();
+    if (restoredData) return { ...defaults, ...restoredData };
     const merged: AssessmentFormData = { ...defaults, ...prefillData };
     // Older saved reports stored currentCurriculum as a single string —
     // normalize into the list shape this field now uses.

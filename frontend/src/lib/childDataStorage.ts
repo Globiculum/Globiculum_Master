@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
  * stores child data here.
  */
 export const CHILD_DATA_SESSION_KEYS = [
-  "assessment-form-data",   // submitAssessment.ts, ParentAssessment.tsx, ReportPreview.tsx
+  "assessment-form-data",   // submitAssessment.ts, ReportPreview.tsx
+  "assessment-draft",       // lib/assessmentDraft.ts: answers saved while the form is filled
   "saved-report-analysis",  // ReportPreview.tsx
   "saved-report-id",        // ReportPreview.tsx
   "globiculum-selected-persona", // BeginJourney.tsx, ReportPreview.tsx

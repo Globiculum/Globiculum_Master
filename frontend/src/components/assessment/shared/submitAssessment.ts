@@ -70,6 +70,30 @@ export const deriveSubjectStrengths = (
   return { strongest, challenging };
 };
 
+/** Longest "Additional notes" text sent to the AI; analyze-curriculum keeps the same cap. */
+export const NOTES_MAX_CHARS = 1000;
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * The "Additional notes" text as sent to the AI: trimmed and capped, with the
+ * child's own names replaced by "the child". The analysis never needs the name,
+ * and the rest of the form is sent without it too.
+ */
+export function notesForAnalysis(formData: Record<string, unknown> | null | undefined): string | undefined {
+  const raw = typeof formData?.additionalNotes === "string" ? formData.additionalNotes : "";
+  let notes = raw.trim();
+  if (!notes) return undefined;
+  const names = [formData?.childName, formData?.childLastName, formData?.studentName, formData?.studentLastName]
+    .filter((n): n is string => typeof n === "string" && n.trim().length >= 2)
+    .map((n) => n.trim());
+  for (const name of names) {
+    // Whole words only, any script (so "Ana" doesn't change "Banana").
+    notes = notes.replace(new RegExp(`(?<!\\p{L})${escapeRegExp(name)}(?!\\p{L})`, "giu"), "the child");
+  }
+  return notes.slice(0, NOTES_MAX_CHARS);
+}
+
 export interface SubmitAssessmentFieldError {
   field: string;
   message: string;
@@ -211,6 +235,8 @@ export async function submitAssessment<T extends SubmittableFormData>({
           challengingAreas: challenging.length > 0 ? challenging : undefined,
           languagesSpoken: formData.selectedLanguages.length > 0 ? formData.selectedLanguages : undefined,
           transitionTimeline: formData.timeline || undefined,
+          // Read by the AI to personalise the plan and its "About your notes" reply.
+          additionalNotes: notesForAnalysis(formData as unknown as Record<string, unknown>),
         },
       },
       headers: { "X-API-Version": "v1" },

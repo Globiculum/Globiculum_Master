@@ -67,6 +67,6 @@ export interface ParentFormData {
   // Step 4: Concerns & Support
   transitionConcerns: string[];
   supportNeeds: string[];
-  // Frontend-only — see Step 4 for details. Never included in the submission payload.
+  // Sent to the AI (child's names removed, see notesForAnalysis) to personalise the report.
   additionalNotes: string;
 }

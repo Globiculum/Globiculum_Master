@@ -7,11 +7,11 @@ export interface PlanMonth {
 }
 
 /** Indigo marks AI-generated content (brand rule); the dot carries the colour, text stays navy for contrast. */
-export function AiSuggestedTag() {
+export function AiSuggestedTag({ label = "AI-suggested from the gaps above" }: { label?: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-violet/10 px-2.5 py-1 font-heading text-xs font-medium text-primary ring-1 ring-inset ring-violet/25">
       <Sparkles className="h-3.5 w-3.5 text-violet" aria-hidden="true" />
-      AI-suggested from the gaps above
+      {label}
     </span>
   );
 }

@@ -20,6 +20,7 @@ import emotionalWellbeingIcon from "@/assets/icons-3d/emotional-wellbeing.png";
 import learningStyleIcon from "@/assets/icons-3d/learning-style.png";
 import targetGradeIcon from "@/assets/icons-3d/target-grade.png";
 import childProfileIcon from "@/assets/icons-3d/child-profile.png";
+import { NOTES_MAX_CHARS } from "../shared/submitAssessment";
 
 // Phase D: Parent Learning Profile. Originally a 4-card flashcard sequence
 // (Learning Style, Typical Grade Range, Overall Performance, Strengthen for
@@ -213,12 +214,15 @@ const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, f
                     </GlobiculumIconTile>
                   </div>
                   <h4 className="text-xl font-bold text-foreground">Additional Notes</h4>
-                  <p className="mt-1 text-sm text-muted-foreground">Anything else you&rsquo;d like us to know? This one&rsquo;s optional.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Anything else you&rsquo;d like us to know? We&rsquo;ll take it into account in the report. This one&rsquo;s optional.
+                  </p>
                 </div>
                 <div className="relative mt-6">
                   <Textarea
                     id="additional-notes"
                     rows={4}
+                    maxLength={NOTES_MAX_CHARS}
                     placeholder="Anything else you'd like us to know about your child's transition..."
                     value={formData.additionalNotes}
                     onChange={(e) => onFieldChange("additionalNotes", e.target.value)}
@@ -226,7 +230,12 @@ const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, f
                   />
                   <VoiceInputButton
                     label="Say your notes"
-                    onResult={(text) => onFieldChange("additionalNotes", formData.additionalNotes ? `${formData.additionalNotes} ${text}` : text)}
+                    onResult={(text) =>
+                      onFieldChange(
+                        "additionalNotes",
+                        (formData.additionalNotes ? `${formData.additionalNotes} ${text}` : text).slice(0, NOTES_MAX_CHARS)
+                      )
+                    }
                     className="absolute right-2 top-2"
                   />
                 </div>

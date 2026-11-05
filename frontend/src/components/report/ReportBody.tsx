@@ -10,6 +10,7 @@ import { StreamReadiness } from "@/components/report/StreamReadiness";
 import { AiSuggestedTag, PreparationPlan } from "@/components/report/PreparationPlan";
 import { ThisWeek } from "@/components/report/ThisWeek";
 import { ParentQuestions } from "@/components/report/ParentQuestions";
+import { NotesResponse } from "@/components/report/NotesResponse";
 import {
   boardComparisonNote, boardLabel, buildActionPlan, buildExecutiveSummary, buildKeyTakeaways, buildParentFAQ, orderSubjectsByNeed,
 } from "@/lib/reportContent";
@@ -248,6 +249,8 @@ export interface AnalysisData {
     resources: ResourceItem[];
     culturalLanguage: string[];
   };
+  /** The AI's reply to the form's "Additional notes"; only when notes were given. */
+  notesResponse?: string;
 }
 
 interface ReportBodyProps {
@@ -347,6 +350,11 @@ export function ReportBody({ formData, analysis, onDownload, onShare, isSharing 
           notes={notes}
           timeline={formData.timeline}
         />
+        {typeof analysis.notesResponse === "string" && analysis.notesResponse.trim() && (
+          <div className="mt-4">
+            <NotesResponse text={analysis.notesResponse.trim()} />
+          </div>
+        )}
       </ReportSection>
 
       <ReportSection id="subjects">

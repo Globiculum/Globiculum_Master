@@ -356,7 +356,9 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
               ].map(({ title, courses }) => (
                 <div key={title} className="mt-5">
                   <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h5>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {/* Phones: pills sized to their text (two fixed columns squeezed
+                      them into three lines); wider screens: three columns. */}
+                  <div className="flex flex-wrap gap-2 sm:grid sm:grid-cols-3">
                     {courses.map((ap) => (
                       <InputCard
                         key={ap}

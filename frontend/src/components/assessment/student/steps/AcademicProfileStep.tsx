@@ -1,7 +1,10 @@
 import { useEffect } from "react";
+import { Check } from "lucide-react";
 import type { StudentStepProps } from "./types";
+import { GlobiculumIconTile, GlobiculumSuccessIcon, GlobiculumTargetIcon } from "@/components/icons";
 import SectionCard from "../../shared/SectionCard";
-import QuestionCard from "../../shared/QuestionCard";
+import SingleCardSection from "../../shared/SingleCardSection";
+import FieldError from "../../shared/FieldError";
 import InputCard from "../../shared/InputCard";
 import AcademicPathFlashcards from "./AcademicPathFlashcards";
 import LanguageJourneyCard from "./LanguageJourneyCard";
@@ -139,6 +142,8 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
     onSubjectsCompleteChange?.(subjectsComplete);
   }, [subjectsComplete, onSubjectsCompleteChange]);
 
+  const coursesAdded = ALL_COURSES.filter((course) => formData.academicPath.includes(course)).length;
+
   return (
     <SectionCard logo={childLogo} title="Academic Path">
       <div className="-mt-4 text-sm text-muted-foreground">Tell us what you're studying right now.</div>
@@ -189,17 +194,39 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
       {formData.schoolStage === "high" && (
         // Same course list as the parent flow (shared/highSchoolCourses.ts):
         // the report credits what these courses teach beyond state standards.
-        <QuestionCard
-          label="High School & AP Courses"
-          tooltip="Courses you have taken or are taking. State standards are a minimum; these tell us what you actually covered."
+        // Same layout as the parent's section (rail on the left, card on the right).
+        <SingleCardSection
+          railTitle="Courses"
+          itemLabel="High School & AP Courses"
+          itemDetail={coursesAdded > 0 ? `${coursesAdded} added` : "None added"}
+          complete={coursesAdded > 0}
+          ariaLabel="Courses progress"
         >
+          <div className="flex flex-col items-center text-center">
+            <div className="mb-4">
+              <GlobiculumIconTile tone="teal" size={64}>
+                <GlobiculumTargetIcon size={34} />
+              </GlobiculumIconTile>
+            </div>
+            <h4 className="text-xl font-bold text-foreground">High School & AP Courses</h4>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Courses you have taken or are taking. State standards are a minimum; these tell us what you actually covered.
+            </p>
+            {coursesAdded > 0 && (
+              <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-secondary">
+                <Check className="h-3.5 w-3.5" aria-hidden="true" /> {coursesAdded} added
+              </p>
+            )}
+          </div>
           {[
             { title: "Courses", courses: HIGH_SCHOOL_COURSES },
             { title: "AP courses", courses: AP_COURSES },
           ].map(({ title, courses }) => (
-            <div key={title} className="mt-3 first:mt-0">
+            <div key={title} className="mt-5">
               <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h5>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {/* Phones: pills sized to their text (two fixed columns squeezed
+                  them into three lines); wider screens: three columns. */}
+              <div className="flex flex-wrap gap-2 sm:grid sm:grid-cols-3">
                 {courses.map((course) => {
                   const selected = formData.academicPath.includes(course);
                   return (
@@ -220,24 +247,47 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
               </div>
             </div>
           ))}
-        </QuestionCard>
+          {coursesAdded > 0 && (
+            <button
+              type="button"
+              onClick={() => document.getElementById("language-exposure-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="mt-6 flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-secondary hover:underline"
+            >
+              <Check className="h-3.5 w-3.5" aria-hidden="true" /> Done — continue to Language Exposure →
+            </button>
+          )}
+        </SingleCardSection>
       )}
 
-      <LanguageJourneyCard
-        formData={formData}
-        setField={setField}
-        setRecordField={setRecordField}
-        error={errors.targetLanguage}
-        levelError={errors.languageProficiencies}
-        validationAttempt={validationAttempt}
-      />
+      <div id="language-exposure-section">
+        <LanguageJourneyCard
+          formData={formData}
+          setField={setField}
+          setRecordField={setRecordField}
+          error={errors.targetLanguage}
+          levelError={errors.languageProficiencies}
+          validationAttempt={validationAttempt}
+        />
+      </div>
 
-      <QuestionCard
-        label="Overall Performance"
-        tooltip="A general sense of how you're performing academically overall."
-        error={errors.overallPerformance}
+      <SingleCardSection
+        railTitle="Overall Performance"
+        itemLabel="Overall Performance"
+        complete={!!formData.overallPerformance}
+        accent="teal"
+        invalid={!!errors.overallPerformance}
+        ariaLabel="Overall performance"
       >
-        <div role="radiogroup" aria-label="Overall Performance" className="flex flex-wrap gap-2">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4">
+            <GlobiculumIconTile tone="violet" size={64}>
+              <GlobiculumSuccessIcon size={34} />
+            </GlobiculumIconTile>
+          </div>
+          <h4 className="text-xl font-bold text-foreground">Overall Performance</h4>
+          <p className="mt-1 text-sm text-muted-foreground">A general sense of how you&apos;re performing academically overall.</p>
+        </div>
+        <div role="radiogroup" aria-label="Overall Performance" className="mt-6 flex flex-wrap justify-center gap-2">
           {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
             <InputCard
               key={opt.value}
@@ -249,7 +299,8 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
             />
           ))}
         </div>
-      </QuestionCard>
+        <FieldError message={errors.overallPerformance} />
+      </SingleCardSection>
     </SectionCard>
   );
 };

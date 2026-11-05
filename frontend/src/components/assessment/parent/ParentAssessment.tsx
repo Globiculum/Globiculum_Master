@@ -9,7 +9,9 @@ import ParentStep3 from "./ParentStep3";
 import ParentStep5 from "./ParentStep5";
 import { validateParentStep, PARENT_TOTAL_STEPS } from "./parentValidation";
 import type { ParentFormData } from "./parentMapper";
+import RestoredDraftBanner from "../shared/RestoredDraftBanner";
 import { normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
+import { saveDraft, type AssessmentDraft } from "@/lib/assessmentDraft";
 
 // ParentAssessment.tsx — the dedicated Parent state owner and step
 // controller. Fully isolated from the Student module: its own state
@@ -23,6 +25,12 @@ interface ParentAssessmentProps {
   prevReportId?: string;
   onChangePersona: () => void;
   showChangePersona?: boolean;
+  /** Answers saved earlier in this tab, restored in place of the defaults/prefill. */
+  draft?: AssessmentDraft | null;
+  /** Signed-in user, recorded on the saved draft; undefined before signing in. */
+  userId?: string;
+  /** Discards the restored answers and starts an empty form. */
+  onStartOver?: () => void;
 }
 
 const STEPPER_STEPS: AssessmentStepperStep[] = [
@@ -157,19 +165,41 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
       prefillData.subjectConfidences && typeof prefillData.subjectConfidences === "object"
         ? prefillData.subjectConfidences
         : defaults.subjectConfidences,
-    // additionalNotes has no backend-persisted equivalent, so it is never prefilled from a saved report.
+    // Saved with the report (form_data) and read by the AI, so a retake keeps it.
+    additionalNotes: typeof prefillData.additionalNotes === "string" ? prefillData.additionalNotes : defaults.additionalNotes,
   };
 };
 
-const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChangePersona = true }: ParentAssessmentProps) => {
+const ParentAssessment = ({
+  prefillData,
+  prevReportId,
+  onChangePersona,
+  showChangePersona = true,
+  draft,
+  userId,
+  onStartOver,
+}: ParentAssessmentProps) => {
   const isRetake = Boolean(prefillData);
-  // Retakes land directly on the Review step so the user immediately sees all
-  // their pre-filled data and only needs to change what they want.
-  const [currentStep, setCurrentStep] = useState(() => isRetake ? PARENT_TOTAL_STEPS - 1 : 0);
-  const [formData, setFormData] = useState<ParentFormData>(() => mergePrefillData(createDefaultParentFormData(), prefillData));
+  // A restored draft wins over the defaults and the retake prefill: it holds the
+  // newer answers. Otherwise retakes land directly on the Review step so the
+  // user immediately sees all their pre-filled data and only needs to change
+  // what they want.
+  const [currentStep, setCurrentStep] = useState(() =>
+    draft
+      ? Math.max(0, Math.min(draft.step, PARENT_TOTAL_STEPS - 1))
+      : isRetake ? PARENT_TOTAL_STEPS - 1 : 0
+  );
+  const [formData, setFormData] = useState<ParentFormData>(() =>
+    draft
+      ? { ...createDefaultParentFormData(), ...(draft.formData as Partial<ParentFormData>) }
+      : mergePrefillData(createDefaultParentFormData(), prefillData)
+  );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [validationAttempt, setValidationAttempt] = useState(0);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  // "We kept your answers" shows until the user moves to another step.
+  const [showRestored, setShowRestored] = useState(() => !!draft && !isRetake);
 
   useScrollToFirstInvalidField(validationAttempt);
 
@@ -179,10 +209,23 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
   // Continue stays dimmed until every required answer on the step is in.
   const canProceed = validateParentStep(currentStep, formData, stepContext).valid;
 
-  // Auto-save (sessionStorage, same key/shape submitAssessment already persists on
-  // submit — no Supabase call, no payload/validation change). Debounced so rapid
-  // typing doesn't hit storage on every keystroke; skips the mount-time run so
-  // loading a prefilled/draft report doesn't flash "Saved" before the user touches it.
+  // Auto-save to this tab's draft (lib/assessmentDraft.ts), restored after a
+  // refresh. Answers are debounced
+  // so rapid typing doesn't hit storage on every keystroke; a step change is
+  // saved at once. Both read the latest values from a ref, so a pending answer
+  // save can't write back an older step. The mount-time run is skipped, so
+  // opening a prefilled or restored form doesn't flash "Saved".
+  const latest = useRef({ formData, currentStep, userId });
+  latest.current = { formData, currentStep, userId };
+  const writeDraft = () =>
+    saveDraft({
+      persona: "parent",
+      ownerId: latest.current.userId ?? null,
+      prevReportId: prevReportId ?? null,
+      step: latest.current.currentStep,
+      formData: latest.current.formData as unknown as Record<string, unknown>,
+    });
+
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) {
@@ -191,11 +234,23 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
     }
     setSaveStatus("saving");
     const saveTimeout = setTimeout(() => {
-      sessionStorage.setItem("assessment-form-data", JSON.stringify(formData));
+      writeDraft();
       setSaveStatus("saved");
     }, 600);
     return () => clearTimeout(saveTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- writeDraft reads the latest values from a ref
   }, [formData]);
+
+  const isFirstStepRender = useRef(true);
+  useEffect(() => {
+    if (isFirstStepRender.current) {
+      isFirstStepRender.current = false;
+      return;
+    }
+    setShowRestored(false);
+    writeDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
+  }, [currentStep]);
 
   useEffect(() => {
     if (saveStatus !== "saved") return;
@@ -318,6 +373,11 @@ const ParentAssessment = ({ prefillData, prevReportId, onChangePersona, showChan
       isLastStep={currentStep === PARENT_TOTAL_STEPS - 1}
       isRetake={isRetake}
       onSkipToReview={isRetake && currentStep < PARENT_TOTAL_STEPS - 1 ? handleSkipToReview : undefined}
+      banner={
+        showRestored && onStartOver ? (
+          <RestoredDraftBanner onStartOver={onStartOver} />
+        ) : null
+      }
     >
       <div key={currentStep} className="animate-in fade-in-0 slide-in-from-right-2 duration-300">
         {renderStep()}

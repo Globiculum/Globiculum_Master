@@ -4,6 +4,7 @@ import type { StudentStepProps } from "./types";
 import SectionCard from "../../shared/SectionCard";
 import QuestionCard from "../../shared/QuestionCard";
 import VoiceInputButton from "../../shared/VoiceInputButton";
+import { NOTES_MAX_CHARS } from "../../shared/submitAssessment";
 import childLogo from "@/assets/childlogo.png";
 import learningStyleIcon from "@/assets/icons-3d/learning-style.png";
 import curriculumIcon from "@/assets/icons-3d/curriculum.png";
@@ -167,11 +168,17 @@ const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentSte
         </div>
       </QuestionCard>
 
-      <QuestionCard label="Anything else you'd like to share?" htmlFor="additional-notes" optional tooltip="Share anything else that would help us understand your situation better.">
+      <QuestionCard
+        label="Anything else you'd like to share?"
+        htmlFor="additional-notes"
+        optional
+        tooltip="Share anything else that would help us understand your situation better. We'll take it into account in your report."
+      >
         <div className="relative">
           <Textarea
             id="additional-notes"
             rows={4}
+            maxLength={NOTES_MAX_CHARS}
             placeholder="Share anything that would help us understand you better..."
             value={formData.additionalNotes}
             onChange={(e) => setField("additionalNotes", e.target.value)}
@@ -179,7 +186,9 @@ const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentSte
           />
           <VoiceInputButton
             label="Say your answer"
-            onResult={(text) => setField("additionalNotes", formData.additionalNotes ? `${formData.additionalNotes} ${text}` : text)}
+            onResult={(text) =>
+              setField("additionalNotes", (formData.additionalNotes ? `${formData.additionalNotes} ${text}` : text).slice(0, NOTES_MAX_CHARS))
+            }
             className="absolute right-2 top-2"
           />
         </div>

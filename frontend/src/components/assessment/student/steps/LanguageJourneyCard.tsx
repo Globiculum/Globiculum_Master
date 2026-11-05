@@ -8,8 +8,8 @@ import { GlobiculumChecklistIcon, GlobiculumEducationIcon, GlobiculumGlobeIcon, 
 import InputCard from "../../shared/InputCard";
 import FlashcardShell from "../../shared/FlashcardShell";
 import IndianLanguageQuestion from "../../shared/IndianLanguageQuestion";
-import { newSchoolLanguageGrade, newSchoolLanguageLabel, suggestedNewSchoolLanguage } from "../../shared/newSchoolLanguage";
-import { LANGUAGE_LEVEL_MESSAGE } from "../../shared/stepRules";
+import { NEW_TO_LANGUAGE, newSchoolLanguageGrade, newSchoolLanguageLabel, schoolLanguages, suggestedNewSchoolLanguage } from "../../shared/newSchoolLanguage";
+import { LANGUAGE_LEVEL_MESSAGE, hasKnownLanguageLevel, missingSchoolLanguageLevels } from "../../shared/stepRules";
 import type { AssessmentFormData } from "../../shared/types";
 import backIcon from "@/assets/icons-3d/back.png";
 
@@ -120,11 +120,35 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
   }, [validationAttempt]);
 
   // Every language marked as known needs a level before moving on.
-  const unratedLanguages = formData.selectedLanguages.filter((lang) => !formData.languageProficiencies[lang]);
+  const unratedLanguages = formData.selectedLanguages.filter((lang) => !hasKnownLanguageLevel(formData.languageProficiencies[lang]));
+  // So does Hindi or Sanskrit chosen for the new school.
+  const unratedSchoolLanguages = schoolGrade ? missingSchoolLanguageLevels(formData.targetLanguage, formData.languageProficiencies) : [];
 
+  // A "New to it" level belongs to the new-school choice; drop it for a
+  // language that is no longer chosen there (see ParentLanguageJourneyCard).
   const chooseSchoolLanguage = (value: string) => {
     setField("targetLanguage", value);
     setSuggested(false);
+    const keep = schoolLanguages(value);
+    const levels = Object.entries(formData.languageProficiencies);
+    if (levels.some(([lang, level]) => level === NEW_TO_LANGUAGE && !keep.includes(lang))) {
+      setField(
+        "languageProficiencies",
+        Object.fromEntries(levels.filter(([lang, level]) => level !== NEW_TO_LANGUAGE || keep.includes(lang)))
+      );
+    }
+  };
+
+  // A level picked for the new-school language: a real level adds it to the
+  // known languages, "New to it" takes it out (see ParentLanguageJourneyCard).
+  const rateSchoolLanguage = (lang: string, level: string) => {
+    const known = formData.selectedLanguages.includes(lang);
+    if (level === NEW_TO_LANGUAGE && known) {
+      setField("selectedLanguages", formData.selectedLanguages.filter((l) => l !== lang));
+    } else if (level !== NEW_TO_LANGUAGE && !known) {
+      setField("selectedLanguages", [...formData.selectedLanguages, lang]);
+    }
+    setRecordField("languageProficiencies", lang, level);
   };
   const position = cardIndex + 1;
 
@@ -161,6 +185,13 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
       removeLanguage(lang);
     } else {
       setField("selectedLanguages", [...formData.selectedLanguages, lang]);
+      // Marked "New to it" for the new school, now marked as known: needs a real level.
+      if (formData.languageProficiencies[lang] === NEW_TO_LANGUAGE) {
+        setField(
+          "languageProficiencies",
+          Object.fromEntries(Object.entries(formData.languageProficiencies).filter(([key]) => key !== lang))
+        );
+      }
     }
   };
 
@@ -229,153 +260,167 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
 
   const navItems = order.map((id, idx) => {
     const answered =
-      id === "indian" ? formData.selectedLanguages.length > 0 : id === "school" ? !!formData.targetLanguage : hasForeign;
+      id === "indian"
+        ? formData.selectedLanguages.length > 0
+        : id === "school"
+          ? !!formData.targetLanguage && unratedSchoolLanguages.length === 0
+          : hasForeign;
     const status = answered ? "completed" : phase === "summary" ? "skipped" : idx === cardIndex ? "current" : idx < cardIndex ? "skipped" : "upcoming";
     return { id, label: CARD_LABEL[id], status, onClick: status === "completed" || status === "skipped" ? () => editCard(id) : undefined };
   });
+
+  // The left rail (desktop). Shown in the cards and in the summary, so the
+  // finished section keeps the same width as the other Academic Path sections.
+  const rail = (
+    <nav aria-label="Language exposure progress" className="hidden lg:block lg:w-[232px] lg:shrink-0">
+      <div className="lg:sticky lg:top-4">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Language Exposure</h3>
+        <ol className="mt-3">
+          {navItems.map((item, i) => (
+            <li key={item.id} className="relative pb-3 last:pb-0">
+              {i !== navItems.length - 1 && (
+                <span
+                  className={cn("absolute left-[9px] top-6 h-full w-0.5", item.status === "completed" || item.status === "skipped" ? "bg-secondary" : "bg-border")}
+                  aria-hidden="true"
+                />
+              )}
+              {item.onClick ? (
+                <button type="button" onClick={item.onClick} className="relative z-10 flex w-full items-center gap-2.5 rounded-lg p-0.5 text-left transition-colors hover:bg-muted/40">
+                  <span
+                    className={cn(
+                      "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
+                      item.status === "completed" ? "border-secondary bg-secondary text-secondary-foreground" : "border-border bg-card"
+                    )}
+                  >
+                    {item.status === "completed" && <Check className="h-3 w-3" aria-hidden="true" />}
+                    {item.status === "skipped" && <Minus className="h-2.5 w-2.5" aria-hidden="true" />}
+                  </span>
+                  <span className={cn("block truncate text-sm", item.status === "completed" ? "font-medium text-secondary" : "text-muted-foreground")}>{item.label}</span>
+                </button>
+              ) : (
+                <div className="relative z-10 flex items-center gap-2.5 rounded-lg p-0.5">
+                  <span
+                    className={cn(
+                      "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
+                      item.status === "current" ? "border-violet bg-violet" : "border-border bg-card"
+                    )}
+                  >
+                    {item.status === "current" && <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />}
+                  </span>
+                  <span className={cn("block truncate text-sm", item.status === "current" ? "font-semibold text-foreground" : "text-muted-foreground")}>{item.label}</span>
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </nav>
+  );
 
   if (phase === "summary") {
     const schoolLanguage = schoolGrade ? newSchoolLanguageLabel(formData.targetLanguage) : undefined;
     const totalSelected = formData.selectedLanguages.length + (hasForeign ? 1 : 0) + (schoolLanguage ? 1 : 0);
 
     return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-muted-foreground">Language Exposure</span>
-          <button type="button" onClick={backToCards} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
-            ← Back
-          </button>
-        </div>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        {rail}
 
-        <FlashcardShell>
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-3">
-              <GlobiculumIconTile tone="teal" size={52}>
-                <GlobiculumChecklistIcon size={28} />
-              </GlobiculumIconTile>
-            </div>
-            <h3 className="text-lg font-bold text-foreground">Language Exposure is ready</h3>
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Complete</span>
+            <button type="button" onClick={backToCards} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+              ← Back
+            </button>
           </div>
 
-          {totalSelected === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">No additional language exposure.</p>
-          ) : (
-            <div className="mt-5 space-y-1.5">
-              {formData.selectedLanguages.map((lang) => (
-                <div key={lang} className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => editCard("indian")}
-                    className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
-                  >
-                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
-                      {lang}
-                    </span>
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {INDIAN_LEVELS.find((lv) => lv.value === formData.languageProficiencies[lang])?.label ?? "—"}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeLanguage(lang)}
-                    aria-label={`Remove ${lang}`}
-                    className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-              {schoolLanguage && (
-                <button
-                  type="button"
-                  onClick={() => editCard("school")}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
-                >
-                  <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
-                    Class {schoolGrade} at the new school
-                  </span>
-                  <span className="text-xs font-semibold text-muted-foreground">{schoolLanguage}</span>
-                </button>
-              )}
-              {hasForeign && (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => editCard("foreign")}
-                    className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
-                  >
-                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
-                      {foreignLabel(formData)}
-                    </span>
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {FOREIGN_LEVELS.find((lv) => lv.value === formData.foreignLanguageLevel)?.label ?? "—"}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setField("foreignLanguageName", ""); setField("foreignLanguageLevel", ""); }}
-                    aria-label="Remove foreign language"
-                    className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
+          <FlashcardShell>
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-3">
+                <GlobiculumIconTile tone="teal" size={52}>
+                  <GlobiculumChecklistIcon size={28} />
+                </GlobiculumIconTile>
+              </div>
+              <h3 className="text-lg font-bold text-foreground">Language Exposure is ready</h3>
             </div>
-          )}
-        </FlashcardShell>
+
+            {totalSelected === 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">No additional language exposure.</p>
+            ) : (
+              <div className="mt-5 space-y-1.5">
+                {formData.selectedLanguages.map((lang) => (
+                  <div key={lang} className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => editCard("indian")}
+                      className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                    >
+                      <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
+                        {lang}
+                      </span>
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {INDIAN_LEVELS.find((lv) => lv.value === formData.languageProficiencies[lang])?.label ?? "—"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeLanguage(lang)}
+                      aria-label={`Remove ${lang}`}
+                      className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                {schoolLanguage && (
+                  <button
+                    type="button"
+                    onClick={() => editCard("school")}
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
+                      Class {schoolGrade} at the new school
+                    </span>
+                    <span className="text-xs font-semibold text-muted-foreground">{schoolLanguage}</span>
+                  </button>
+                )}
+                {hasForeign && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => editCard("foreign")}
+                      className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                    >
+                      <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
+                        {foreignLabel(formData)}
+                      </span>
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {FOREIGN_LEVELS.find((lv) => lv.value === formData.foreignLanguageLevel)?.label ?? "—"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setField("foreignLanguageName", ""); setField("foreignLanguageLevel", ""); }}
+                      aria-label="Remove foreign language"
+                      className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </FlashcardShell>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      <nav aria-label="Language exposure progress" className="hidden lg:block lg:w-[232px] lg:shrink-0">
-        <div className="lg:sticky lg:top-4">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Language Exposure</h3>
-          <ol className="mt-3">
-            {navItems.map((item, i) => (
-              <li key={item.id} className="relative pb-3 last:pb-0">
-                {i !== navItems.length - 1 && (
-                  <span
-                    className={cn("absolute left-[9px] top-6 h-full w-0.5", item.status === "completed" || item.status === "skipped" ? "bg-secondary" : "bg-border")}
-                    aria-hidden="true"
-                  />
-                )}
-                {item.onClick ? (
-                  <button type="button" onClick={item.onClick} className="relative z-10 flex w-full items-center gap-2.5 rounded-lg p-0.5 text-left transition-colors hover:bg-muted/40">
-                    <span
-                      className={cn(
-                        "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
-                        item.status === "completed" ? "border-secondary bg-secondary text-secondary-foreground" : "border-border bg-card"
-                      )}
-                    >
-                      {item.status === "completed" && <Check className="h-3 w-3" aria-hidden="true" />}
-                      {item.status === "skipped" && <Minus className="h-2.5 w-2.5" aria-hidden="true" />}
-                    </span>
-                    <span className={cn("block truncate text-sm", item.status === "completed" ? "font-medium text-secondary" : "text-muted-foreground")}>{item.label}</span>
-                  </button>
-                ) : (
-                  <div className="relative z-10 flex items-center gap-2.5 rounded-lg p-0.5">
-                    <span
-                      className={cn(
-                        "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
-                        item.status === "current" ? "border-violet bg-violet" : "border-border bg-card"
-                      )}
-                    >
-                      {item.status === "current" && <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />}
-                    </span>
-                    <span className={cn("block truncate text-sm", item.status === "current" ? "font-semibold text-foreground" : "text-muted-foreground")}>{item.label}</span>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ol>
-        </div>
-      </nav>
+      {rail}
 
       <div className="min-w-0 flex-1 space-y-3">
         <div className="mb-1 flex items-center gap-1.5 lg:hidden" role="img" aria-label={`Progress: ${position} of ${total}`}>
@@ -404,7 +449,13 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
             exit={shouldReduceMotion ? undefined : { opacity: 0, x: -24 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
-            <FlashcardShell accent="violet" invalid={(currentId === "school" && !!error) || (currentId === "indian" && !!levelError && unratedLanguages.length > 0)}>
+            <FlashcardShell
+              accent="violet"
+              invalid={
+                (currentId === "school" && !!error && (error !== LANGUAGE_LEVEL_MESSAGE || unratedSchoolLanguages.length > 0)) ||
+                (currentId === "indian" && !!levelError && unratedLanguages.length > 0)
+              }
+            >
               {currentId === "indian" && (
                 <>
                   <div className="flex flex-col items-center text-center">
@@ -526,11 +577,18 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
                     targetGoal={formData.targetGoal}
                     value={formData.targetLanguage ?? ""}
                     onChange={chooseSchoolLanguage}
+                    levels={formData.languageProficiencies}
+                    onLevelChange={rateSchoolLanguage}
                     suggested={suggested}
                     error={error}
                   />
                   {formData.targetLanguage && (
-                    <button type="button" onClick={advance} className="mt-4 block w-full text-center text-xs font-medium text-secondary underline-offset-2 hover:underline">
+                    <button
+                      type="button"
+                      onClick={advance}
+                      disabled={unratedSchoolLanguages.length > 0}
+                      className="mt-4 block w-full text-center text-xs font-medium text-secondary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:no-underline"
+                    >
                       Continue →
                     </button>
                   )}

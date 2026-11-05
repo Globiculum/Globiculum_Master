@@ -10,6 +10,7 @@ import PersonaSelection, { type Persona } from "@/components/PersonaSelection";
 import { Clock, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRetakePrefill } from "@/hooks/useRetakePrefill";
+import { useAssessmentDraft } from "@/hooks/useAssessmentDraft";
 import beginJourneyImage from "@/assets/BEGIN-JOURNEY.png";
 
 // Parent (5 steps) and Student (4 steps) are different lengths — the step
@@ -30,6 +31,10 @@ const readStoredPersona = (): Persona | null => {
 const BeginJourney = () => {
   const navigate = useNavigate();
   const { pending: prefillPending, prefillFormData, prevReportId } = useRetakePrefill();
+  // Answers saved earlier in this tab, restored after a refresh.
+  const { pending: draftPending, draft, userId, startOver } = useAssessmentDraft("parent", prevReportId);
+  // Bumped by "Start over" so the form remounts empty.
+  const [formKey, setFormKey] = useState(0);
 
   // Retakes carry their own pre-filled data and skip persona selection entirely,
   // keeping the existing retake flow untouched.
@@ -69,8 +74,14 @@ const BeginJourney = () => {
     }
   }, [isStudentRedirect, navigate]);
 
-  // Wait for the session check before mounting a retake (see useRetakePrefill).
-  if (isStudentRedirect || prefillPending) {
+  const handleStartOver = () => {
+    startOver();
+    setFormKey((k) => k + 1);
+  };
+
+  // Wait for the session check before mounting a retake or a saved draft
+  // (see useRetakePrefill, useAssessmentDraft).
+  if (isStudentRedirect || prefillPending || (draftPending && persona === "parent")) {
     return null;
   }
 
@@ -196,10 +207,14 @@ const BeginJourney = () => {
                   transition={{ duration: 0.35, ease: "easeInOut" }}
                 >
                   <ParentAssessment
+                    key={formKey}
                     prefillData={prefillFormData}
                     prevReportId={prevReportId}
                     onChangePersona={handleChangePersona}
                     showChangePersona={!isRetake}
+                    draft={draft}
+                    userId={userId}
+                    onStartOver={handleStartOver}
                   />
                 </motion.div>
               )}

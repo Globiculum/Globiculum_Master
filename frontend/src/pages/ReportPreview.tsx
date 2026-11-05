@@ -18,10 +18,11 @@ import ReportComparison from "@/components/ReportComparison";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { isOwnedBy } from "@/lib/childDataStorage";
+import { clearDraft } from "@/lib/assessmentDraft";
 import { toast } from "sonner";
 import { generateReportPDF } from "@/lib/generateReportPDF";
 import { ReportBody, type AnalysisData } from "@/components/report/ReportBody";
-import { deriveSubjectStrengths } from "@/components/assessment/shared/submitAssessment";
+import { deriveSubjectStrengths, notesForAnalysis } from "@/components/assessment/shared/submitAssessment";
 import ReportGenerationLoader, { type LoaderPersona } from "@/components/assessment/shared/ReportGenerationLoader";
 
 const PERSONA_STORAGE_KEY = "globiculum-selected-persona";
@@ -352,6 +353,8 @@ const ReportPreview = () => {
             : typeof raw?.timeline === "string"
               ? raw.timeline
               : undefined,
+        // Same as submitAssessment.ts.
+        additionalNotes: notesForAnalysis(raw),
       };
     };
 
@@ -433,6 +436,8 @@ const ReportPreview = () => {
           setIsSaved(true);
           setSavedReportId((savedReport as any)?.id ?? null);
           toast.success("Report saved to your history");
+          // The answers now live in the saved report; a new assessment starts empty.
+          clearDraft();
 
           // Fire-and-forget: send report summary email
           const analysis = analysisData as Record<string, any>;

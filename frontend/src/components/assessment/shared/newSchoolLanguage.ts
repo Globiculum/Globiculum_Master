@@ -32,6 +32,26 @@ export function suggestedNewSchoolLanguage(knownLanguages: string[]): NewSchoolL
   return hindi && sanskrit ? "both" : sanskrit ? "sanskrit" : hindi ? "hindi" : "";
 }
 
+/** The languages a choice covers ("Not decided yet": none asked). Names match the Indian Languages chips. */
+export function schoolLanguages(value: string | undefined): string[] {
+  return value === "both" ? ["Hindi", "Sanskrit"] : value === "hindi" ? ["Hindi"] : value === "sanskrit" ? ["Sanskrit"] : [];
+}
+
+/**
+ * Level for a new-school language the student has never studied. Stored in
+ * languageProficiencies like the other levels, but the language stays out of
+ * selectedLanguages (the languages the student knows).
+ */
+export const NEW_TO_LANGUAGE = "new";
+
+/** Levels asked for each language chosen for the new school. */
+export const SCHOOL_LANGUAGE_LEVELS = [
+  { value: NEW_TO_LANGUAGE, label: "New to it" },
+  { value: "beginner", label: "Beginner" },
+  { value: "intermediate", label: "Intermediate" },
+  { value: "fluent", label: "Fluent" },
+];
+
 export function newSchoolLanguageLabel(value: string): string | undefined {
   return NEW_SCHOOL_LANGUAGE_OPTIONS.find((o) => o.value === value)?.label;
 }

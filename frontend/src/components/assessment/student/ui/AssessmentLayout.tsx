@@ -164,6 +164,8 @@ interface AssessmentLayoutProps {
   isRetake?: boolean;
   /** When set (retake + not on last step), a "Back to Review" shortcut appears. */
   onSkipToReview?: () => void;
+  /** Optional notice above the step, e.g. "we kept your answers". */
+  banner?: ReactNode;
   children: ReactNode;
 }
 
@@ -183,6 +185,7 @@ const AssessmentLayout = ({
   isLastStep,
   isRetake = false,
   onSkipToReview,
+  banner,
   children,
 }: AssessmentLayoutProps) => (
   <div className="relative">
@@ -203,6 +206,7 @@ const AssessmentLayout = ({
       </div>
       {/* Retake banner with "Back to Review" shortcut — only on non-review steps */}
       {isRetake && !isLastStep && onSkipToReview && <RetakeBar onSkipToReview={onSkipToReview} />}
+      {banner}
       <AnimatePresence mode="wait">
         <motion.div
           key={steps[currentIndex]?.id}

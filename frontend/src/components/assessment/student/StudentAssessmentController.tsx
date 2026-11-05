@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpen, ClipboardCheck, User, Wand2 } from "lucide-react";
 import AssessmentLayout from "./ui/AssessmentLayout";
 import type { AssessmentStepperStep as StepperStep } from "../shared/AssessmentStepper";
@@ -11,6 +11,8 @@ import AcademicProfileStep from "./steps/AcademicProfileStep";
 import WrapUpStep from "./steps/WrapUpStep";
 import StudentReviewStep from "./steps/StudentReviewStep";
 import type { AssessmentFormData } from "../shared/types";
+import RestoredDraftBanner from "../shared/RestoredDraftBanner";
+import { saveDraft, type AssessmentDraft } from "@/lib/assessmentDraft";
 
 // Data-driven step controller — the Student flow's counterpart to
 // AssessmentForm.tsx's hardcoded renderStep() switch, but scalable: adding,
@@ -34,15 +36,70 @@ interface StudentAssessmentControllerProps {
   prefillData?: Partial<AssessmentFormData>;
   prevReportId?: string;
   onChangePersona: () => void;
+  /** Answers saved earlier in this tab, restored in place of the prefill. */
+  draft?: AssessmentDraft | null;
+  /** Signed-in user, recorded on the saved draft; undefined before signing in. */
+  userId?: string;
+  /** Discards the restored answers and starts an empty form. */
+  onStartOver?: () => void;
 }
 
-const StudentAssessmentController = ({ prefillData, prevReportId, onChangePersona }: StudentAssessmentControllerProps) => {
+const StudentAssessmentController = ({
+  prefillData,
+  prevReportId,
+  onChangePersona,
+  draft,
+  userId,
+  onStartOver,
+}: StudentAssessmentControllerProps) => {
   // Mirrors ParentAssessment.tsx's retake behavior: arriving with prefillData
   // (from the Reports History "Retake" button) means jump straight to the
   // Review step instead of Stage 1, since everything is already filled in.
+  // A restored draft wins over both (see ParentAssessment).
   const isRetake = Boolean(prefillData);
-  const { formData, setField, toggleArrayField, setRecordField } = useStudentAssessmentState(prefillData);
-  const navigation = useStudentAssessmentNavigation(isRetake ? STEPS.length - 1 : 0);
+  const { formData, setField, toggleArrayField, setRecordField } = useStudentAssessmentState(
+    prefillData,
+    draft ? (draft.formData as Partial<AssessmentFormData>) : undefined
+  );
+  const navigation = useStudentAssessmentNavigation(draft ? draft.step : isRetake ? STEPS.length - 1 : 0);
+
+  // "We kept your answers" shows until the user moves to another step.
+  const [showRestored, setShowRestored] = useState(() => !!draft && !isRetake);
+
+  // Saves the answers to this tab's draft (see ParentAssessment): answers
+  // debounced, step changes at once, both from the latest values.
+  const latest = useRef({ formData, stepIndex: navigation.stepIndex, userId });
+  latest.current = { formData, stepIndex: navigation.stepIndex, userId };
+  const writeDraft = () =>
+    saveDraft({
+      persona: "student",
+      ownerId: latest.current.userId ?? null,
+      prevReportId: prevReportId ?? null,
+      step: latest.current.stepIndex,
+      formData: latest.current.formData as unknown as Record<string, unknown>,
+    });
+
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const saveTimeout = setTimeout(writeDraft, 600);
+    return () => clearTimeout(saveTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- writeDraft reads the latest values from a ref
+  }, [formData]);
+
+  const isFirstStepRender = useRef(true);
+  useEffect(() => {
+    if (isFirstStepRender.current) {
+      isFirstStepRender.current = false;
+      return;
+    }
+    setShowRestored(false);
+    writeDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
+  }, [navigation.stepIndex]);
 
   useScrollToFirstInvalidField(navigation.validationAttempt);
 
@@ -119,6 +176,7 @@ const StudentAssessmentController = ({ prefillData, prevReportId, onChangePerson
       isLastStep={navigation.isLastStep}
       isRetake={isRetake}
       onSkipToReview={isRetake && !navigation.isLastStep ? handleSkipToReview : undefined}
+      banner={showRestored && onStartOver ? <RestoredDraftBanner onStartOver={onStartOver} /> : null}
     >
       {renderStep()}
     </AssessmentLayout>

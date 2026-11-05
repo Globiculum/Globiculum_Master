@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { EducationHistoryEntry } from "./EducationHistoryList";
-import { newSchoolLanguageGrade } from "./newSchoolLanguage";
+import { NEW_TO_LANGUAGE, newSchoolLanguageGrade, schoolLanguages } from "./newSchoolLanguage";
 
 // Required-answer rules shared by parentValidation.ts and
 // student/validation/studentAssessmentValidation.ts.
@@ -12,19 +12,32 @@ export interface StepContext {
   subjectsComplete?: boolean;
 }
 
+export const LANGUAGE_LEVEL_MESSAGE = "Pick a level for each language";
+
 /** The Indian language at the new school is required wherever it is asked
- * (Classes 6-10 of an Indian board); "Not decided yet" counts as an answer. */
+ * (Classes 6-10 of an Indian board); "Not decided yet" counts as an answer.
+ * Hindi or Sanskrit chosen there also needs a level ("New to it" counts), the
+ * same as a language marked as known: without it the report can't tell where
+ * the child starts. */
 export function newSchoolLanguageError(data: {
   targetGoal: string;
   snapshotGrade: string;
   targetGrade: string;
   targetLanguage?: string;
+  languageProficiencies?: Record<string, string>;
 }): string | undefined {
-  if (!newSchoolLanguageGrade(data.targetGoal, data.snapshotGrade, data.targetGrade) || data.targetLanguage) return undefined;
-  return "Choose the Indian language at the new school, or Not decided yet";
+  if (!newSchoolLanguageGrade(data.targetGoal, data.snapshotGrade, data.targetGrade)) return undefined;
+  if (!data.targetLanguage) return "Choose the Indian language at the new school, or Not decided yet";
+  return missingSchoolLanguageLevels(data.targetLanguage, data.languageProficiencies).length > 0 ? LANGUAGE_LEVEL_MESSAGE : undefined;
 }
 
-export const LANGUAGE_LEVEL_MESSAGE = "Pick a level for each language";
+/** Languages chosen for the new school that have no level yet. */
+export function missingSchoolLanguageLevels(targetLanguage: string | undefined, levels: Record<string, string> | undefined): string[] {
+  return schoolLanguages(targetLanguage).filter((lang) => !levels?.[lang]);
+}
+
+/** A known language's level: "New to it" belongs to the new-school question only. */
+export const hasKnownLanguageLevel = (level: string | undefined) => !!level && level !== NEW_TO_LANGUAGE;
 
 /** Each Indian language marked as known needs a familiarity level: without it
  * the report can't tell a beginner from a fluent speaker and starts the child
@@ -33,7 +46,7 @@ export function languageLevelError(data: {
   selectedLanguages: string[];
   languageProficiencies: Record<string, string>;
 }): string | undefined {
-  return data.selectedLanguages.some((lang) => !data.languageProficiencies?.[lang]) ? LANGUAGE_LEVEL_MESSAGE : undefined;
+  return data.selectedLanguages.some((lang) => !hasKnownLanguageLevel(data.languageProficiencies?.[lang])) ? LANGUAGE_LEVEL_MESSAGE : undefined;
 }
 
 export const SUBJECTS_INCOMPLETE_MESSAGE = "Answer every subject: pick a level, or mark it as not taken";
