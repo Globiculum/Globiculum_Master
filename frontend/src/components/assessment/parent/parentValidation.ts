@@ -3,6 +3,7 @@ import type { ParentFormData } from "./parentMapper";
 import { gradeHasStream, normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
 import {
   SUBJECTS_INCOMPLETE_MESSAGE,
+  checkDataCoverage,
   checkPreviousSchooling,
   languageLevelError,
   newSchoolLanguageError,
@@ -63,6 +64,7 @@ const schoolProfileStepSchema = z
   })
   .superRefine((data, ctx) => {
     checkPreviousSchooling(data, ctx);
+    checkDataCoverage(data, ctx);
     if (data.snapshotLocation === "other" && !data.snapshotLocationOther) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please specify the country", path: ["snapshotLocationOther"] });
     }

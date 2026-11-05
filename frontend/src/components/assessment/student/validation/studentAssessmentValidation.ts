@@ -3,6 +3,7 @@ import type { AssessmentFormData } from "../../shared/types";
 import { gradeHasStream, normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
 import {
   SUBJECTS_INCOMPLETE_MESSAGE,
+  checkDataCoverage,
   checkPreviousSchooling,
   languageLevelError,
   newSchoolLanguageError,
@@ -51,6 +52,7 @@ const studentProfileStepSchema = z
   // Classes XI-XII on a streamed board.
   .superRefine((data, ctx) => {
     checkPreviousSchooling(data, ctx);
+    checkDataCoverage(data, ctx);
     if (data.snapshotLocation === "us" && !data.usState) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select your state", path: ["usState"] });
     }

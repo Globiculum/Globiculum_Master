@@ -126,6 +126,8 @@ const InputCard = ({
           "hover:shadow-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           selected ? "border-secondary bg-secondary/5 shadow-glow-sm" : "border-border bg-card hover:border-secondary/40",
           disabled && "cursor-not-allowed opacity-40 hover:shadow-none",
+          // A faded option shouldn't light up on hover as if it could be picked.
+          disabled && !selected && "hover:border-border",
           className
         )}
       >
@@ -135,7 +137,7 @@ const InputCard = ({
             "absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full border transition-colors duration-200",
             selected
               ? "border-secondary bg-secondary text-secondary-foreground"
-              : "border-border bg-transparent opacity-0 group-hover:opacity-40"
+              : cn("border-border bg-transparent opacity-0", interactive && "group-hover:opacity-40")
           )}
         >
           <CheckBadge selected={selected} size="h-2.5 w-2.5" />

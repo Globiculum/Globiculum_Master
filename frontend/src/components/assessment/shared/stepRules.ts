@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { EducationHistoryEntry } from "./EducationHistoryList";
 import { NEW_TO_LANGUAGE, newSchoolLanguageGrade, schoolLanguages } from "./newSchoolLanguage";
+import { dataCoverageErrors } from "./dataCoverage";
 
 // Required-answer rules shared by parentValidation.ts and
 // student/validation/studentAssessmentValidation.ts.
@@ -58,6 +59,16 @@ export const previousSchoolingFields = {
 
 /** "Attended an Indian school before?" is optional; a Yes needs at least one
  * prior school with every field filled. */
+/** A saved curriculum, board or class with no data (see dataCoverage.ts) has to be changed. */
+export function checkDataCoverage(
+  data: { currentCurriculum?: string[]; snapshotGrade?: string; targetGoal?: string; targetGrade?: string },
+  ctx: z.RefinementCtx
+) {
+  for (const { field, message } of dataCoverageErrors(data)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: [field] });
+  }
+}
+
 export function checkPreviousSchooling(
   data: { previouslyStudiedInIndia?: string; educationHistory?: EducationHistoryEntry[] },
   ctx: z.RefinementCtx

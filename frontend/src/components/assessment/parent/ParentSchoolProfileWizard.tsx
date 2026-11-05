@@ -31,6 +31,7 @@ import InputCard from "../shared/InputCard";
 import FieldError from "../shared/FieldError";
 import FlashcardShell from "../shared/FlashcardShell";
 import TimelineSelector, { type TimelineOption } from "../shared/TimelineSelector";
+import { boardCoverageNote, boardHasData, coverageCardToFix, currentCurriculumHasData, targetGradeHasData } from "../shared/dataCoverage";
 import type { ParentFormData } from "./parentMapper";
 import {
   TARGET_STREAMS,
@@ -158,6 +159,10 @@ const CURRICULUM_BY_STAGE: Record<string, { value: string; label: string }[]> = 
 };
 
 const US_REGULAR_CURRICULUM_OPTION = { value: "regular-us", label: "Regular U.S. school curriculum" };
+
+// Options without curriculum data are faded (dataCoverage.ts). AP courses still
+// count: they are picked in the Academic Path step, on top of the state's.
+const AP_TRACK_HINT = "Coming Soon. Choose the regular U.S. curriculum and add AP courses in the Academic Path step.";
 
 const getCurriculumOptions = (schoolStage: string, snapshotLocation: string): { value: string; label: string }[] => {
   const base = CURRICULUM_BY_STAGE[schoolStage] || [];
@@ -817,7 +822,17 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
         currentCard.id === "targetGrade" ? (value as string) : formData.targetGrade
       ) &&
       !normalizeTargetStream(formData.targetStream);
-    advanceTo(streamNowNeeded ? "targetStream" : nextId, streamNowNeeded);
+    // Editing the grade or board can likewise leave a board or class with no
+    // data (Grade 9 -> 7 on ICSE); open that card now (dataCoverage.ts).
+    const coverageCard =
+      editingSingleCard && (currentCard.id === "grade" || currentCard.id === "targetBoard")
+        ? coverageCardToFix(
+            currentCard.id === "grade" ? (value as string) : formData.snapshotGrade,
+            currentCard.id === "targetBoard" ? (value as string) : formData.targetGoal,
+            formData.targetGrade
+          )
+        : null;
+    advanceTo(coverageCard ?? (streamNowNeeded ? "targetStream" : nextId), !!coverageCard || streamNowNeeded);
   };
 
   const continueFromText = () => {
@@ -1149,8 +1164,11 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
                       variant="large"
                       mode="radio"
                       label={resolveCurriculumOptionLabel(c.value, c.label, formData)}
+                      description={currentCurriculumHasData(c.value) ? "Available" : "Coming Soon"}
                       selected={formData.currentCurriculum[0] === c.value}
                       onClick={() => selectChoice("currentCurriculum", [c.value])}
+                      disabled={!currentCurriculumHasData(c.value)}
+                      disabledHint={c.value === "ap" ? AP_TRACK_HINT : "Coming Soon"}
                     />
                   ))}
                 </div>
@@ -1189,8 +1207,11 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
                       variant="large"
                       mode="radio"
                       label={board.label}
+                      description={boardCoverageNote(board.value, formData.snapshotGrade)}
                       selected={formData.targetGoal === board.value}
                       onClick={() => selectChoice("targetGoal", board.value)}
+                      disabled={!boardHasData(board.value, formData.snapshotGrade)}
+                      disabledHint={boardCoverageNote(board.value, formData.snapshotGrade)}
                     />
                   ))}
                 </div>
@@ -1200,17 +1221,24 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
             {currentCard.id === "targetGrade" && (
               <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.targetGrade} editing={editingSingleCard} onFinishEditing={finishEditing}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-2 gap-3">
-                  {TARGET_GRADE_OPTIONS.map((option) => (
-                    <InputCard
-                      key={option.value}
-                      variant="large"
-                      mode="radio"
-                      icon={option.value === "same" ? Equal : ArrowUpCircle}
-                      label={option.label}
-                      selected={formData.targetGrade === option.value}
-                      onClick={() => selectChoice("targetGrade", option.value)}
-                    />
-                  ))}
+                  {TARGET_GRADE_OPTIONS.map((option) => {
+                    const available = !formData.targetGoal || targetGradeHasData(formData.targetGoal, formData.snapshotGrade, option.value);
+                    const boardLabel = TARGET_BOARDS.find((b) => b.value === formData.targetGoal)?.label;
+                    return (
+                      <InputCard
+                        key={option.value}
+                        variant="large"
+                        mode="radio"
+                        icon={option.value === "same" ? Equal : ArrowUpCircle}
+                        label={option.label}
+                        description={available ? undefined : `No ${boardLabel} data for Class ${entryGrade(formData.snapshotGrade, option.value)}`}
+                        selected={formData.targetGrade === option.value}
+                        onClick={() => selectChoice("targetGrade", option.value)}
+                        disabled={!available}
+                        disabledHint="Not available yet"
+                      />
+                    );
+                  })}
                 </div>
               </CardFrame>
             )}
