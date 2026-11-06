@@ -28,6 +28,11 @@ so they must not be moved back into `migrations/`.
 Never change the live schema in the dashboard or with ad-hoc SQL: the files would drift again.
 One-off data fixes (not structure) can still be run with `npx supabase db query --linked`.
 
+If `db push` says "Remote migration versions not found", your code is out of date: run `git pull`.
+Don't run the `migration repair` command it suggests.
+
+Never run `supabase db reset --linked`: it erases the live database.
+
 ## Known gaps between the old files and production (6 Nov 2026)
 
 These existed in the archived files but are not in the live database. Restoring any of them is a
