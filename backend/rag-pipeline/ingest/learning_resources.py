@@ -15,13 +15,22 @@ Sources:
   Vedantu, BYJU'S     NCERT solutions; BYJU'S ISC papers
   CBSE                cbseacademic.nic.in sample question papers
   CISCE               ISC 2026 specimen papers with answer keys (cisce.org)
-  YouTube             Magnet Brains, Physics Wallah, Khan Academy India
+  YouTube             Magnet Brains, Physics Wallah, Khan Academy India, NCERT Official,
+                      LearnoHub, Dear Sir, Manocha Academy, Vedantu ICSE, Sir Tarun Rupani
   Hindi / Sanskrit    beginner and intermediate material by learner level (LANGUAGE_LEVELS)
+  DIKSHA, NCERT Exemplar   official free lessons and extra questions (OFFICIAL_FREE)
+  KnowledgeBoat       free chapter-wise solutions to NCERT, Selina, Total History & Civics... (KB_BOOKS)
+  Reference books     2-3 per subject on the publisher's own page (resource_type 'reference'):
+                      fixed pages (REFERENCE_PAGES: R.S. Aggarwal, H.C. Verma, Lakhmir Singh,
+                      Wren & Martin, Pradeep's, Trueman's, Selina) and books found through the
+                      publisher's own store search (SHOP_SERIES: Oswaal, Arihant, Full Marks,
+                      Nootan, VK Global), so each year's edition is picked up
 
 Usage (from backend/rag-pipeline/):
     python ingest/learning_resources.py --verify      # build + verify -> JSON
     python ingest/learning_resources.py --refresh-languages   # only the Hindi/Sanskrit level rows
     python ingest/learning_resources.py --refresh-icse        # only the ICSE IX-X rows (JSON + DB)
+    python ingest/learning_resources.py --refresh-extra       # only the added material above (JSON)
     python ingest/learning_resources.py --load        # replace DB rows from JSON
 """
 
@@ -63,6 +72,7 @@ LABEL = {
     "biology": "Biology", "accountancy": "Accountancy", "business-studies": "Business Studies",
     "economics": "Economics", "history": "History", "geography": "Geography",
     "political-science": "Political Science", "computer-science": "Computer Science",
+    "commercial-studies": "Commercial Studies",
 }
 # Words a page about the subject must contain (any one).
 EXPECT = {
@@ -188,7 +198,7 @@ ISC_SOLUTIONS = [
 ]
 # ISC-focused YouTube channels; kept only if the channel page verifies.
 ISC_YOUTUBE = [
-    ("*", "Vedantu ICSE: ICSE/ISC lessons", "https://www.youtube.com/@VedantuICSE", "vedantu"),
+    # Vedantu ICSE (@VedantuICSE) was removed: the channel answers 404 since Nov 2026.
     ("computer-science", "Amplify Learning: ISC Computer Science (Java)", "https://www.youtube.com/@AmplifyLearning", "amplify"),
     ("*", "Sir Tarun Rupani: ICSE/ISC lessons", "https://www.youtube.com/@SirTarunRupani", "tarun"),
 ]
@@ -235,9 +245,172 @@ YOUTUBE = [
     ("any", 1, 12, ["*"], "Khan Academy India (English)", "https://www.youtube.com/@KhanAcademyIndiaEnglish", "khan academy"),
 ]
 
+# ── More study material (--refresh-extra) ────────────────────────────────────
+# The subject cards showed one textbook and the same three sites (Khan Academy,
+# Physics Wallah, Vedantu) everywhere, and ICSE IX-X had no videos or
+# solutions at all. These add official free material, more channels, free
+# chapter-wise solutions and reference books.
+
+MORE_YOUTUBE = [  # same shape as YOUTUBE; kept only if the channel page verifies
+    ("cbse", 1, 12, ["*"], "NCERT Official: lessons on the NCERT textbooks", "https://www.youtube.com/@NCERTOFFICIAL", "ncert"),
+    ("cbse", 9, 10, ["mathematics", "science", "social-science", "history", "geography", "political-science", "economics"],
+     "LearnoHub: Class 9 and 10 lessons", "https://www.youtube.com/@LearnoHub", "learno"),
+    ("any", 6, 12, ["mathematics"], "Dear Sir: Maths lessons", "https://www.youtube.com/@DearSir", "dear sir"),
+    ("any", 6, 10, ["science", "physics", "chemistry", "biology"], "Manocha Academy: Science lessons for CBSE and ICSE",
+     "https://www.youtube.com/@ManochaAcademy", "manocha"),
+    ("icse", 9, 10, ["*"], "Sir Tarun Rupani: ICSE lessons", "https://www.youtube.com/@SirTarunRupani", "tarun"),
+]
+
+# Official free platforms. (board, gmin, gmax, subject, type, provider, title, url, words, check)
+OFFICIAL_FREE = [
+    ("cbse", 1, 12, "*", "video", "DIKSHA", "DIKSHA: lessons for every NCERT chapter (Government of India)",
+     "https://diksha.gov.in/", ["diksha"], "body"),
+    ("cbse", 6, 12, "*", "practice", "NCERT", "NCERT Exemplar problems: extra questions for Maths and Science (free PDFs)",
+     "https://ncert.nic.in/exemplar-problems.php?ln=en", ["exemplar"], "body"),
+]
+
+# KnowledgeBoat's free chapter-wise solutions to the books students use.
+# (board, class, subject key, slug, label). topic_resources.py links each gap
+# topic to its chapter in the same books.
+KNOWLEDGEBOAT = "https://www.knowledgeboat.com/learn"
+KB_BOOKS = [
+    ("cbse", 6, "mathematics", "class-6-ganita-prakash-ncert-maths-cbse", "Ganita Prakash"),
+    ("cbse", 6, "science", "class-6-curiosity-ncert-science-cbse", "Curiosity"),
+    ("cbse", 7, "mathematics", "class-7-ganita-prakash-1-ncert-maths-cbse", "Ganita Prakash Part I"),
+    ("cbse", 7, "mathematics", "class-7-ganita-prakash-2-ncert-maths-cbse", "Ganita Prakash Part II"),
+    ("cbse", 7, "science", "class-7-curiosity-ncert-science-cbse", "Curiosity"),
+    ("cbse", 8, "mathematics", "class-8-ganita-prakash-1-ncert-maths-cbse", "Ganita Prakash Part I"),
+    ("cbse", 8, "mathematics", "class-8-ganita-prakash-2-ncert-maths-cbse", "Ganita Prakash Part II"),
+    ("cbse", 8, "science", "class-8-curiosity-ncert-science-cbse", "Curiosity"),
+    ("cbse", 8, "social-science", "class-8-exploring-society-1-ncert-social-science-cbse", "Exploring Society Part I"),
+    ("cbse", 8, "social-science", "class-8-exploring-society-2-ncert-social-science-cbse", "Exploring Society Part II"),
+    ("cbse", 9, "mathematics", "class-9-ganita-manjari-ncert-maths-cbse", "Ganita Manjari"),
+    ("cbse", 9, "mathematics", "class-9-ganita-manjari-2-ncert-maths-cbse", "Ganita Manjari Part II"),
+    ("cbse", 9, "mathematics", "class-9-ncert-mathematics-cbse", "NCERT Mathematics"),
+    ("cbse", 9, "science", "class-9-exploration-ncert-science-cbse", "Exploration"),
+    ("cbse", 9, "science", "class-9-ncert-science-cbse", "NCERT Science"),
+    ("cbse", 9, "social-science", "class-9-understanding-society-ncert-social-science-cbse", "Understanding Society"),
+    ("cbse", 9, "social-science", "class-9-ncert-social-science-geography-cbse", "Contemporary India I"),
+    ("cbse", 9, "social-science", "class-9-ncert-social-science-history-cbse", "India and the Contemporary World I"),
+    ("cbse", 10, "mathematics", "class-10-ncert-mathematics-cbse", "NCERT Mathematics"),
+    ("cbse", 10, "science", "class-10-ncert-science-cbse", "NCERT Science"),
+    ("cbse", 10, "geography", "class-10-ncert-social-science-geography-cbse", "Contemporary India II"),
+    ("cbse", 10, "history", "class-10-ncert-social-science-history-cbse", "India and the Contemporary World II"),
+    ("cbse", 10, "political-science", "class-10-ncert-social-science-democratic-politics-cbse", "Democratic Politics II"),
+    ("cbse", 10, "economics", "class-10-ncert-social-science-economic-development-cbse", "Understanding Economic Development"),
+    ("cbse", 11, "computer-science", "sumita-arora-python-computer-science-class-11-cbse", "Sumita Arora Computer Science with Python"),
+    ("cbse", 12, "computer-science", "class-12-ncert-computer-science-cbse", "NCERT Computer Science"),
+    ("cbse", 12, "computer-science", "sumita-arora-python-computer-science-class-12-cbse", "Sumita Arora Computer Science with Python"),
+    ("icse", 9, "mathematics", "class-9-icse-concise-maths-selina", "Selina Concise Mathematics"),
+    ("icse", 9, "mathematics", "class-9-icse-ml-aggarwal-maths", "ML Aggarwal Understanding ICSE Mathematics"),
+    ("icse", 9, "physics", "class-9-icse-concise-physics-selina", "Selina Concise Physics"),
+    ("icse", 9, "chemistry", "class-9-icse-concise-chemistry-selina", "Selina Concise Chemistry"),
+    ("icse", 9, "chemistry", "class-9-icse-dalal-simplified-chemistry", "Viraf J. Dalal Simplified ICSE Chemistry"),
+    ("icse", 9, "biology", "class-9-icse-concise-biology-selina", "Selina Concise Biology"),
+    ("icse", 9, "history", "class-9-icse-total-history-civics", "Total History & Civics"),
+    ("icse", 9, "geography", "class-9-icse-total-geography", "Total Geography"),
+    ("icse", 10, "mathematics", "class-10-icse-concise-maths-selina", "Selina Concise Mathematics"),
+    ("icse", 10, "mathematics", "class-10-icse-ml-aggarwal-maths", "ML Aggarwal Understanding ICSE Mathematics"),
+    ("icse", 10, "physics", "class-10-icse-concise-physics-selina", "Selina Concise Physics"),
+    ("icse", 10, "chemistry", "class-10-icse-concise-chemistry-selina", "Selina Concise Chemistry"),
+    ("icse", 10, "chemistry", "class-10-icse-dalal-simplified-chemistry", "Viraf J. Dalal Simplified ICSE Chemistry"),
+    ("icse", 10, "biology", "class-10-icse-concise-biology-selina", "Selina Concise Biology"),
+    ("icse", 10, "history", "class-10-icse-total-history-civics", "Total History & Civics"),
+    ("icse", 10, "geography", "class-10-icse-total-geography", "Total Geography"),
+    ("icse", 10, "computer-science", "class-10-icse-sumita-arora-computer-applications-bluej", "Sumita Arora ICSE Computer Applications"),
+]
+
+# Reference books, two or three per subject, each linked to its publisher's
+# own page (no marketplaces). Fixed pages, checked to show the words given:
+# (board, subject, gmin, gmax, publisher, title, url, words)
+REFERENCE_PAGES = [
+    *[("cbse", "mathematics", c, c, "Bharati Bhawan", f"R.S. Aggarwal: Mathematics for Class {c}",
+       f"https://www.bharatibhawan.in/product.php?prod_id={pid}", ["aggarwal"])
+      for c, pid in ((6, 145), (7, 605), (8, 147))],
+    *[("cbse", "mathematics", c, c, "Bharati Bhawan", f"R.S. Aggarwal: Secondary School Mathematics for Class {c}",
+       f"https://www.bharatibhawan.in/product.php?prod_id={pid}", ["aggarwal"]) for c, pid in ((9, 154), (10, 155))],
+    *[("cbse", "mathematics", c, c, "Bharati Bhawan", f"R.S. Aggarwal: Senior Secondary School Mathematics for Class {c}",
+       f"https://www.bharatibhawan.in/product.php?prod_id={pid}", ["aggarwal"]) for c, pid in ((11, 166), (12, 167))],
+    *[(board, "physics", c, c, "Bharati Bhawan", f"H.C. Verma: Concepts of Physics, Vol. {vol}",
+       f"https://www.bharatibhawan.in/product.php?prod_id={pid}", ["verma"])
+      for board in ("cbse", "isc") for c, vol, pid in ((11, 1, 168), (12, 2, 169))],
+    # S. Chand's page for the whole series (Classes 6-10; Physics, Chemistry and Biology parts from Class 9).
+    ("cbse", "science", 6, 10, "S. Chand", "Lakhmir Singh & Manjit Kaur: Science",
+     "https://www.schandpublishing.com/specialbook/lakhmir-singh-science", ["lakhmir"]),
+    *[(board, "english", gmin, gmax, "S. Chand", "Wren & Martin: High School English Grammar and Composition",
+       "https://www.schandpublishing.com/books/school-books/english/high-school-english-grammar-composition-multicolour/9789358701555/",
+       ["grammar"]) for board, gmin, gmax in (("cbse", 6, 12), ("icse", 9, 10), ("isc", 11, 12))],
+    *[("cbse", s, c, c, "Pradeep Publications", f"Pradeep's {name} for Class {c}",
+       f"https://www.pradeeppublications.com/products/school-prep/grade-{c}", ["pradeep"])
+      for c in (11, 12) for s, name in (("physics", "Fundamental Physics"), ("chemistry", "New Course Chemistry"), ("biology", "Biology"))],
+    *[(board, "biology", c, c, "Trueman Book Company", f"Trueman's Elementary Biology, Vol. {vol}", url, ["trueman"])
+      for board in ("cbse", "isc") for c, vol, url in (
+          (11, 1, "https://www.truemanbooks.com/details/truemans-elementary-biology-vol-1-for-xi-and-neet-43.html"),
+          (12, 2, "https://www.truemanbooks.com/details/truemans-elementary-biology-for-xii-and-neet-44.html"))],
+    *[("icse", s, 9, 10, "Selina Publishers", f"Selina Concise {name} (ICSE)",
+       "https://selinapublishers.com/online-test/public/publications", ["selina"])
+      for s, name in (("mathematics", "Mathematics"), ("physics", "Physics"), ("chemistry", "Chemistry"), ("biology", "Biology"))],
+]
+
+# Publishers whose own online store answers a product search: the page for
+# the current edition (it changes every exam year) is looked up when the
+# catalogue is built. (board, classes, subjects, publisher, series, query,
+# words the product title must contain)
+SHOPS = {"Oswaal Books": "https://oswaalbooks.com", "Arihant": "https://arihantbooks.com", "Full Marks": "https://www.fmpl.in",
+         "Nageen Prakashan": "https://nageenprakashan.in", "VK Global": "https://vkpublications.com"}
+CBSE_6_10 = ["mathematics", "science", "english", "social-science", "hindi", "sanskrit"]
+CBSE_11_12 = ["physics", "chemistry", "biology", "mathematics", "english", "accountancy", "business-studies", "economics",
+              "history", "geography", "political-science", "computer-science", "hindi"]
+ICSE_SUBJECTS = ["mathematics", "physics", "chemistry", "biology", "history", "geography", "english", "hindi",
+                 "computer-science", "economics", "commercial-studies"]
+ISC_SUBJECTS = ["physics", "chemistry", "biology", "mathematics", "english", "accountancy", "business-studies", "economics",
+                "history", "geography", "political-science", "computer-science"]
+SHOP_SERIES = [
+    ("cbse", (6, 7, 8), CBSE_6_10, "Oswaal Books", "Oswaal One for All", "oswaal cbse class {c} one for all {s}", ["one for all"]),
+    ("cbse", (9, 10), CBSE_6_10, "Oswaal Books", "Oswaal CBSE Question Bank", "oswaal cbse question bank class {c} {s}", ["question bank", "cbse"]),
+    ("cbse", (11, 12), CBSE_11_12, "Oswaal Books", "Oswaal CBSE Question Bank", "oswaal cbse question bank class {c} {s}", ["question bank", "cbse"]),
+    ("cbse", (6, 7, 8, 9, 10), CBSE_6_10, "Arihant", "Arihant All in One", "all in one {s} class {c}", ["all in one"]),
+    ("cbse", (11, 12), CBSE_11_12, "Arihant", "Arihant All in One", "all in one {s} class {c}", ["all in one"]),
+    ("cbse", (1, 2, 3, 4, 5, 6, 7, 8, 9, 10), ["mathematics", "science", "english", "social-science", "evs", "hindi"],
+     "Full Marks", "Full Marks Complete Study Material", "full marks {s} complete study material class {c}", ["complete study material"]),
+    ("cbse", (11, 12), ["business-studies"], "VK Global", "Poonam Gandhi: Business Studies", "business studies class {c} poonam gandhi", ["poonam gandhi"]),
+    ("icse", (9, 10), ICSE_SUBJECTS, "Oswaal Books", "Oswaal ICSE Question Bank", "oswaal icse question bank class {c} {s}", ["icse", "question bank"]),
+    ("icse", (9, 10), ["physics", "chemistry", "biology"], "Nageen Prakashan", "Nootan ICSE", "nootan icse {s} text book class {c}", ["nootan", "icse", "text ?book"]),
+    ("isc", (11, 12), ISC_SUBJECTS, "Oswaal Books", "Oswaal ISC Question Bank", "oswaal isc question bank class {c} {s}", ["isc", "question bank"]),
+    ("isc", (11, 12), ["physics", "chemistry", "biology"], "Nageen Prakashan", "Nootan ISC", "nootan isc {s} text book class {c}", ["nootan", "isc", "text ?book"]),
+]
+# How each subject is named in product titles.
+SHOP_WORDS = {
+    "mathematics": ["mathematics", "maths"], "science": ["science"], "english": ["english"],
+    "social-science": ["social science"], "hindi": ["hindi"], "sanskrit": ["sanskrit"], "evs": ["evs", "environmental"],
+    "physics": ["physics"], "chemistry": ["chemistry"], "biology": ["biology"], "accountancy": ["accountancy", "accounts"],
+    "business-studies": ["business studies"], "economics": ["economics"], "history": ["history"],
+    "geography": ["geography"], "political-science": ["political science"],
+    "computer-science": ["computer science", "computer applications"], "commercial-studies": ["commercial studies"],
+}
+# Titles to skip: other boards, other languages, sets, and books that aren't the
+# subject's main guide. (A series' own words, e.g. "All in One", already pick the
+# book type; its blurb may list "Sample Papers" inside, so those aren't excluded.)
+SHOP_EXCLUDE = re.compile(
+    r"set of|combo|\bkit\b|hindi medium|\(hindi\)|vigyan|assam|asseb|karnataka|\bup board|\bhp board|jkbse|hbse|bseh|bihar|"
+    r"\bmp board|rbse|maharashtra|gujarat|lab manual|practical|workbook|olympiad|\bjee\b|\bneet\b|"
+    r"\bcuet\b|flash ?card|handbook|\bmcqs? (book|in)\b|exemplar|one shot|term[- ]?[12]\b|semester|"
+    r"applied mathematics|\bbasic\b", re.I)
+ROMAN = {1: "i", 2: "ii", 3: "iii", 4: "iv", 5: "v", 6: "vi", 7: "vii", 8: "viii", 9: "ix", 10: "x", 11: "xi", 12: "xii"}
+
 
 # Misspellings in NCERT's own book selector, corrected for display only.
 NCERT_TITLE_FIXES = {"It So Happend": "It So Happened"}
+
+# Books NCERT's selector still lists next to the NCF 2023 books that replaced
+# them (checked 2026-11-06). Reports show current books only.
+NCERT_RETIRED = {
+    "ceen1", "chhn1", "cemh1", "ceap1",                    # Class 3: Marigold, Rimjhim, Mathematics, Looking Around
+    "deen1", "dhhn1", "demh1", "deap1",                    # Class 4: Marigold, Rimjhim, Math-Magic, Looking Around
+    "eeen1", "ehhn1", "eemh1", "eeap1",                    # Class 5: Marigold, Rimjhim, Math-Magic, Looking Around
+    "hehd1", "heih1", "hhvs1", "hhdv1", "hhbk1", "hhsb1",  # Class 8: Honeydew, It So Happened, Vasant, Durva,
+    "hhsk1", "hemh1", "hesc1", "hess2", "hess3", "hess4",  #   Bharat Ki Khoj, Sankshipt Buddhcharit, Ruchira,
+}                                                          #   Mathematics, Science, Our Pasts III, SPL III, Resources
 
 
 def row(board, subject, gmin, gmax, rtype, provider, title, url, expect, check="title", level=None):
@@ -275,7 +448,7 @@ def ncert_books() -> list[dict]:
             opts.setdefault(idx, {})[kind] = val
         for o in opts.values():
             m = re.match(r"textbook\.php\?(([a-z])([a-z])[a-z]{2}\d)=0-\d+", o.get("value", ""))
-            if not m or (m.group(3) != "e" and key not in ("hindi", "sanskrit")):
+            if not m or (m.group(3) != "e" and key not in ("hindi", "sanskrit")) or m.group(1) in NCERT_RETIRED:
                 continue
             code = m.group(1)
             subj = NCERT_BOOK_SUBJECT.get(code, key)
@@ -341,6 +514,103 @@ def candidates() -> list[dict]:
         for s in subjects:
             rows.append(row(board, s, gmin, gmax, "video", "YouTube", title, url, [word]))
     rows += language_level_rows()
+    rows += extra_candidates()
+    return rows
+
+
+def extra_candidates() -> list[dict]:
+    """More channels, official free material, free chapter-wise solutions and
+    reference books on fixed publisher pages (the store-searched reference
+    books come from shop_rows)."""
+    rows = []
+    for board, gmin, gmax, subjects, title, url, word in MORE_YOUTUBE:
+        for s in subjects:
+            rows.append(row(board, s, gmin, gmax, "video", "YouTube", title, url, [word]))
+    for board, gmin, gmax, s, rtype, provider, title, url, words, check in OFFICIAL_FREE:
+        rows.append(row(board, s, gmin, gmax, rtype, provider, title, url, words, check))
+    for board, c, s, slug, label in KB_BOOKS:
+        rows.append(row(board, s, c, c, "practice", "KnowledgeBoat", f"KnowledgeBoat: free {label} solutions, Class {c}",
+                        f"{KNOWLEDGEBOAT}/{slug}/content", [f"class {c}"]))
+    for board, s, gmin, gmax, publisher, title, url, words in REFERENCE_PAGES:
+        rows.append(row(board, s, gmin, gmax, "reference", publisher, title, url, words, "body"))
+    for r in rows:
+        r["_set"] = "extra"
+    return rows
+
+
+def shop_label(board: str, subject: str) -> str:
+    if board == "icse" and subject == "history":
+        return "History & Civics"
+    if board == "icse" and subject == "computer-science":
+        return "Computer Applications"
+    return LABEL[subject]
+
+
+def shop_title_ok(title: str, board: str, c: int, subject: str, words: list[str]) -> bool:
+    """A store's product is the book wanted: right class, board, subject and series."""
+    t = " ".join(title.lower().split())
+    if SHOP_EXCLUDE.search(t):
+        return False
+    if not re.search(rf"\bclass[\s-]*(?:{c}|{ROMAN[c]})\b(?!\d)|\b{c}(?:st|nd|rd|th)\b", t):
+        return False
+    if not any(w in t for w in SHOP_WORDS[subject]):
+        return False
+    if subject == "science" and re.search(r"(social|political|computer) science", t):
+        return False
+    if board == "isc" and not re.search(r"\bisc\b", t) or board == "icse" and "icse" not in t:
+        return False
+    if board == "cbse" and re.search(r"\bicse\b|\bisc\b", t):
+        return False
+    return all(re.search(w, t) for w in words)
+
+
+def shop_rows() -> list[dict]:
+    """Reference books from publishers' own stores: each store's product search
+    is asked for the series, class and subject, and the first product whose
+    title matches (shop_title_ok) is linked. Run in Chrome: the stores answer
+    their search only from a browser session."""
+    from playwright.sync_api import sync_playwright
+
+    specs = []
+    for board, classes, subjects, publisher, series, query, words in SHOP_SERIES:
+        for c in classes:
+            for s in subjects:
+                if board == "cbse" and s not in SUBJECTS_BY_CLASS.get(c, []):
+                    continue
+                word = shop_label(board, s).lower() if board == "icse" else SHOP_WORDS[s][0]  # "computer applications"
+                specs.append((board, c, s, publisher, series, query.format(c=c, s=word), words))
+    rows, missing = [], []
+    with sync_playwright() as p:
+        browser = p.chromium.launch(channel="chrome", headless=True)
+        page = browser.new_context(locale="en-IN").new_page()
+        for publisher, site in SHOPS.items():
+            mine = [sp for sp in specs if sp[3] == publisher]
+            if not mine:
+                continue
+            page.goto(site, wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(1500)
+            for board, c, s, _, series, query, words in mine:
+                try:
+                    products = page.evaluate("""async (q) => {
+                        const r = await fetch('/search/suggest.json?q=' + encodeURIComponent(q)
+                          + '&resources[type]=product&resources[limit]=10');
+                        if (!r.ok) return [];
+                        const j = await r.json();
+                        return (j.resources.results.products || []).map(p => [p.title, location.origin + p.url.split('?')[0]]);
+                    }""", query)
+                except Exception:  # noqa: BLE001
+                    products = []
+                hit = next((u for t, u in products if shop_title_ok(t, board, c, s, words)), None)
+                if hit:
+                    r = row(board, s, c, c, "reference", publisher, f"{series}: {shop_label(board, s)}, Class {c}", hit, [], "shop")
+                    r["_set"] = "extra"
+                    rows.append(r)
+                else:
+                    missing.append(f"{publisher} {board} {c} {s}")
+        browser.close()
+    print(f"{len(rows)} reference books found in publisher stores; not found: {len(missing)}")
+    for m in missing:
+        print("   not found", m)
     return rows
 
 
@@ -397,7 +667,9 @@ def verify(rows: list[dict], ncert_sample: int) -> list[dict]:
         browser = p.chromium.launch(channel="chrome", headless=True)
         page = browser.new_context(user_agent=UA, locale="en-IN").new_page()
         for r in rows:
-            if r["provider"] == "NCERT" and id(r) not in sampled and not r.get("level"):
+            # NCERT books come from NCERT's own selector, so only a sample is
+            # opened; other NCERT pages (Exemplar) are always checked.
+            if r["provider"] == "NCERT" and r["resource_type"] == "textbook" and id(r) not in sampled and not r.get("level"):
                 kept.append(r)
                 continue
             if r["_check"] == "pdf":
@@ -466,7 +738,14 @@ def main() -> int:
                         help="re-verify only the Hindi/Sanskrit level resources and merge them into the JSON")
     parser.add_argument("--refresh-icse", action="store_true",
                         help="verify the ICSE IX-X rows, merge them into the JSON and replace only ICSE rows in the DB")
+    parser.add_argument("--refresh-extra", action="store_true",
+                        help="re-verify only the added channels, solutions and reference books and merge them into the JSON")
     args = parser.parse_args()
+    if args.refresh_extra:
+        kept = [r for r in json.loads(OUT.read_text(encoding="utf-8")) if r.get("_set") != "extra"]
+        extra = verify(extra_candidates(), 0) + shop_rows()
+        OUT.write_text(json.dumps(kept + extra, indent=1, ensure_ascii=False), encoding="utf-8")
+        print(f"{len(extra)} added rows verified, {len(kept) + len(extra)} rows -> {OUT}")
     if args.refresh_icse:
         icse = verify_pdfs(icse_candidates())
         kept = [r for r in json.loads(OUT.read_text(encoding="utf-8")) if r["board"] != "icse"] if OUT.exists() else []
@@ -493,7 +772,7 @@ def main() -> int:
     if args.verify:
         rows = candidates()
         print(f"{len(rows)} candidates")
-        kept = verify(rows, args.ncert_sample)
+        kept = verify(rows, args.ncert_sample) + shop_rows()
         OUT.parent.mkdir(parents=True, exist_ok=True)
         OUT.write_text(json.dumps(kept, indent=1, ensure_ascii=False), encoding="utf-8")
         print(f"{len(kept)} kept -> {OUT}")

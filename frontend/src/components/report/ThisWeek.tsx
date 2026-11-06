@@ -3,8 +3,14 @@ import type { LearningResource } from "@/hooks/useLearningResources";
 import type { ActionPlan } from "@/lib/reportContent";
 import { Panel, ResourceRow } from "./ReportPrimitives";
 
-/** NCERT links point at a whole book ("=0-7") or one chapter ("=3-7"). */
-const linkLabel = (url: string) => (/textbook\.php\?[a-z]+\d+=0-\d+/i.test(url) ? "Open book" : /textbook\.php/i.test(url) ? "Open chapter" : "Open");
+/** What a step's link opens: an NCERT book ("=0-7") or chapter (its PDF), a lesson, solutions or videos. */
+const linkLabel = (url: string) =>
+  /textbook\.php\?[a-z]+\d+=0-\d+/i.test(url) ? "Open book"
+  : /ncert\.nic\.in\/textbook/i.test(url) ? "Open chapter"
+  : /khanacademy\.org/i.test(url) ? "Open lesson"
+  : /knowledgeboat\.com/i.test(url) ? "Open solutions"
+  : /youtube\.com\/results/i.test(url) ? "Find videos"
+  : "Open";
 
 // Tinted cards as in the earlier report: mint for the child, indigo for the teacher.
 const TIP_TONE = {

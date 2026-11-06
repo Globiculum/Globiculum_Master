@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { topicLinks as buildTopicLinks, type TopicLink, type TopicResource } from "@/lib/topicLinks";
 
 /**
- * Study resources for a report (textbooks, video lessons, practice material),
- * from the learning_resources table. Every row is a link verified to show the
- * expected class and subject (backend/rag-pipeline/ingest/learning_resources.py).
+ * Study resources for a report (textbooks, reference books, video lessons,
+ * practice material) from the learning_resources table, and the links for each
+ * gap topic from topic_resources. Every row is a link verified to show the
+ * expected class and subject (backend/rag-pipeline/ingest/learning_resources.py
+ * and topic_resources.py).
  */
 
-export type ResourceType = "textbook" | "video" | "practice";
+/** reference: a reference book or question bank, linked to its publisher's page. */
+export type ResourceType = "textbook" | "reference" | "video" | "practice";
 
 export interface LearningResource {
   board: string;
@@ -98,7 +102,40 @@ export function resourceSubjectKeys(label: string, grade?: number): string[] {
   return keys;
 }
 
-const TYPE_ORDER: Record<ResourceType, number> = { textbook: 0, video: 1, practice: 2 };
+const TYPE_ORDER: Record<ResourceType, number> = { textbook: 0, reference: 1, video: 2, practice: 3 };
+
+/**
+ * Order inside a group of the subject card: the classic reference books first
+ * (H.C. Verma, R.S. Aggarwal, Lakhmir Singh, Selina...), then question banks;
+ * the class's own course before general channels; free solutions and official
+ * papers before solution sites. Providers not listed keep catalogue order.
+ */
+const PROVIDER_RANK: Partial<Record<ResourceType, string[]>> = {
+  reference: ["Bharati Bhawan", "S. Chand", "Selina Publishers", "Pradeep Publications", "Trueman Book Company", "VK Global",
+    "Nageen Prakashan", "Oswaal Books", "Arihant", "Full Marks"],
+  video: ["Khan Academy", "YouTube", "DIKSHA"],
+  practice: ["KnowledgeBoat", "CBSE", "CISCE", "NCERT", "Khan Academy", "ICSEHELP", "Vedantu", "BYJU'S"],
+};
+
+const rankOf = (r: LearningResource) => {
+  const i = PROVIDER_RANK[r.resource_type]?.indexOf(r.provider) ?? -1;
+  return i === -1 ? 99 : i;
+};
+
+/** Up to `limit` items, a different provider each time while one is left. */
+function diverse(items: LearningResource[], limit: number): LearningResource[] {
+  const picked: LearningResource[] = [];
+  const providers = new Set<string>();
+  for (const pass of [0, 1]) {
+    for (const r of items) {
+      if (picked.length >= limit) break;
+      if (picked.includes(r) || (pass === 0 && providers.has(r.provider))) continue;
+      picked.push(r);
+      providers.add(r.provider);
+    }
+  }
+  return picked;
+}
 
 /** NCERT book code from a catalogue link (textbook.php?hegp1=0-7 -> "hegp"); parts of one book share it. */
 const bookCode = (url: string): string | undefined => /textbook\.php\?([a-z]+)\d+=/i.exec(url)?.[1]?.toLowerCase();
@@ -124,7 +161,11 @@ function pickTextbooks(textbooks: LearningResource[], codes: string[] | undefine
       : {
           ...parts[0],
           title: parts[0].title.replace(/\s*Part-?\s*[IVX]+\b/i, ""),
-          parts: parts.map((p, i) => ({ label: `Part ${/Part-?\s*([IVX]+)/i.exec(p.title)?.[1] ?? i + 1}`, url: p.url })),
+          // "Ganita Manjari" + "Ganita Manjari PART-II": unnumbered parts count in Roman numerals too.
+          parts: parts.map((p, i) => ({
+            label: `Part ${(/Part-?\s*([IVX]+)\b/i.exec(p.title)?.[1] ?? ["I", "II", "III", "IV"][i] ?? String(i + 1)).toUpperCase()}`,
+            url: p.url,
+          })),
         }
   );
   return merged.slice(0, matching.length > 0 ? 1 : 2);
@@ -132,6 +173,7 @@ function pickTextbooks(textbooks: LearningResource[], codes: string[] | undefine
 
 export function useLearningResources(targetGoal: string | undefined, grade: number | undefined) {
   const [resources, setResources] = useState<LearningResource[]>([]);
+  const [topicRows, setTopicRows] = useState<TopicResource[]>([]);
   const board = resourceBoard(targetGoal, grade);
 
   useEffect(() => {
@@ -163,17 +205,77 @@ export function useLearningResources(targetGoal: string | undefined, grade: numb
     };
   }, [board, grade]);
 
-  /** Class material for one report subject: its textbook first, then videos, then practice. */
+  // Links for the gap topics of the entry class and the class before it (the
+  // report's target window). Until the table exists the query fails: no rows,
+  // and topicLinks falls back to the link saved in the report.
+  useEffect(() => {
+    if (!board || !grade) {
+      setTopicRows([]);
+      return;
+    }
+    let cancelled = false;
+    const from = supabase.from.bind(supabase) as unknown as (t: string) => {
+      select: (c: string) => {
+        eq: (col: string, v: string) => {
+          gte: (col: string, v: number) => {
+            lte: (col: string, v: number) => PromiseLike<{ data: TopicResource[] | null; error: { message: string } | null }>;
+          };
+        };
+      };
+    };
+    from("topic_resources")
+      .select("board, grade, subject, topic, resource_type, provider, title, url")
+      .eq("board", board)
+      .gte("grade", grade - 1)
+      .lte("grade", grade)
+      .then(({ data, error }) => {
+        if (!cancelled) setTopicRows(error ? [] : data ?? []);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [board, grade]);
+
+  /** Class material for one report subject: its textbook first, then videos, then practice (reference books: subjectGroups). */
   const forSubject = (label: string, limit = 4, bookCodes?: string[]): LearningResource[] => {
     const keys = resourceSubjectKeys(label, grade);
     const seen = new Set<string>();
     const items = resources
-      .filter((r) => !r.level && keys.includes(r.subject))
+      .filter((r) => !r.level && r.resource_type !== "reference" && keys.includes(r.subject))
       .sort((a, b) => TYPE_ORDER[a.resource_type] - TYPE_ORDER[b.resource_type])
       .filter((r) => !seen.has(r.url) && seen.add(r.url));
     const textbooks = pickTextbooks(items.filter((r) => r.resource_type === "textbook"), bookCodes);
     return [...textbooks, ...items.filter((r) => r.resource_type !== "textbook")].slice(0, limit);
   };
+
+  /**
+   * "Where to study" on a subject card, by kind: the textbook, two or three
+   * reference books, then video lessons and practice. Each group mixes
+   * providers; material for every subject ('*': DIKSHA, the ICSE channels,
+   * sample papers) only fills places the subject's own material leaves.
+   */
+  const subjectGroups = (label: string, bookCodes?: string[]): ResourceGroup[] => {
+    const keys = resourceSubjectKeys(label, grade);
+    const classMaterial = resources.filter((r) => !r.level);
+    const ofKind = (type: ResourceType) => {
+      const byRank = (a: LearningResource, b: LearningResource) => rankOf(a) - rankOf(b);
+      const own = classMaterial.filter((r) => r.resource_type === type && keys.includes(r.subject)).sort(byRank);
+      const general = classMaterial.filter((r) => r.resource_type === type && r.subject === "*").sort(byRank);
+      const seen = new Set<string>();
+      return [...own, ...general].filter((r) => !seen.has(r.url) && seen.add(r.url));
+    };
+    const groups: ResourceGroup[] = [
+      { heading: "Textbook", items: pickTextbooks(ofKind("textbook"), bookCodes) },
+      { heading: "Reference books", items: diverse(ofKind("reference"), 3) },
+      { heading: "Video lessons", items: diverse(ofKind("video"), 3) },
+      { heading: "Practice", items: diverse(ofKind("practice"), 3) },
+    ];
+    return groups.filter((g) => g.items.length > 0);
+  };
+
+  /** Chapter, lesson, solutions and videos for one gap topic (lib/topicLinks). */
+  const topicLinks = (topic: string, subject: string, topicGrade: number | undefined, savedUrl?: string): TopicLink[] =>
+    buildTopicLinks(topicRows, { board, topic, subject, grade: topicGrade ?? grade, savedUrl });
 
   /**
    * Hindi/Sanskrit resources grouped by where the student should start: a
@@ -211,8 +313,9 @@ export function useLearningResources(targetGoal: string | undefined, grade: numb
       for (const list of perSubject) if (list[i]) picked.push(list[i]);
     }
     const seen = new Set<string>();
-    return picked.filter((r) => !seen.has(r.url) && seen.add(r.url)).slice(0, limit);
+    // One row per provider first, so the list isn't six Khan Academy courses.
+    return diverse(picked.filter((r) => !seen.has(r.url) && seen.add(r.url)), limit);
   };
 
-  return { resources, forSubject, forLanguage, ofType };
+  return { board, resources, forSubject, subjectGroups, forLanguage, ofType, topicLinks };
 }

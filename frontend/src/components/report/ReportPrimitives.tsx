@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowUpRight, BookOpen, FileQuestion, Info, PlayCircle, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, BookOpen, FileQuestion, Info, Library, PlayCircle, type LucideIcon } from "lucide-react";
 import type { LearningResource } from "@/hooks/useLearningResources";
 import { SUBJECT_STATUS, type AlignmentLevel } from "@/lib/reportDesign";
 
@@ -72,12 +72,13 @@ export function ProgressBar({ value, barClass, label, height = "h-1.5" }: { valu
 }
 
 /** Link to an outside page: teal text, arrow on the right; underline on hover. */
-export function ExternalTextLink({ href, children, className = "" }: { href: string; children: React.ReactNode; className?: string }) {
+export function ExternalTextLink({ href, children, className = "", title }: { href: string; children: React.ReactNode; className?: string; title?: string }) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      title={title}
       className={`group inline-flex items-center gap-0.5 whitespace-nowrap font-heading text-xs font-medium text-secondary-contrast underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 ${className}`}
     >
       {children}
@@ -89,11 +90,13 @@ export function ExternalTextLink({ href, children, className = "" }: { href: str
 
 const RESOURCE_ICON: Record<LearningResource["resource_type"], LucideIcon> = {
   textbook: BookOpen,
+  reference: Library,
   video: PlayCircle,
   practice: FileQuestion,
 };
 const RESOURCE_KIND: Record<LearningResource["resource_type"], string> = {
   textbook: "Textbook",
+  reference: "Reference book",
   video: "Video lessons",
   practice: "Practice",
 };
@@ -105,7 +108,9 @@ const RESOURCE_KIND: Record<LearningResource["resource_type"], string> = {
 export function ResourceRow({ resource }: { resource: LearningResource }) {
   const Icon = RESOURCE_ICON[resource.resource_type];
   const title = resource.title.replace(/\s*\(free PDF\)\s*$/i, "");
-  const meta = `${RESOURCE_KIND[resource.resource_type]} · ${resource.provider}${/free PDF/i.test(resource.title) ? " · Free PDF" : ""}`;
+  // A reference book links to its publisher's page, said so to set expectations (not a free copy).
+  const provider = resource.resource_type === "reference" ? `${resource.provider} (publisher)` : resource.provider;
+  const meta = `${RESOURCE_KIND[resource.resource_type]} · ${provider}${/free PDF/i.test(resource.title) ? " · Free PDF" : ""}`;
   const icon = (
     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-secondary/10 group-hover:text-secondary">
       <Icon className="h-4 w-4" aria-hidden="true" />

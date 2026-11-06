@@ -191,7 +191,9 @@ const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, "").repl
  */
 export function buildActionPlan(
   a: ReportAnalysis,
-  firstResource: (subject: string) => { title: string; url: string } | undefined
+  firstResource: (subject: string) => { title: string; url: string } | undefined,
+  /** The first study link for a gap topic (its chapter, lesson...); without it the link saved in the report is used. */
+  topicUrl?: (subject: string, gap: Exclude<GapItem, string>) => string | undefined
 ): ActionPlan {
   const ranked = prioritySubjects(a);
   // A report where everything is strongly aligned still gets first steps from its remaining gaps.
@@ -208,7 +210,7 @@ export function buildActionPlan(
     }
     const gap = s.keyGaps[0];
     const topic = gap ? (typeof gap === "string" ? gap : gap.topic) : undefined;
-    const gapUrl = gap && typeof gap !== "string" ? gap.resourceUrl : undefined;
+    const gapUrl = gap && typeof gap !== "string" ? (topicUrl ? topicUrl(s.subject, gap) : gap.resourceUrl) : undefined;
     return {
       label: topic ? `${s.subject}: begin with "${topic}"` : `${s.subject}: review the Class material`,
       url: gapUrl ?? resource?.url,

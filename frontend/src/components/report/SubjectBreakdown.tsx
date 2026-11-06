@@ -8,6 +8,7 @@ import {
   type useLearningResources,
 } from "@/hooks/useLearningResources";
 import { displayGapReason, languageStartNote, subjectGapItems, topicOf, type GapItem } from "@/lib/subjectGaps";
+import type { TopicLink } from "@/lib/topicLinks";
 import { getGapReason } from "@/lib/gapExplanations";
 import { subjectPercent, type ReportSubject } from "@/lib/reportContent";
 import { alignBadgeClass, SUBJECT_COVERAGE, SUBJECT_PACE, SUBJECT_STATUS } from "@/lib/reportDesign";
@@ -34,7 +35,8 @@ const GENERIC_NEW = /^(Nothing closely related|No closely related|.* has no (pri
 
 interface TopicRow {
   topic: string;
-  url?: string;
+  /** Chapter, lesson, solved exercises, videos (lib/topicLinks). */
+  links: TopicLink[];
   detail?: string;
   classTag?: string;
 }
@@ -50,19 +52,25 @@ function TopicGroup({ title, caption, rows, startIndex, limit }: { title: string
       <p className="mt-0.5 font-body text-[14px] text-muted-foreground">{caption}</p>
       <ul className="mt-2 divide-y divide-border rounded-lg border border-border bg-background">
         {rows.map((r, i) => (
-          <li key={`${r.topic}-${i}`} className={`flex items-start gap-3 px-3 py-2.5 ${i >= hiddenFrom ? "hidden print-show" : ""}`}>
-            <div className="min-w-0 flex-1">
-              <p className="font-heading text-sm font-medium text-foreground">
-                {r.topic}
-                {r.classTag && (
-                  <span className="ml-2 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 align-middle font-heading text-[11px] font-medium text-muted-foreground">
-                    {r.classTag}
-                  </span>
-                )}
+          <li key={`${r.topic}-${i}`} className={`px-3 py-2.5 ${i >= hiddenFrom ? "hidden print-show" : ""}`}>
+            <p className="font-heading text-sm font-medium text-foreground">
+              {r.topic}
+              {r.classTag && (
+                <span className="ml-2 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 align-middle font-heading text-[11px] font-medium text-muted-foreground">
+                  {r.classTag}
+                </span>
+              )}
+            </p>
+            {r.detail && <p className="mt-0.5 font-body text-[14px] leading-snug text-muted-foreground">{r.detail}</p>}
+            {r.links.length > 0 && (
+              <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+                {r.links.map((l) => (
+                  <ExternalTextLink key={l.url} href={l.url} title={l.title}>
+                    {l.label}
+                  </ExternalTextLink>
+                ))}
               </p>
-              {r.detail && <p className="mt-0.5 font-body text-[14px] leading-snug text-muted-foreground">{r.detail}</p>}
-            </div>
-            {r.url && <ExternalTextLink href={r.url} className="mt-0.5 shrink-0">Open chapter</ExternalTextLink>}
+            )}
           </li>
         ))}
       </ul>
@@ -88,7 +96,7 @@ function SubjectDetail({ subject, criticalGaps, entryGrade, learning, familiarit
     const reason = typeof g !== "string" && g.reason ? displayGapReason(g.reason) : getGapReason(topicOf(g), subject.subject);
     return {
       topic: topicOf(g),
-      url: typeof g === "string" ? undefined : g.resourceUrl,
+      links: learning.topicLinks(topicOf(g), subject.subject, grade, typeof g === "string" ? undefined : g.resourceUrl),
       detail: hideGeneric && GENERIC_NEW.test(reason) ? undefined : reason,
       classTag: grade && entryGrade && grade < entryGrade ? `Class ${grade} foundation` : undefined,
     };
@@ -102,8 +110,9 @@ function SubjectDetail({ subject, criticalGaps, entryGrade, learning, familiarit
 
   const pct = subjectPercent(subject);
   const isLanguage = !!levelledLanguage(subject.subject) && !!entryGrade;
-  const resources = isLanguage ? [] : learning.forSubject(subject.subject, 4, subject.textbooks);
-  const languageGroups = isLanguage ? learning.forLanguage(subject.subject, familiarity, 3, subject.textbooks) : [];
+  const groups = isLanguage
+    ? learning.forLanguage(subject.subject, familiarity, 3, subject.textbooks)
+    : learning.subjectGroups(subject.subject, subject.textbooks);
 
   return (
     <div className="grid grid-cols-1 gap-6 border-t border-border px-4 pb-5 pt-4 sm:px-5 lg:grid-cols-5">
@@ -145,20 +154,20 @@ function SubjectDetail({ subject, criticalGaps, entryGrade, learning, familiarit
 
       <div className="lg:col-span-2">
         <p className="font-heading text-sm font-semibold text-secondary-contrast">Where to study</p>
-        {isLanguage ? (
+        {isLanguage && (
+          <p className="mt-1 font-body text-[14px] leading-snug text-muted-foreground">{resourceStartNote(subject.subject, entryGrade!, familiarity)}</p>
+        )}
+        {groups.length > 0 ? (
           <div className="mt-1 space-y-3">
-            <p className="font-body text-[14px] leading-snug text-muted-foreground">{resourceStartNote(subject.subject, entryGrade!, familiarity)}</p>
-            {languageGroups.map((g) => (
+            {groups.map((g) => (
               <div key={g.heading}>
-                <p className="px-2 font-heading text-xs font-medium uppercase tracking-wider text-muted-foreground">{g.heading}</p>
-                <div className="mt-1">{g.items.map((r) => <ResourceRow key={r.url} resource={r} />)}</div>
+                <p className="font-heading text-xs font-medium uppercase tracking-wider text-muted-foreground">{g.heading}</p>
+                <div className="mt-1 -mx-2">{g.items.map((r) => <ResourceRow key={r.url} resource={r} />)}</div>
               </div>
             ))}
           </div>
-        ) : resources.length > 0 ? (
-          <div className="mt-1 -mx-2">{resources.map((r) => <ResourceRow key={r.url} resource={r} />)}</div>
         ) : (
-          <p className="mt-1 font-body text-[15px] text-muted-foreground">No study resources listed yet for this subject.</p>
+          !isLanguage && <p className="mt-1 font-body text-[15px] text-muted-foreground">No study resources listed yet for this subject.</p>
         )}
       </div>
     </div>
