@@ -70,3 +70,6 @@ Thumbs.db
 
 # Local curriculum/RAG data
 backend/data/
+
+# Local planning docs (execution plan tracker); not part of the app
+docs/
