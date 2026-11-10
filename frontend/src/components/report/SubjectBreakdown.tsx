@@ -8,7 +8,7 @@ import {
   type useLearningResources,
 } from "@/hooks/useLearningResources";
 import { displayGapReason, languageStartNote, subjectGapItems, topicOf, type GapItem } from "@/lib/subjectGaps";
-import type { TopicLink } from "@/lib/topicLinks";
+import type { SkillChapters, TopicLink } from "@/lib/topicLinks";
 import { getGapReason } from "@/lib/gapExplanations";
 import { subjectPercent, type ReportSubject } from "@/lib/reportContent";
 import { alignBadgeClass, SUBJECT_COVERAGE, SUBJECT_PACE, SUBJECT_STATUS } from "@/lib/reportDesign";
@@ -35,6 +35,8 @@ const GENERIC_NEW = /^(Nothing closely related|No closely related|.* has no (pri
 
 interface TopicRow {
   topic: string;
+  /** Language skills: the textbook chapters that practise the skill (lib/topicLinks). */
+  chapters: SkillChapters[];
   /** Chapter, lesson, solved exercises, videos (lib/topicLinks). */
   links: TopicLink[];
   detail?: string;
@@ -62,6 +64,16 @@ function TopicGroup({ title, caption, rows, startIndex, limit }: { title: string
               )}
             </p>
             {r.detail && <p className="mt-0.5 font-body text-[14px] leading-snug text-muted-foreground">{r.detail}</p>}
+            {r.chapters.map((c) => (
+              <p key={c.lead} className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 font-body text-[14px] text-muted-foreground">
+                <span>{c.lead}</span>
+                {c.links.map((l) => (
+                  <ExternalTextLink key={l.url} href={l.url} title={l.title}>
+                    {l.label}
+                  </ExternalTextLink>
+                ))}
+              </p>
+            ))}
             {r.links.length > 0 && (
               <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
                 {r.links.map((l) => (
@@ -96,6 +108,7 @@ function SubjectDetail({ subject, criticalGaps, entryGrade, learning, familiarit
     const reason = typeof g !== "string" && g.reason ? displayGapReason(g.reason) : getGapReason(topicOf(g), subject.subject);
     return {
       topic: topicOf(g),
+      chapters: learning.skillChapters(topicOf(g), subject.subject, grade),
       links: learning.topicLinks(topicOf(g), subject.subject, grade, typeof g === "string" ? undefined : g.resourceUrl),
       detail: hideGeneric && GENERIC_NEW.test(reason) ? undefined : reason,
       classTag: grade && entryGrade && grade < entryGrade ? `Class ${grade} foundation` : undefined,

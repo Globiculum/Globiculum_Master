@@ -309,7 +309,7 @@ export function ReportBody({ formData, analysis, onDownload, onShare, isSharing 
         ? learning.forLanguage(subject, undefined, 3, codes)[0]?.items[0]
         : learning.forSubject(subject, 1, codes)[0];
     },
-    (subject, gap) => learning.topicLinks(gap.topic, subject, gap.grade, gap.resourceUrl)[0]?.url
+    (subject, gap) => learning.firstLink(gap.topic, subject, gap.grade, gap.resourceUrl)
   );
   // Same-curriculum note (e.g. IB -> IB); currentCurriculum may be a legacy string on older reports.
   const currentCurrList: string[] = Array.isArray(formData.currentCurriculum)

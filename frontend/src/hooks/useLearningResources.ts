@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { topicLinks as buildTopicLinks, type TopicLink, type TopicResource } from "@/lib/topicLinks";
+import {
+  skillChapters as buildSkillChapters,
+  topicLinks as buildTopicLinks,
+  type SkillChapters,
+  type TopicLink,
+  type TopicResource,
+} from "@/lib/topicLinks";
 
 /**
  * Study resources for a report (textbooks, reference books, video lessons,
@@ -277,6 +283,14 @@ export function useLearningResources(targetGoal: string | undefined, grade: numb
   const topicLinks = (topic: string, subject: string, topicGrade: number | undefined, savedUrl?: string): TopicLink[] =>
     buildTopicLinks(topicRows, { board, topic, subject, grade: topicGrade ?? grade, savedUrl });
 
+  /** For a language skill gap: the textbook chapters that practise it (lib/topicLinks). */
+  const skillChapters = (topic: string, subject: string, topicGrade: number | undefined): SkillChapters[] =>
+    buildSkillChapters(topicRows, { topic, subject, grade: topicGrade ?? grade });
+
+  /** The one link to start a gap with: a skill's first chapter, else the topic's first link. */
+  const firstLink = (topic: string, subject: string, topicGrade: number | undefined, savedUrl?: string): string | undefined =>
+    skillChapters(topic, subject, topicGrade)[0]?.links[0]?.url ?? topicLinks(topic, subject, topicGrade, savedUrl)[0]?.url;
+
   /**
    * Hindi/Sanskrit resources grouped by where the student should start: a
    * newcomer gets starter material first, a fluent speaker only class material.
@@ -317,5 +331,5 @@ export function useLearningResources(targetGoal: string | undefined, grade: numb
     return diverse(picked.filter((r) => !seen.has(r.url) && seen.add(r.url)), limit);
   };
 
-  return { board, resources, forSubject, subjectGroups, forLanguage, ofType, topicLinks };
+  return { board, resources, forSubject, subjectGroups, forLanguage, ofType, topicLinks, skillChapters, firstLink };
 }

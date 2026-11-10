@@ -22,8 +22,13 @@ file numbers) were checked on ncert.nic.in and are listed in NCERT_BOOKS; their
 topics are matched by title instead. The report also offers a YouTube search
 per topic, built on the page, so it needs no row.
 
+Language skills (English, Hindi, Sanskrit gaps are skills, not chapters) get
+rows pointing at the chapters that practise them, from skill_chapters.py, with
+the book in the provider ("NCERT Poorvi"); --build adds them too.
+
 Usage (from backend/rag-pipeline/):
     python ingest/topic_resources.py --build    # harvest, match, verify -> JSON; prints every match
+    python ingest/topic_resources.py --skills   # only refresh the language skills' rows in the JSON
     python ingest/topic_resources.py --load     # replace all topic_resources rows from the JSON
 """
 
@@ -586,6 +591,40 @@ def verify_ncert(page, rows: list[dict], sample: int = 12) -> list[dict]:
     return rows
 
 
+SKILL_PROVIDER = re.compile(r"^NCERT .+")  # "NCERT Poorvi": a language skill's chapters (skill_chapters.py)
+
+
+def with_skill_rows(rows: list[dict]) -> list[dict]:
+    """Replace the language-skill rows (skill_chapters.py) in rows, checking any
+    chapter PDF not already among the verified chapter links."""
+    from playwright.sync_api import sync_playwright
+    from skill_chapters import build_rows
+
+    keep = [r for r in rows if not SKILL_PROVIDER.match(r["provider"])]
+    skill = build_rows()
+    known = {r["url"] for r in keep if r["provider"] == "NCERT"}
+    unchecked = sorted({r["url"] for r in skill} - known)
+    if unchecked:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(channel="chrome", headless=True)
+            page = browser.new_context(locale="en-IN").new_page()
+            page.goto("https://ncert.nic.in/textbook.php", wait_until="domcontentloaded", timeout=90000)
+            status = dict(page.evaluate("""async (urls) => Promise.all(urls.map(async u => {
+                for (let k = 0; k < 3; k++) {
+                  try { const r = await fetch(u, {method: 'HEAD'});
+                        return [u, r.ok && (r.headers.get('content-type') || '').includes('pdf')]; }
+                  catch (e) { await new Promise(s => setTimeout(s, 1500)); }
+                }
+                return [u, false]; }))""", unchecked))
+            browser.close()
+        bad = sorted(u for u, ok in status.items() if not ok)
+        if bad:
+            raise SystemExit("skill chapters that don't open:\n  " + "\n  ".join(bad))
+    print(f"skill rows: {len(skill)} ({len(unchecked)} new chapter PDFs checked); replaced "
+          f"{len(rows) - len(keep)} old skill rows")
+    return keep + skill
+
+
 def load(rows: list[dict]) -> None:
     from db.supabase_client import get_client
 
@@ -599,11 +638,17 @@ def load(rows: list[dict]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--build", action="store_true", help="harvest, match and verify -> JSON")
+    parser.add_argument("--skills", action="store_true",
+                        help="add the language skills' chapters (skill_chapters.py) to the JSON")
     parser.add_argument("--load", action="store_true", help="replace topic_resources rows from the JSON")
     args = parser.parse_args()
     if args.build:
         rows = build()
         OUT.parent.mkdir(parents=True, exist_ok=True)
+        OUT.write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
+        print(f"{len(rows)} rows -> {OUT}")
+    if args.build or args.skills:
+        rows = with_skill_rows(json.loads(OUT.read_text(encoding="utf-8")))
         OUT.write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
         print(f"{len(rows)} rows -> {OUT}")
     if args.load:

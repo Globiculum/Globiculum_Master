@@ -1,6 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 import { localSupabase } from "./localSupabase";
-import { ANALYSIS_DATA, DELETED_REPORT_ID, FORM_DATA, PARENT_A, PARENT_B, PASSWORD, REPORT_ID, REPORT_TITLE, TOKENS } from "./testData";
+import {
+  ANALYSIS_DATA,
+  DELETED_REPORT_ID,
+  FORM_DATA,
+  PARENT_A,
+  PARENT_B,
+  PASSWORD,
+  REPORT_ID,
+  REPORT_TITLE,
+  SKILL_ROWS,
+  TOKENS,
+} from "./testData";
 
 // Recreates the test accounts and reports in the local Supabase before each run.
 export default async function globalSetup() {
@@ -55,4 +66,10 @@ export default async function globalSetup() {
     { user_id: owner, report_id: DELETED_REPORT_ID, token: TOKENS.deletedReport, expires_at: new Date(Date.now() + 7 * day).toISOString() },
   ]);
   if (shareError) throw shareError;
+
+  // Study links for the report's language skill gaps (the local table starts empty).
+  const { error: oldSkillError } = await admin.from("topic_resources").delete().eq("provider", "NCERT Poorvi");
+  if (oldSkillError) throw oldSkillError;
+  const { error: skillError } = await admin.from("topic_resources").insert(SKILL_ROWS);
+  if (skillError) throw skillError;
 }

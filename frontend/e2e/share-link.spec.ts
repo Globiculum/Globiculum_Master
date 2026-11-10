@@ -11,6 +11,23 @@ test.describe("opening a share link", () => {
     await expect(page).toHaveURL(new RegExp(`/report/${TOKENS.valid}$`));
   });
 
+  test("a language skill gap links the chapters that practise it", async ({ page }) => {
+    await page.goto(`/report/${TOKENS.valid}`);
+    await page.getByRole("button", { name: /Expand all/ }).click();
+
+    const grammar = page.getByRole("listitem").filter({ has: page.getByText("Grammar", { exact: true }) });
+    await expect(grammar.getByText("Practise in Poorvi:")).toBeVisible();
+    // In chapter order, each opening the chapter PDF.
+    const links = grammar.getByRole("link").filter({ hasText: /^Unit / });
+    await expect(links).toHaveText([/^Unit 1: Fables and Folk Tales \(present continuous, adverbs\)/, /^Unit 2: Friendship \(past tenses\)/]);
+    await expect(links.nth(1)).toHaveAttribute("href", "https://ncert.nic.in/textbook/pdf/fepr102.pdf");
+    await expect(grammar.getByRole("link", { name: "YouTube videos" })).toBeVisible();
+
+    const reading = page.getByRole("listitem").filter({ has: page.getByText("Reading comprehension", { exact: true }) });
+    await expect(reading.getByText("Every chapter of Poorvi practises this. Start with:")).toBeVisible();
+    await expect(reading.getByRole("link", { name: /^Unit 1: Fables and Folk Tales/ })).toBeVisible();
+  });
+
   test("an unknown link opens nothing", async ({ page }) => {
     await page.goto(`/report/${TOKENS.unknown}`);
     await expect(page.getByText("Report not found or link is invalid")).toBeVisible();

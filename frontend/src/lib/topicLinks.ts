@@ -76,6 +76,53 @@ function savedLink(url: string | undefined, board: string | null): TopicLink | u
 }
 
 /**
+ * Language skills (English, Hindi, Sanskrit gaps are skills, not chapters) are
+ * pointed at the textbook chapters that practise them by rows whose provider
+ * names the book: "NCERT Poorvi" (topic_resources.py --skills). Their title is
+ * the link text, "Ch 3: Rama to the Rescue (adjectives)"; a skill every chapter
+ * practises has one row titled "Every chapter: Ch 1: A Bottle of Dew".
+ */
+const SKILL_PROVIDER = /^NCERT (.+)$/;
+const EVERY_CHAPTER = /^Every chapter:\s*/;
+const isSkillRow = (r: TopicResource) => SKILL_PROVIDER.test(r.provider);
+/** "English Core" -> "english": skill names repeat across languages ("Listening and speaking"). */
+const language = (subject: string) => subject.toLowerCase().trim().split(/\s+/)[0];
+/** "Ch 3: ...", "Unit 2: ...", "Appendix 1: ...", "Writing Skills 1: ..." -> 3, 2, 1, 1; anything else last. */
+const chapterNo = (title: string) =>
+  Number(/^(?:Ch|Unit|Appendix|Writing Skills) (\d+)/.exec(title.replace(EVERY_CHAPTER, ""))?.[1] ?? 999);
+
+export interface SkillChapters {
+  /** "Practise in Poorvi:" or "Every chapter of Poorvi practises this. Start with:" */
+  lead: string;
+  links: TopicLink[];
+}
+
+/** The textbook chapters that practise a language skill, one group per book; empty for any other topic. */
+export function skillChapters(rows: TopicResource[], opts: { topic: string; subject: string; grade?: number }): SkillChapters[] {
+  const key = opts.topic.toLowerCase().trim();
+  const mine = rows.filter(
+    (r) =>
+      isSkillRow(r) &&
+      r.topic.toLowerCase().trim() === key &&
+      language(r.subject) === language(opts.subject) &&
+      (opts.grade === undefined || r.grade === opts.grade)
+  );
+  const books = [...new Set(mine.map((r) => r.provider))];
+  return books.map((provider) => {
+    const book = SKILL_PROVIDER.exec(provider)![1];
+    const own = mine.filter((r) => r.provider === provider).sort((a, b) => chapterNo(a.title) - chapterNo(b.title));
+    const every = own.length === 1 && EVERY_CHAPTER.test(own[0].title);
+    return {
+      lead: every ? `Every chapter of ${book} practises this. Start with:` : `Practise in ${book}:`,
+      links: own.map((r) => {
+        const label = r.title.replace(EVERY_CHAPTER, "");
+        return { label, url: r.url, title: `${book}, ${label} (NCERT chapter PDF)` };
+      }),
+    };
+  });
+}
+
+/**
  * Links for one topic, in reading order: chapter, lesson, solved exercises,
  * videos. For ICSE/ISC, which have no textbook of their own, the syllabus
  * comes last instead of first.
@@ -85,7 +132,9 @@ export function topicLinks(
   opts: { board: string | null; topic: string; subject: string; grade?: number; savedUrl?: string }
 ): TopicLink[] {
   const key = opts.topic.toLowerCase().trim();
-  const mine = rows.filter((r) => r.topic.toLowerCase().trim() === key && (opts.grade === undefined || r.grade === opts.grade));
+  const mine = rows.filter(
+    (r) => !isSkillRow(r) && r.topic.toLowerCase().trim() === key && (opts.grade === undefined || r.grade === opts.grade)
+  );
   const first = (type: TopicResourceType) => mine.find((r) => r.resource_type === type);
   const asLink = (r: TopicResource | undefined): TopicLink | undefined => (r ? { label: LABEL[r.resource_type], url: r.url, title: r.title } : undefined);
 

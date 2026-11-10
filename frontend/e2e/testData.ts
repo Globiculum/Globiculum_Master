@@ -19,6 +19,17 @@ export const TOKENS = {
   unknown: "e2e00000-0000-4000-8000-0000000000ff",
 };
 
+// topic_resources rows for two Class 6 English skills, as topic_resources.py --skills writes them.
+const skillRow = (topic: string, title: string, file: string) => ({
+  board: "cbse", grade: 6, subject: "English", topic, resource_type: "textbook", provider: "NCERT Poorvi",
+  title, url: `https://ncert.nic.in/textbook/pdf/${file}.pdf`,
+});
+export const SKILL_ROWS = [
+  skillRow("Grammar", "Unit 2: Friendship (past tenses)", "fepr102"),
+  skillRow("Grammar", "Unit 1: Fables and Folk Tales (present continuous, adverbs)", "fepr101"),
+  skillRow("Reading comprehension", "Every chapter: Unit 1: Fables and Folk Tales", "fepr101"),
+];
+
 // Same shape as a parent submission (parentMapper.ts).
 export const FORM_DATA = {
   childName: CHILD.first,
@@ -46,7 +57,17 @@ export const ANALYSIS_DATA = {
   subjectAnalysis: [
     { subject: "Mathematics", topicsCovered: 18, totalTopics: 20, alignmentLevel: "strong", keyGaps: [] },
     { subject: "Science", topicsCovered: 12, totalTopics: 20, alignmentLevel: "moderate", keyGaps: ["Diagram-based question practice"] },
-    { subject: "English", topicsCovered: 16, totalTopics: 20, alignmentLevel: "strong", keyGaps: [] },
+    {
+      subject: "English",
+      topicsCovered: 16,
+      totalTopics: 20,
+      alignmentLevel: "moderate",
+      // Language gaps are skills (language_skills.py); SKILL_ROWS point them at chapters.
+      keyGaps: [
+        { topic: "Grammar", grade: 6, severity: "CRITICAL", reason: "Expected by Class 6: nouns, pronouns, verbs, adverbs." },
+        { topic: "Reading comprehension", grade: 6, severity: "CRITICAL", reason: "Expected by Class 6: main ideas and sequence." },
+      ],
+    },
     { subject: "Social Science", topicsCovered: 7, totalTopics: 20, alignmentLevel: "high_gap", keyGaps: ["Indian History", "Civics", "Geography"] },
   ],
   criticalGaps: ["Indian History", "Civics & Governance"],
