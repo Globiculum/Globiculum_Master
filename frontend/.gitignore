@@ -2,3 +2,9 @@
 .env
 .env.*
 !.env.example
+
+# Test output (npm run test:e2e)
+dist-e2e
+test-results
+playwright-report
+blob-report

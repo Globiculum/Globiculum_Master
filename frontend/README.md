@@ -35,6 +35,9 @@ cd frontend
 npm install
 npm run dev        # http://localhost:5173
 npm run build      # production build → dist/
+npm run typecheck  # TypeScript check (app, configs, browser tests)
+npm test           # unit tests (Vitest)
+npm run test:e2e   # browser tests (Playwright), against a local Supabase only: see e2e/README.md
 ```
 
 > You can also run `npm run dev` from the **project root** — the root `package.json`
