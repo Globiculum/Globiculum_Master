@@ -38,8 +38,10 @@ Never run `supabase db reset --linked`: it erases the live database.
 These existed in the archived files but are not in the live database. Restoring any of them is a
 separate change (a new migration), tracked in the execution plan:
 
-- Indexes: 29 of 35 never created (e.g. `curriculum_edges` source/target, `curriculum_nodes` lookups,
-  the `curriculum_embeddings` vector index, `saved_reports.user_id`). Live has 6.
+- Indexes: 29 of 35 never created. `20261110105451_add_missing_indexes.sql` (10 Nov 2026) added the
+  three that were needed (`curriculum_edges` target, `saved_reports` by user, `shared_reports.token`).
+  The others are left out on purpose, including the `curriculum_embeddings` vector index, which the
+  report's gap matching would never use; that file explains why.
 - Security rules (RLS policies): 29 live versus 130 in the files. 22 tables have RLS on but no policy,
   so the browser cannot use them; the app does for `user_consents`, `data_deletion_requests`,
   `tutor_sessions`, `alerts` and the guardian tables.
