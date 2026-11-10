@@ -11,6 +11,8 @@ import { Clock, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRetakePrefill } from "@/hooks/useRetakePrefill";
 import { useAssessmentDraft } from "@/hooks/useAssessmentDraft";
+import { clearDraft, readDraft } from "@/lib/assessmentDraft";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import beginJourneyImage from "@/assets/BEGIN-JOURNEY.png";
 
 // Parent (5 steps) and Student (4 steps) are different lengths — the step
@@ -60,10 +62,23 @@ const BeginJourney = () => {
     setPersona(selected);
   };
 
-  const handleChangePersona = () => {
+  const changePersona = () => {
     sessionStorage.removeItem(PERSONA_STORAGE_KEY);
     setPersona(null);
     setPreviewPersona(null);
+  };
+
+  // Switching form throws the parent answers away (the student form would
+  // overwrite them), so ask first when any are saved.
+  const [confirmingSwitch, setConfirmingSwitch] = useState(false);
+  const handleChangePersona = () => {
+    if (readDraft()?.persona === "parent") setConfirmingSwitch(true);
+    else changePersona();
+  };
+  const switchAndClear = () => {
+    clearDraft();
+    setFormKey((k) => k + 1);
+    changePersona();
   };
 
   // Covers landing on /begin-journey directly with "student" already stored
@@ -222,6 +237,15 @@ const BeginJourney = () => {
           </MotionConfig>
         </div>
       </section>
+
+      <ConfirmDialog
+        open={confirmingSwitch}
+        onOpenChange={setConfirmingSwitch}
+        title="Change persona?"
+        description="Your answers in this form will be cleared. You'll start again from the beginning."
+        confirmLabel="Clear answers and change"
+        onConfirm={switchAndClear}
+      />
 
       <Footer />
     </div>

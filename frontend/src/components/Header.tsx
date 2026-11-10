@@ -21,6 +21,8 @@ import { Menu, LogOut, User, LayoutDashboard, Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useAlerts } from "@/hooks/useAlerts";
+import { readDraft } from "@/lib/assessmentDraft";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import globiculumLogo from "@/assets/globiculum-logo.png";
 
 interface HeaderProps {
@@ -48,7 +50,16 @@ const Header = ({ children }: HeaderProps = {}) => {
     navigate = (() => {}) as any;
   }
 
-  const handleSignOut = async () => {
+  // Signing out clears the answers of a form being filled in (lib/
+  // childDataStorage.ts), so ask first when there are any. Opened on the next
+  // tick so the closing menu or sheet doesn't take the dialog's focus.
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const handleSignOut = () => {
+    if (readDraft()) window.setTimeout(() => setConfirmingSignOut(true), 0);
+    else void signOutNow();
+  };
+
+  const signOutNow = async () => {
     const { error } = await signOut();
     if (error) {
       toast({
@@ -272,6 +283,14 @@ const Header = ({ children }: HeaderProps = {}) => {
           </Sheet>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmingSignOut}
+        onOpenChange={setConfirmingSignOut}
+        title="Sign out?"
+        description="Signing out clears the answers you've entered in the assessment form. You'll need to start the form again."
+        confirmLabel="Sign out and clear"
+        onConfirm={() => void signOutNow()}
+      />
     </header>
   );
 };

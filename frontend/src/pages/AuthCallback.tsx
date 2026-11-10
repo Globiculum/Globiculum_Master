@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { AFTER_SIGN_UP_KEY, safeFormPath } from "@/lib/afterSignIn";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Loader2, MailCheck, AlertTriangle } from "lucide-react";
@@ -24,7 +25,8 @@ import { Loader2, MailCheck, AlertTriangle } from "lucide-react";
 
 type CallbackState =
   | { status: "working" }
-  | { status: "success"; message: string }
+  // formPath: the assessment form the account was created from (Auth.tsx).
+  | { status: "success"; message: string; formPath?: string | null }
   | { status: "error"; message: string };
 
 // Supabase's raw error strings are developer-facing. Map the ones users
@@ -50,6 +52,12 @@ const AuthCallback = () => {
     let active = true;
     const finish = (next: CallbackState) => {
       if (active) setState(next);
+    };
+    // Signed in: offer the form the account was created from, if any.
+    const succeed = async () => {
+      const { data } = await supabase.auth.getSession();
+      const formPath = safeFormPath(data.session?.user.user_metadata?.[AFTER_SIGN_UP_KEY]);
+      finish({ status: "success", message: "Your email is confirmed and you're signed in.", formPath });
     };
 
     const run = async () => {
@@ -89,7 +97,7 @@ const AuthCallback = () => {
           navigate("/reset-password", { replace: true });
           return;
         }
-        finish({ status: "success", message: "Your email is confirmed and you're signed in." });
+        await succeed();
         return;
       }
 
@@ -100,7 +108,7 @@ const AuthCallback = () => {
       //    only exchange manually if nothing materialises.
       const { data: existing } = await supabase.auth.getSession();
       if (existing.session) {
-        finish({ status: "success", message: "Your email is confirmed and you're signed in." });
+        await succeed();
         return;
       }
 
@@ -131,7 +139,7 @@ const AuthCallback = () => {
       });
 
       if (sdkSession) {
-        finish({ status: "success", message: "Your email is confirmed and you're signed in." });
+        await succeed();
         return;
       }
 
@@ -149,7 +157,7 @@ const AuthCallback = () => {
         return;
       }
 
-      finish({ status: "success", message: "Your email is confirmed and you're signed in." });
+      await succeed();
     };
 
     run().catch((err: unknown) => {
@@ -182,8 +190,8 @@ const AuthCallback = () => {
               <CardDescription>{state.message}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full" onClick={() => navigate("/", { replace: true })}>
-                Continue to Home
+              <Button className="w-full" onClick={() => navigate(state.formPath ?? "/", { replace: true })}>
+                {state.formPath ? "Continue to the form" : "Continue to Home"}
               </Button>
             </CardContent>
           </>

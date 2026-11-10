@@ -1,17 +1,17 @@
 import { useLayoutEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, CircleAlert, HeartHandshake, MessageSquareText } from "lucide-react";
+import { CircleAlert, HeartHandshake, MessageSquareText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { GlobiculumIconTile, GlobiculumStudentIcon } from "@/components/icons";
 import FieldError from "../shared/FieldError";
 import FlashcardShell from "../shared/FlashcardShell";
+import CardNav from "../shared/CardNav";
 import ConcernCards from "../shared/ConcernCards";
 import SupportCards from "../shared/SupportCards";
 import VoiceInputButton from "../shared/VoiceInputButton";
 import { LearningStyleObservations } from "../LearningStyleObservations";
 import type { ParentFormData } from "./parentMapper";
-import backIcon from "@/assets/icons-3d/back.png";
 import nervousIcon from "@/assets/icons-3d/nervous.png";
 import areasToImproveIcon from "@/assets/icons-3d/areas-to-improve.png";
 import communicationIcon from "@/assets/icons-3d/communication.png";
@@ -100,11 +100,19 @@ interface ParentLearningProfileWizardProps {
   onArrayToggle: (field: keyof ParentFormData, value: string) => void;
   fieldErrors: Record<string, string>;
   validationAttempt?: number;
+  /** The page's Continue, for Next on the last card. */
+  onContinue?: () => void;
 }
 
-const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, fieldErrors, validationAttempt = 0 }: ParentLearningProfileWizardProps) => {
+const isAnswered = (id: CardId, formData: ParentFormData) => {
+  const field = CARD_FIELD[id];
+  return !field || (formData[field] as string[]).length > 0;
+};
+
+const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, fieldErrors, validationAttempt = 0, onContinue }: ParentLearningProfileWizardProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
-  const [cardIndex, setCardIndex] = useState(0);
+  // Continues where the parent left off: the first question still unanswered.
+  const [cardIndex, setCardIndex] = useState(() => Math.max(0, ORDER.findIndex((id) => !isAnswered(id, formData))));
 
   const currentId = ORDER[cardIndex] ?? ORDER[0];
   const total = ORDER.length;
@@ -242,37 +250,17 @@ const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, f
               </>
             )}
 
-            {isLast ? (
-              <p className="mt-6 flex items-center justify-center gap-1.5 text-xs font-semibold text-secondary">
-                <Check className="h-3.5 w-3.5" aria-hidden="true" /> Done — use Continue below to move on
-              </p>
-            ) : (
-              <button
-                type="button"
-                onClick={advance}
-                className="mt-6 block w-full text-center text-xs font-medium text-secondary underline-offset-2 hover:underline"
-              >
-                Continue →
-              </button>
-            )}
+            {/* Same Back / Next row as the School step. Next on the last
+                card (the optional notes) moves on to Review. */}
+            <CardNav
+              onBack={cardIndex > 0 ? goBack : undefined}
+              onNext={isLast ? onContinue : advance}
+              nextDisabled={!isAnswered(currentId, formData)}
+              nextLabel={isLast && !formData.additionalNotes.trim() ? "Skip, no notes" : "Next"}
+            />
           </FlashcardShell>
         </motion.div>
       </AnimatePresence>
-
-      <div className="flex items-center justify-between px-1">
-        <button
-          type="button"
-          onClick={goBack}
-          disabled={cardIndex === 0}
-          className={cn("flex items-center gap-1 text-xs font-medium", cardIndex === 0 ? "invisible" : "text-muted-foreground hover:text-foreground")}
-        >
-          <img src={backIcon} className="h-3.5 w-3.5 object-contain" alt="" aria-hidden="true" draggable={false} /> Back
-        </button>
-        <span className="text-xs font-medium text-muted-foreground">
-          {position} of {total}
-        </span>
-        <span className="w-10" aria-hidden="true" />
-      </div>
     </div>
   );
 };

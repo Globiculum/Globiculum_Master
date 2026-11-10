@@ -1,14 +1,14 @@
 import { useLayoutEffect, useState, type ComponentType, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, ArrowUpCircle, BarChart3, BookOpen, Check, Equal, Globe2, Minus, Target } from "lucide-react";
+import { ArrowUpCircle, BarChart3, BookOpen, Check, Equal, Globe2, Minus, Target } from "lucide-react";
 import editIcon from "@/assets/icons-3d/edit.png";
-import backIcon from "@/assets/icons-3d/back.png";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   GlobiculumChecklistIcon,
+  GlobiculumEducationIcon,
   GlobiculumGlobeIcon,
   GlobiculumGradeIcon,
   GlobiculumIconTile,
@@ -30,6 +30,10 @@ import {
 import InputCard from "../shared/InputCard";
 import FieldError from "../shared/FieldError";
 import FlashcardShell from "../shared/FlashcardShell";
+import CardNav from "../shared/CardNav";
+import EducationHistoryList from "../shared/EducationHistoryList";
+import { EMPTY_EDUCATION_ENTRY, priorGradeOptions } from "../shared/priorGrades";
+import { previousSchoolsComplete } from "../shared/stepRules";
 import TimelineSelector, { type TimelineOption } from "../shared/TimelineSelector";
 import { boardCoverageNote, boardHasData, coverageCardToFix, currentCurriculumHasData, targetGradeHasData } from "../shared/dataCoverage";
 import type { ParentFormData } from "./parentMapper";
@@ -198,13 +202,16 @@ type ParentProfileFieldId =
   | "targetGrade"
   | "targetStream"
   | "targetElectives"
-  | "timeline";
+  | "timeline"
+  | "previousSchool";
 
-const BASE_ORDER: ParentProfileFieldId[] = ["name", "schoolStage", "grade", "country", "curriculum", "targetBoard", "targetGrade", "targetStream", "targetElectives", "timeline"];
+// "Did your child attend an Indian school before?" is asked last, as one more
+// card, instead of a box under every card.
+const BASE_ORDER: ParentProfileFieldId[] = ["name", "schoolStage", "grade", "country", "curriculum", "targetBoard", "targetGrade", "targetStream", "targetElectives", "timeline", "previousSchool"];
 
 type StreamElectives = Record<TargetStream, string[]>;
 
-type Milestone = "About Your Child" | "School Details" | "Your Goal" | "Your Plan";
+type Milestone = "About Your Child" | "School Details" | "Your Goal" | "Your Plan" | "Previous Learning";
 
 interface ProfileCard {
   id: ParentProfileFieldId;
@@ -216,6 +223,8 @@ interface ProfileCard {
   title: string;
   hint?: string;
   errorField: keyof ParentFormData | null;
+  /** Can be left unanswered: not a reason to reopen the cards on return. */
+  optional?: boolean;
 }
 
 const buildCardSequence = (formData: ParentFormData, streamElectives: StreamElectives): ProfileCard[] => {
@@ -368,6 +377,17 @@ const buildCardSequence = (formData: ParentFormData, streamElectives: StreamElec
       navLabel: "Timeline",
       title: "When are you planning to transition?",
       errorField: "timeline",
+    },
+    {
+      id: "previousSchool",
+      icon: GlobiculumEducationIcon,
+      tileColor: "amber",
+      milestone: "Previous Learning",
+      navLabel: "Indian school before",
+      title: "Did your child attend an Indian school before?",
+      hint: "Optional. If yes, add each school with its grades and curriculum.",
+      errorField: "educationHistory",
+      optional: true,
     }
   );
 
@@ -406,8 +426,11 @@ const nextCardId = (
 
 const cardHasError = (card: ProfileCard, errors: Record<string, string>): boolean => {
   if (card.id === "name") return !!(errors.childName || errors.childLastName);
+  if (card.id === "previousSchool") return !!(errors.previouslyStudiedInIndia || errors.educationHistory);
   return !!(card.errorField && errors[card.errorField as string]);
 };
+
+const gradeLabel = (grade: string) => (grade === "KG" ? "KG" : `Grade ${grade}`);
 
 const isCardAnswered = (card: ProfileCard, formData: ParentFormData): boolean => {
   switch (card.id) {
@@ -439,6 +462,8 @@ const isCardAnswered = (card: ProfileCard, formData: ParentFormData): boolean =>
       return (formData.targetElectives ?? []).length > 0;
     case "timeline":
       return !!formData.timeline;
+    case "previousSchool":
+      return formData.previouslyStudiedInIndia === "no" || (formData.previouslyStudiedInIndia === "yes" && previousSchoolsComplete(formData.educationHistory));
     default:
       return false;
   }
@@ -482,6 +507,14 @@ const displayValue = (id: ParentProfileFieldId, formData: ParentFormData): strin
       return (formData.targetElectives ?? []).length > 0 ? formData.targetElectives.join(", ") : "None";
     case "timeline":
       return TIMELINES.find((t) => t.value === formData.timeline)?.label;
+    case "previousSchool": {
+      if (formData.previouslyStudiedInIndia === "no") return "No";
+      if (formData.previouslyStudiedInIndia !== "yes") return undefined;
+      const schools = formData.educationHistory
+        .filter((e) => e.curriculum || e.fromGrade)
+        .map((e) => [e.curriculum, e.fromGrade && e.toGrade ? `${gradeLabel(e.fromGrade)}–${gradeLabel(e.toGrade)}` : ""].filter(Boolean).join(" "));
+      return schools.length > 0 ? `Yes · ${schools.join("; ")}` : "Yes";
+    }
     default:
       return undefined;
   }
@@ -535,6 +568,7 @@ const buildSummarySections = (formData: ParentFormData, streamElectives: StreamE
       ? [{ key: "electives", icon: BookOpen, tileColor: "violet" as TileColor, label: "Optional Subjects", value: displayValue("targetElectives", formData), editCardId: "targetElectives" as const }]
       : []),
     { key: "timeline", icon: GlobiculumTimelineIcon, tileColor: "teal", label: "Timeline", value: displayValue("timeline", formData), editCardId: "timeline" },
+    { key: "previousSchool", icon: GlobiculumEducationIcon, tileColor: "amber", label: "Previous Learning (optional)", value: displayValue("previousSchool", formData), editCardId: "previousSchool" },
   ];
 };
 
@@ -665,7 +699,7 @@ const MobileProgress = ({ navItems, activeLabel, position, total }: { navItems: 
       ))}
     </div>
     <p className="mt-1.5 text-xs font-medium text-muted-foreground">
-      {activeLabel} · {position} of {total} · {Math.round((position / total) * 100)}%
+      {activeLabel} · {position} of {total}
     </p>
   </div>
 );
@@ -679,8 +713,7 @@ const CardFrame = ({
   error,
   invalid,
   children,
-  editing,
-  onFinishEditing,
+  footer,
 }: {
   icon: ProfileIcon;
   tileColor: TileColor;
@@ -690,15 +723,8 @@ const CardFrame = ({
   error?: string;
   invalid?: boolean;
   children: ReactNode;
-  /** True when this card was reached by clicking an already-answered nav
-   * item to revisit it, rather than the normal forward sequence. Auto-advance
-   * cards (radio/select, no manual "Next" of their own) only move on when the
-   * selection actually changes — if the parent reopens one just to check it
-   * and doesn't change anything, there was previously no way back to the
-   * summary except retracing every "Back" step. Showing an explicit "Next"
-   * here, only while editing, gives a guaranteed way out either way. */
-  editing?: boolean;
-  onFinishEditing?: () => void;
+  /** The card's Back / Next row (CardNav), below any error. */
+  footer?: ReactNode;
 }) => (
   <FlashcardShell invalid={invalid || !!error}>
     <div className="flex flex-col items-center text-center">
@@ -713,20 +739,7 @@ const CardFrame = ({
     </div>
     <div className="mt-6">{children}</div>
     <FieldError message={error} />
-    {editing && onFinishEditing && (
-      <div className="mt-4 flex justify-end">
-        <button
-          type="button"
-          onClick={onFinishEditing}
-          className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-        >
-          Next
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </span>
-        </button>
-      </div>
-    )}
+    {footer}
   </FlashcardShell>
 );
 
@@ -734,31 +747,24 @@ interface ParentSchoolProfileWizardProps {
   formData: ParentFormData;
   onFieldChange: <K extends keyof ParentFormData>(field: K, value: ParentFormData[K]) => void;
   fieldErrors: Record<string, string>;
+  /** The page's Continue: Next on the finished summary moves to the next step. */
+  onContinue?: () => void;
 }
 
 const ADVANCE_DELAY_MS = 420;
 
-const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: ParentSchoolProfileWizardProps) => {
+const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors, onContinue }: ParentSchoolProfileWizardProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const streamElectives = useStreamElectives(formData);
   const sequence = buildCardSequence(formData, streamElectives);
 
-  // BASE_ORDER lists every possible card, but some only exist conditionally
-  // (the stream card only for Classes XI-XII), so skip ids absent from this
-  // form's sequence rather than asserting they're there.
-  const hasExistingAnswers = BASE_ORDER.some((id) => {
-    const card = sequence.find((c) => c.id === id);
-    return card ? isCardAnswered(card, formData) : false;
-  });
-  const firstUnansweredId = (): ParentProfileFieldId => {
-    for (const card of sequence) {
-      if (!isCardAnswered(card, formData)) return card.id;
-    }
-    return "timeline";
-  };
+  // Opening the step (after a refresh, or coming back to it) continues where
+  // the parent left off: the first required question still unanswered, or the
+  // summary once they are all in (a retake, or a finished step).
+  const firstUnanswered = sequence.find((card) => !card.optional && !isCardAnswered(card, formData));
 
-  const [phase, setPhase] = useState<"cards" | "summary">(hasExistingAnswers ? "summary" : "cards");
-  const [currentCardId, setCurrentCardId] = useState<ParentProfileFieldId>(firstUnansweredId());
+  const [phase, setPhase] = useState<"cards" | "summary">(firstUnanswered ? "cards" : "summary");
+  const [currentCardId, setCurrentCardId] = useState<ParentProfileFieldId>(firstUnanswered?.id ?? "name");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [editingSingleCard, setEditingSingleCard] = useState(false);
 
@@ -858,15 +864,37 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
     setCurrentCardId(id);
   };
 
-  // For auto-advance cards (radio/select) reached via editCard: selecting a
-  // value already jumps back to the summary via advanceTo's editingSingleCard
-  // check, but if the parent doesn't change anything there was previously no
-  // way back except "Back"-ing through every earlier card. This gives a
-  // direct, guaranteed way out regardless of whether anything changed.
-  const finishEditing = () => {
+  // Summary "Back" reopens the last question.
+  const backFromSummary = () => {
     setEditingSingleCard(false);
-    setPhase("summary");
+    setPhase("cards");
+    setCurrentCardId(sequence[sequence.length - 1].id);
   };
+
+  // Yes shows the first school's row straight away; No needs nothing more, so
+  // it moves on like the other single-choice cards.
+  const answerPreviousSchool = (studied: boolean) => {
+    if (isTransitioning) return;
+    onFieldChange("previousLocation", studied ? "india" : "");
+    if (studied) {
+      onFieldChange("previouslyStudiedInIndia", "yes");
+      if (formData.educationHistory.length === 0) onFieldChange("educationHistory", [{ ...EMPTY_EDUCATION_ENTRY }]);
+    } else {
+      selectChoice("previouslyStudiedInIndia", "no");
+    }
+  };
+
+  // The Back / Next row inside each card. Back is hidden on the first card;
+  // Next moves on once the question is answered (radio cards also move on by
+  // themselves when picked).
+  const cardNav = (answered: boolean, onNext: () => void = continueFromText, nextLabel = "Next") => (
+    <CardNav
+      onBack={currentIndex > 0 ? goBackOneCard : undefined}
+      onNext={onNext}
+      nextDisabled={!answered || isTransitioning}
+      nextLabel={nextLabel}
+    />
+  );
 
   const navItems: NavItem[] = sequence.map((card, idx) => {
     const answered = isCardAnswered(card, formData);
@@ -937,6 +965,7 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
                 );
               })}
             </div>
+            <CardNav onBack={backFromSummary} onNext={onContinue} />
           </FlashcardShell>
         </div>
       </div>
@@ -959,7 +988,14 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
             {currentCard.id === "name" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} invalid={cardHasError(currentCard, fieldErrors)}>
+              <CardFrame
+                icon={currentCard.icon}
+                tileColor={currentCard.tileColor}
+                title={currentCard.title}
+                hint={currentCard.hint}
+                invalid={cardHasError(currentCard, fieldErrors)}
+                footer={cardNav(!!formData.childName.trim() && !!formData.childLastName.trim(), continueFromName)}
+              >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Input
@@ -981,24 +1017,11 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
                   </div>
                 </div>
                 {/* No voice input here: browser speech recognition sends the audio to Google. */}
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={continueFromName}
-                    disabled={!formData.childName.trim() || !formData.childLastName.trim()}
-                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-                  >
-                    Next
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                </div>
               </CardFrame>
             )}
 
             {currentCard.id === "schoolStage" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} kicker={currentCard.kicker} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.schoolStage} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} kicker={currentCard.kicker} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.schoolStage} footer={cardNav(!!formData.schoolStage)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <InputCard
                     variant="large"
@@ -1053,7 +1076,7 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
             )}
 
             {currentCard.id === "grade" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.snapshotGrade} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.snapshotGrade} footer={cardNav(!!formData.snapshotGrade)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="flex flex-wrap justify-center gap-2">
                   {getGradeOptions(formData.schoolStage).map((grade) => (
                     <InputCard
@@ -1070,7 +1093,7 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
             )}
 
             {currentCard.id === "country" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.snapshotLocation} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.snapshotLocation} footer={cardNav(!!formData.snapshotLocation)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {COUNTRIES.map((loc) => (
                     <InputCard
@@ -1093,7 +1116,7 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
             )}
 
             {currentCard.id === "usState" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.usState} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.usState} footer={cardNav(!!formData.usState)}>
                 <Select value={formData.usState} onValueChange={(value) => selectChoice("usState", value)}>
                   <SelectTrigger id="parent-us-state">
                     <SelectValue placeholder="Select your state" />
@@ -1110,53 +1133,29 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
             )}
 
             {currentCard.id === "usStateOther" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} error={fieldErrors.usStateOther}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} error={fieldErrors.usStateOther} footer={cardNav(!!formData.usStateOther.trim())}>
                 <Input
                   id="parent-us-state-other"
                   placeholder="Enter state name"
                   value={formData.usStateOther}
                   onChange={(e) => onFieldChange("usStateOther", e.target.value)}
                 />
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={continueFromText}
-                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-                  >
-                    Next
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                </div>
               </CardFrame>
             )}
 
             {currentCard.id === "countryOther" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} error={fieldErrors.snapshotLocationOther}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} error={fieldErrors.snapshotLocationOther} footer={cardNav(!!formData.snapshotLocationOther.trim())}>
                 <Input
                   id="parent-snapshot-location-other"
                   placeholder="Enter country name"
                   value={formData.snapshotLocationOther}
                   onChange={(e) => onFieldChange("snapshotLocationOther", e.target.value)}
                 />
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={continueFromText}
-                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-                  >
-                    Next
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                </div>
               </CardFrame>
             )}
 
             {currentCard.id === "curriculum" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.currentCurriculum} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.currentCurriculum} footer={cardNav(formData.currentCurriculum.length > 0)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {getCurriculumOptions(formData.schoolStage, formData.snapshotLocation).map((c) => (
                     <InputCard
@@ -1176,30 +1175,18 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
             )}
 
             {currentCard.id === "curriculumOther" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} error={fieldErrors.currentCurriculumOther}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} error={fieldErrors.currentCurriculumOther} footer={cardNav(!!formData.currentCurriculumOther.trim())}>
                 <Input
                   id="parent-current-curriculum-other"
                   placeholder="Enter curriculum name"
                   value={formData.currentCurriculumOther}
                   onChange={(e) => onFieldChange("currentCurriculumOther", e.target.value)}
                 />
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={continueFromText}
-                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-                  >
-                    Next
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                </div>
               </CardFrame>
             )}
 
             {currentCard.id === "targetBoard" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.targetGoal} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.targetGoal} footer={cardNav(!!formData.targetGoal)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-2 gap-3">
                   {TARGET_BOARDS.map((board) => (
                     <InputCard
@@ -1219,7 +1206,7 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
             )}
 
             {currentCard.id === "targetGrade" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.targetGrade} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.targetGrade} footer={cardNav(!!formData.targetGrade)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-2 gap-3">
                   {TARGET_GRADE_OPTIONS.map((option) => {
                     const available = !formData.targetGoal || targetGradeHasData(formData.targetGoal, formData.snapshotGrade, option.value);
@@ -1244,7 +1231,7 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
             )}
 
             {currentCard.id === "targetStream" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.targetStream} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.targetStream} footer={cardNav(!!normalizeTargetStream(formData.targetStream))}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-1 gap-3">
                   {TARGET_STREAMS.map((stream) => (
                     <InputCard
@@ -1267,7 +1254,13 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
             )}
 
             {currentCard.id === "targetElectives" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint}>
+              <CardFrame
+                icon={currentCard.icon}
+                tileColor={currentCard.tileColor}
+                title={currentCard.title}
+                hint={currentCard.hint}
+                footer={cardNav(true, continueFromText, (formData.targetElectives ?? []).length > 0 ? "Next" : "Skip, none of these")}
+              >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {electivesForStream(streamElectives, formData.targetStream).map((subject) => {
                     const chosen = (formData.targetElectives ?? []).includes(subject);
@@ -1288,43 +1281,50 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors }: Par
                     );
                   })}
                 </div>
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={continueFromText}
-                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-                  >
-                    {(formData.targetElectives ?? []).length > 0 ? "Next" : "Skip, none of these"}
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                </div>
               </CardFrame>
             )}
 
             {currentCard.id === "timeline" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.timeline} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={fieldErrors.timeline} footer={cardNav(!!formData.timeline)}>
                 <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => selectChoice("timeline", value)} />
+              </CardFrame>
+            )}
+
+            {currentCard.id === "previousSchool" && (
+              <CardFrame
+                icon={currentCard.icon}
+                tileColor={currentCard.tileColor}
+                title={currentCard.title}
+                hint={currentCard.hint}
+                error={fieldErrors.educationHistory ?? fieldErrors.previouslyStudiedInIndia}
+                footer={cardNav(
+                  formData.previouslyStudiedInIndia !== "yes" || previousSchoolsComplete(formData.educationHistory),
+                  continueFromText,
+                  formData.previouslyStudiedInIndia ? "Next" : "Skip"
+                )}
+              >
+                <div role="radiogroup" aria-label={currentCard.title} className="flex justify-center gap-3">
+                  <InputCard variant="chip" mode="radio" label="Yes" selected={formData.previouslyStudiedInIndia === "yes"} onClick={() => answerPreviousSchool(true)} />
+                  <InputCard variant="chip" mode="radio" label="No" selected={formData.previouslyStudiedInIndia === "no"} onClick={() => answerPreviousSchool(false)} />
+                </div>
+                {formData.previouslyStudiedInIndia === "yes" && (
+                  <div className="mt-6">
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      {priorGradeOptions(formData.snapshotGrade).length > 1
+                        ? `Add each school and the grades your child studied there (before Grade ${formData.snapshotGrade}).`
+                        : "Add the school your child attended."}
+                    </p>
+                    <EducationHistoryList
+                      entries={formData.educationHistory}
+                      onChange={(entries) => onFieldChange("educationHistory", entries)}
+                      currentGrade={formData.snapshotGrade}
+                    />
+                  </div>
+                )}
               </CardFrame>
             )}
           </motion.div>
         </AnimatePresence>
-
-        <div className="flex items-center justify-between px-1">
-          <button
-            type="button"
-            onClick={goBackOneCard}
-            disabled={currentIndex === 0}
-            className={cn("flex items-center gap-1 text-xs font-medium", currentIndex === 0 ? "invisible" : "text-muted-foreground hover:text-foreground")}
-          >
-            <img src={backIcon} className="h-3.5 w-3.5 object-contain" alt="" aria-hidden="true" draggable={false} /> Back
-          </button>
-          <span className="text-xs font-medium text-muted-foreground lg:hidden">
-            {position} of {total}
-          </span>
-          <span className="w-10" aria-hidden="true" />
-        </div>
       </div>
     </div>
   );

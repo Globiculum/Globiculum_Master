@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { AFTER_SIGN_UP_KEY, safeFormPath } from "@/lib/afterSignIn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,6 +90,11 @@ interface SignUpErrors {
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  // Set when sent here from an assessment form: after signing in (or
+  // confirming a new account's email) the user goes straight to that form.
+  const [searchParams] = useSearchParams();
+  const formPath = safeFormPath(searchParams.get("next"));
+  const goOn = () => navigate(formPath ?? "/", { replace: true });
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -151,6 +157,9 @@ const Auth = () => {
           emailRedirectTo: emailRedirectUrl(),
           data: {
             full_name: validated.fullName || "User",
+            // The form to open once the emailed link confirms the account
+            // (read by AuthCallback; the link usually opens in a new tab).
+            ...(formPath ? { [AFTER_SIGN_UP_KEY]: formPath } : {}),
           },
         },
       });
@@ -178,7 +187,7 @@ const Auth = () => {
           title: "Welcome!",
           description: "Your account is ready.",
         });
-        navigate("/", { replace: true });
+        goOn();
         return;
       }
 
@@ -219,7 +228,7 @@ const Auth = () => {
 
       if (error) throw error;
 
-      navigate("/", { replace: true });
+      goOn();
     } catch (error: unknown) {
       if (error instanceof ZodError) {
         setSignInErrors(zodErrorsByField(error));
@@ -313,6 +322,7 @@ const Auth = () => {
               Your account has been created. We've sent a confirmation link to{" "}
               <span className="font-medium text-foreground">{pendingConfirmEmail}</span>. You need to open
               that link before you can sign in.
+              {formPath && " The link brings you straight back to the form."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -355,10 +365,15 @@ const Auth = () => {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-2">
           <h1 className="text-2xl font-bold leading-none tracking-tight">Welcome to Globiculum</h1>
-          <CardDescription>Sign in or create an account to continue</CardDescription>
+          <CardDescription>
+            {formPath
+              ? "Create a free account to start your report. Already have one? Choose Sign In."
+              : "Sign in or create an account to continue"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
+          {/* Coming from "Get Free Report", most people are new: open on Sign Up. */}
+          <Tabs defaultValue={formPath ? "signup" : "signin"} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>

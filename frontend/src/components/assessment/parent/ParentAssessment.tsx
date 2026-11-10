@@ -7,10 +7,12 @@ import ParentStep1 from "./ParentStep1";
 import ParentStep2 from "./ParentStep2";
 import ParentStep3 from "./ParentStep3";
 import ParentStep5 from "./ParentStep5";
-import { validateParentStep, PARENT_TOTAL_STEPS } from "./parentValidation";
+import { validateParentStep, parentStepShares, PARENT_TOTAL_STEPS } from "./parentValidation";
 import type { ParentFormData } from "./parentMapper";
 import RestoredDraftBanner from "../shared/RestoredDraftBanner";
+import type { SubjectProgress } from "../shared/formProgress";
 import { normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
+import { useLeaveWarning } from "@/hooks/useLeaveWarning";
 import { saveDraft, type AssessmentDraft } from "@/lib/assessmentDraft";
 
 // ParentAssessment.tsx — the dedicated Parent state owner and step
@@ -205,9 +207,17 @@ const ParentAssessment = ({
 
   // Reported by the Academic Path step, which alone knows which subject cards it shows.
   const [subjectsComplete, setSubjectsComplete] = useState(false);
+  const [subjectsProgress, setSubjectsProgress] = useState<SubjectProgress | null>(null);
   const stepContext = { subjectsComplete };
   // Continue stays dimmed until every required answer on the step is in.
   const canProceed = validateParentStep(currentStep, formData, stepContext).valid;
+  // "Your Process": how much of each step is answered.
+  const stepShares = parentStepShares(formData, subjectsProgress);
+
+  // Closing the tab loses the answers (they are kept in this tab only), so the
+  // browser asks first once anything has been entered.
+  const [emptyForm] = useState(() => JSON.stringify(createDefaultParentFormData()));
+  useLeaveWarning(JSON.stringify(formData) !== emptyForm);
 
   // Auto-save to this tab's draft (lib/assessmentDraft.ts), restored after a
   // refresh. Answers are debounced
@@ -329,14 +339,15 @@ const ParentAssessment = ({
     setCurrentStep(0);
   };
 
-  const stepProps = { formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors, validationAttempt };
+  // onContinue: Next on a step's last card does what the page's Continue does.
+  const stepProps = { formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors, validationAttempt, onContinue: goNext };
 
   const renderStep = () => {
     switch (currentStep) {
       case 0:
         return <ParentStep1 {...stepProps} />;
       case 1:
-        return <ParentStep2 {...stepProps} onSubjectsCompleteChange={setSubjectsComplete} />;
+        return <ParentStep2 {...stepProps} onSubjectsCompleteChange={setSubjectsComplete} onSubjectsProgressChange={setSubjectsProgress} />;
       case 2:
         return <ParentStep3 {...stepProps} />;
       case 3:
@@ -365,6 +376,7 @@ const ParentAssessment = ({
       showChangePersona={showChangePersona}
       steps={STEPPER_STEPS}
       currentIndex={currentStep}
+      stepShares={stepShares}
       onBack={goPrev}
       onNext={goNext}
       canProceed={canProceed}

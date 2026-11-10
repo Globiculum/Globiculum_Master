@@ -1,4 +1,5 @@
 import type { ParentFormData } from "./parentMapper";
+import type { SubjectProgress } from "../shared/formProgress";
 
 // Shared prop contract for the 4 Parent step components. Not part of the
 // sprint's explicit file list, but a minimal necessity to avoid repeating
@@ -17,4 +18,9 @@ export interface ParentStepProps {
   validationAttempt?: number;
   /** Academic Path only: reports whether every subject card it shows has an answer. */
   onSubjectsCompleteChange?: (complete: boolean) => void;
+  /** Academic Path only: subject cards answered, for the progress card. */
+  onSubjectsProgressChange?: (progress: SubjectProgress) => void;
+  /** The page's Continue (validate the step, then go to the next one), used
+   * by Next on the step's last card. */
+  onContinue?: () => void;
 }

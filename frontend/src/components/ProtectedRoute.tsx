@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
+import { signInPathFor } from "@/lib/afterSignIn";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   skipOnboardingCheck?: boolean;
+  /** After signing in, come back to this page (the assessment forms only). */
+  returnAfterSignIn?: boolean;
 }
 
-const ProtectedRoute = ({ children, skipOnboardingCheck = false }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, skipOnboardingCheck = false, returnAfterSignIn = false }: ProtectedRouteProps) => {
+  const location = useLocation();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
@@ -76,7 +80,7 @@ const ProtectedRoute = ({ children, skipOnboardingCheck = false }: ProtectedRout
   }
 
   if (!session) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to={returnAfterSignIn ? signInPathFor(location.pathname + location.search) : "/auth"} replace />;
   }
 
   if (needsOnboarding) {

@@ -2,6 +2,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EMPTY_EDUCATION_ENTRY, gradeRank, priorGradeOptions } from "./priorGrades";
 
 export interface EducationHistoryEntry {
   fromGrade: string;
@@ -13,7 +14,7 @@ export interface EducationHistoryEntry {
 interface EducationHistoryListProps {
   entries: EducationHistoryEntry[];
   onChange: (entries: EducationHistoryEntry[]) => void;
-  /** Student's current grade — From/To Grade options are capped at this value. */
+  /** The child's current grade: From/To Grade offer only the grades before it. */
   currentGrade?: string;
 }
 
@@ -23,21 +24,22 @@ interface EducationHistoryListProps {
 const COUNTRIES = ["India"];
 const CURRICULA = ["CBSE", "ICSE", "IB", "Cambridge", "State Board", "Other"];
 
-const getGradeOptions = (currentGrade?: string) => {
-  const max = Math.min(parseInt(currentGrade || "", 10) || 12, 12);
-  return Array.from({ length: Math.max(max, 1) }, (_, i) => String(i + 1));
-};
-
-const EMPTY_ENTRY: EducationHistoryEntry = { fromGrade: "", toGrade: "", country: "India", curriculum: "" };
+const EMPTY_ENTRY = EMPTY_EDUCATION_ENTRY;
 
 // Parent-only repeatable section — each row captures a prior schooling
 // stretch (From Grade / To Grade / Country / Curriculum). Composed entirely
 // from existing shared UI primitives, no new visual language introduced.
 const EducationHistoryList = ({ entries, onChange, currentGrade }: EducationHistoryListProps) => {
-  const gradeOptions = getGradeOptions(currentGrade);
+  const gradeOptions = priorGradeOptions(currentGrade);
 
   const updateEntry = (index: number, field: keyof EducationHistoryEntry, value: string) => {
-    const next = entries.map((entry, i) => (i === index ? { ...entry, [field]: value } : entry));
+    const next = entries.map((entry, i) => {
+      if (i !== index) return entry;
+      const updated = { ...entry, [field]: value };
+      // A To Grade before the new From Grade no longer makes sense.
+      if (field === "fromGrade" && updated.toGrade && gradeRank(updated.toGrade) < gradeRank(value)) updated.toGrade = "";
+      return updated;
+    });
     onChange(next);
   };
 
@@ -82,7 +84,7 @@ const EducationHistoryList = ({ entries, onChange, currentGrade }: EducationHist
               </SelectTrigger>
               <SelectContent>
                 {gradeOptions.map((g) => (
-                  <SelectItem key={g} value={g}>Grade {g}</SelectItem>
+                  <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -94,9 +96,11 @@ const EducationHistoryList = ({ entries, onChange, currentGrade }: EducationHist
                 <SelectValue placeholder="Grade" />
               </SelectTrigger>
               <SelectContent>
-                {gradeOptions.map((g) => (
-                  <SelectItem key={g} value={g}>Grade {g}</SelectItem>
-                ))}
+                {gradeOptions
+                  .filter((g) => !entry.fromGrade || gradeRank(g.value) >= gradeRank(entry.fromGrade))
+                  .map((g) => (
+                    <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

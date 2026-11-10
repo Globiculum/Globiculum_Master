@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AssessmentFooter from "../../shared/AssessmentFooter";
+import { percentAnswered } from "../../shared/formProgress";
 import type { AssessmentStepperStep as StepperStep } from "../../shared/AssessmentStepper";
 import StepCelebrationToast from "./StepCelebrationToast";
 import backIcon from "@/assets/icons-3d/back.png";
@@ -86,8 +87,11 @@ const StudentAssessmentHeader = ({ onChangePersona, title, subtitle }: { onChang
 // (current + completed) get a filled teal node, upcoming stays a plain
 // outline. Purely a status display, not interactive/clickable, and still
 // the only progress indicator in the layout (no separate sidebar/donut).
-const StudentAssessmentStepper = ({ steps, currentIndex }: { steps: StepperStep[]; currentIndex: number }) => {
-  const percent = Math.round(((currentIndex + 1) / steps.length) * 100);
+// Percentage and bar fill come from the answers given (stepShares, see
+// shared/formProgress.ts), so an empty form reads 0%.
+const StudentAssessmentStepper = ({ steps, currentIndex, stepShares }: { steps: StepperStep[]; currentIndex: number; stepShares: number[] }) => {
+  const percent = percentAnswered(stepShares);
+  const fill = (index: number) => (index < stepShares.length ? stepShares[index] : index <= currentIndex ? 1 : 0);
   return (
     <div className="relative w-full shrink-0 overflow-hidden rounded-2xl border border-secondary/20 bg-card px-6 py-5 shadow-soft sm:w-[420px] lg:w-[480px]">
       <div
@@ -106,10 +110,8 @@ const StudentAssessmentStepper = ({ steps, currentIndex }: { steps: StepperStep[
         {steps.map((step, index) => (
           <div key={step.id} className="h-2 flex-1 overflow-hidden rounded-full bg-border">
             <div
-              className={cn(
-                "h-full rounded-full bg-gradient-to-r from-secondary to-mint transition-all duration-500 ease-out",
-                index <= currentIndex ? "w-full" : "w-0"
-              )}
+              className="h-full rounded-full bg-gradient-to-r from-secondary to-mint transition-all duration-500 ease-out"
+              style={{ width: `${Math.round(fill(index) * 100)}%` }}
             />
           </div>
         ))}
@@ -154,6 +156,8 @@ interface AssessmentLayoutProps {
   onChangePersona: () => void;
   steps: StepperStep[];
   currentIndex: number;
+  /** Share of each question step answered (0-1), Review excluded. */
+  stepShares: number[];
   onBack: () => void;
   onNext: () => void;
   /** False until the step's required answers are in; Continue shows dimmed. */
@@ -178,6 +182,7 @@ const AssessmentLayout = ({
   onChangePersona,
   steps,
   currentIndex,
+  stepShares,
   onBack,
   onNext,
   canProceed,
@@ -202,7 +207,7 @@ const AssessmentLayout = ({
               : "Answer a few questions to generate your personalized readiness report."
           }
         />
-        <StudentAssessmentStepper steps={steps} currentIndex={currentIndex} />
+        <StudentAssessmentStepper steps={steps} currentIndex={currentIndex} stepShares={stepShares} />
       </div>
       {/* Retake banner with "Back to Review" shortcut — only on non-review steps */}
       {isRetake && !isLastStep && onSkipToReview && <RetakeBar onSkipToReview={onSkipToReview} />}

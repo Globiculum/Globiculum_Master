@@ -74,7 +74,7 @@ const REQUIRED_SUBJECTS = new Set(["Mathematics", "Science", "English / Language
 const US_CORE_FALLBACK = ["Mathematics", "English", "Science", "Social Studies", "Computer Science"];
 const US_REQUIRED_SUBJECTS = new Set(["Mathematics", "English", "Science", "Social Studies"]);
 
-const AcademicProfileStep = ({ formData, setField, setRecordField, errors, validationAttempt, onSubjectsCompleteChange }: StudentStepProps) => {
+const AcademicProfileStep = ({ formData, setField, setRecordField, errors, validationAttempt, onSubjectsCompleteChange, onSubjectsProgressChange }: StudentStepProps) => {
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(formData.snapshotGrade);
   const gradeNumber = parseInt(formData.snapshotGrade, 10);
 
@@ -141,6 +141,13 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
   useEffect(() => {
     onSubjectsCompleteChange?.(subjectsComplete);
   }, [subjectsComplete, onSubjectsCompleteChange]);
+
+  // Subject cards answered, for the "Your Process" card.
+  const subjectCardCount = coreSubjects.length + electiveSubjects.length;
+  const subjectCardsAnswered = [...coreSubjects, ...electiveSubjects].filter((s) => !!formData.subjectConfidences[s]).length;
+  useEffect(() => {
+    if (!listLoading) onSubjectsProgressChange?.({ answered: subjectCardsAnswered, total: subjectCardCount });
+  }, [listLoading, subjectCardsAnswered, subjectCardCount, onSubjectsProgressChange]);
 
   const coursesAdded = ALL_COURSES.filter((course) => formData.academicPath.includes(course)).length;
 

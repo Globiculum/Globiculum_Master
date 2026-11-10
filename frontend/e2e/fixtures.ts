@@ -51,9 +51,15 @@ export async function signIn(page: Page, user: { email: string; name: string }) 
   await expect(page.getByRole("button", { name: new RegExp(user.name) })).toBeVisible();
 }
 
-export async function signOut(page: Page, user: { name: string }) {
+/** `withFormAnswers`: a form has answers, so Sign Out first asks to confirm clearing them. */
+export async function signOut(page: Page, user: { name: string }, { withFormAnswers = false } = {}) {
   await page.getByRole("button", { name: new RegExp(user.name) }).click();
   await page.getByRole("menuitem", { name: "Sign Out" }).click();
+  if (withFormAnswers) {
+    const dialog = page.getByRole("alertdialog", { name: "Sign out?" });
+    await expect(dialog).toContainText("clears the answers");
+    await dialog.getByRole("button", { name: "Sign out and clear" }).click();
+  }
   // Lands on the home page, or on /auth when signing out on a page that needs a sign-in.
   await expect(page.getByRole("button", { name: new RegExp(user.name) })).toHaveCount(0);
   await expect

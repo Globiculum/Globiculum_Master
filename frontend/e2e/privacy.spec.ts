@@ -18,7 +18,8 @@ test("sign-out removes the child's answers and the login from the browser", asyn
   expect(JSON.stringify(before.local)).not.toContain(CHILD.first);
   expect(Object.keys(before.local).some((k) => AUTH_TOKEN_KEY.test(k))).toBe(true);
 
-  await signOut(page, PARENT_A);
+  // Sign Out warns that the form answers will be cleared.
+  await signOut(page, PARENT_A, { withFormAnswers: true });
 
   const after = await browserStorage(page);
   const all = JSON.stringify(after);
@@ -26,7 +27,11 @@ test("sign-out removes the child's answers and the login from the browser", asyn
   expect(all).not.toContain(CHILD.last);
   expect(Object.keys(after.local).filter((k) => AUTH_TOKEN_KEY.test(k))).toEqual([]);
 
-  // Back in the form, nothing of the previous answers comes back.
+  // Signed out, the form asks for a sign-in again; once back in, nothing of
+  // the previous answers comes back.
+  await page.goto("/begin-journey");
+  await expect(page).toHaveURL(/\/auth\?next=%2Fbegin-journey/);
+  await signIn(page, PARENT_A);
   await page.goto("/begin-journey");
   await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
   await expect(page.locator("#parent-child-first-name")).toHaveCount(0);

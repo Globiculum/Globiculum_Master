@@ -69,14 +69,18 @@ export function checkDataCoverage(
   }
 }
 
+/** At least one prior school, each with both grades, country and curriculum. */
+export function previousSchoolsComplete(entries: EducationHistoryEntry[] | undefined): boolean {
+  const list = entries ?? [];
+  return list.length > 0 && list.every((e) => !!(e?.fromGrade && e?.toGrade && e?.country && e?.curriculum));
+}
+
 export function checkPreviousSchooling(
   data: { previouslyStudiedInIndia?: string; educationHistory?: EducationHistoryEntry[] },
   ctx: z.RefinementCtx
 ) {
   if (data.previouslyStudiedInIndia !== "yes") return;
-  const complete = (e: EducationHistoryEntry) => !!(e?.fromGrade && e?.toGrade && e?.country && e?.curriculum);
-  const entries = data.educationHistory ?? [];
-  if (entries.length === 0 || !entries.every(complete)) {
+  if (!previousSchoolsComplete(data.educationHistory)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Add each prior school with its grades and curriculum",

@@ -1,16 +1,17 @@
-import { useEffect } from "react";
-import { Check } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useReducedMotion } from "framer-motion";
+import { Check, Trophy } from "lucide-react";
 import parentLogo from "@/assets/parentlogo.png";
-import goalsAspirationsIcon from "@/assets/icons-3d/goals-aspirations.png";
 import { cn } from "@/lib/utils";
 import { GlobiculumIconTile, GlobiculumTargetIcon, GlobiculumSuccessIcon } from "@/components/icons";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import InputCard from "../shared/InputCard";
 import MultiSelect from "../shared/MultiSelect";
 import SectionCard from "../shared/SectionCard";
-import QuestionCard from "../shared/QuestionCard";
 import FlashcardShell from "../shared/FlashcardShell";
 import FieldError from "../shared/FieldError";
+import CardNav from "../shared/CardNav";
+import { languageLevelError, newSchoolLanguageError } from "../shared/stepRules";
 import { HighSchoolMathDeepDive } from "../HighSchoolMathDeepDive";
 import AcademicPathFlashcards, { MAIN_CONFIDENCE_LEVELS } from "../student/steps/AcademicPathFlashcards";
 import ParentLanguageJourneyCard from "./ParentLanguageJourneyCard";
@@ -31,6 +32,13 @@ import {
 // Step 2: Academic Path — current subjects, per-subject confidence, AP
 // courses + math track (High School only), language exposure for Indian
 // schooling, foreign language details, extracurriculars (Middle & High).
+//
+// Shown one section at a time (Core subjects, Electives, Courses, Languages,
+// Performance, Activities), like the School step's one-question-at-a-time
+// cards: every section card has Back on the left and Next on the right, and
+// the chips above show where the parent is. A later section opens only once
+// the earlier required answers are in. They used to be stacked in one long
+// page, so Language Exposure could be answered before the core subjects.
 //
 // Phase E prep: Language Exposure for Indian Schooling + Proficiency per
 // language + Foreign Language Studied are now the same unified "Language
@@ -104,7 +112,65 @@ const getSubjectsByGradeBand = (schoolStage: string, currentCurriculum: string[]
 // applies uniformly since nothing was ever required).
 const NO_REQUIRED_SUBJECTS = new Set<string>();
 
-const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChange, fieldErrors, validationAttempt, onSubjectsCompleteChange }: ParentStepProps) => {
+type SectionId = "core" | "electives" | "courses" | "languages" | "performance" | "activities";
+const SECTION_LABEL: Record<SectionId, string> = {
+  core: "Core subjects",
+  electives: "Electives",
+  courses: "Courses",
+  languages: "Languages",
+  performance: "Performance",
+  activities: "Activities",
+};
+
+// The left rail for a one-card section, matching the rails the subject and
+// language sections draw, so every section keeps the same width.
+const SingleItemRail = ({ title, label, done, sublabel }: { title: string; label: string; done: boolean; sublabel?: string }) => (
+  <nav aria-label={title} className="hidden lg:block lg:w-[232px] lg:shrink-0">
+    <div className="lg:sticky lg:top-4">
+      <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <ol className="mt-3">
+        <li className="pb-3 last:pb-0">
+          <div className="relative z-10 flex items-center gap-2.5 rounded-lg p-0.5">
+            <span
+              className={cn(
+                "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
+                done ? "border-secondary bg-secondary text-secondary-foreground" : "border-violet bg-violet"
+              )}
+            >
+              {done ? <Check className="h-3 w-3" aria-hidden="true" /> : <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />}
+            </span>
+            <span className="min-w-0">
+              <span className={cn("block text-sm", done ? "font-medium text-secondary" : "font-semibold text-foreground")}>{label}</span>
+              {sublabel && (
+                <span className={cn("block text-xs", done ? "font-medium text-secondary" : "text-muted-foreground/70")}>{sublabel}</span>
+              )}
+            </span>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </nav>
+);
+
+const RailAndCard = ({ rail, children }: { rail: ReactNode; children: ReactNode }) => (
+  <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+    {rail}
+    <div className="min-w-0 flex-1">{children}</div>
+  </div>
+);
+
+const ParentStep2 = ({
+  formData,
+  onFieldChange,
+  onArrayToggle,
+  onRecordFieldChange,
+  fieldErrors,
+  validationAttempt = 0,
+  onSubjectsCompleteChange,
+  onSubjectsProgressChange,
+  onContinue,
+}: ParentStepProps) => {
+  const shouldReduceMotion = useReducedMotion() ?? false;
   const gradeNumber = parseInt(formData.snapshotGrade, 10);
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(gradeNumber);
   const subjects = getSubjectsByGradeBand(formData.schoolStage, formData.currentCurriculum, gradeNumber);
@@ -184,6 +250,13 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
     onSubjectsCompleteChange?.(subjectsComplete);
   }, [subjectsComplete, onSubjectsCompleteChange]);
 
+  // Subject cards answered, for the "Your Process" card.
+  const subjectCardCount = coreSubjects.length + electiveSubjects.length;
+  const subjectCardsAnswered = [...coreSubjects, ...electiveSubjects].filter((s) => !!formData.subjectConfidences[s]).length;
+  useEffect(() => {
+    if (!listLoading) onSubjectsProgressChange?.({ answered: subjectCardsAnswered, total: subjectCardCount });
+  }, [listLoading, subjectCardsAnswered, subjectCardCount, onSubjectsProgressChange]);
+
   // Same two-step pattern as the Foreign Language / Indian Languages cards
   // in ParentLanguageJourneyCard.tsx: pick which apply from the chip grid
   // first, then a compact confidence row appears only for what's selected —
@@ -199,11 +272,332 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
   // this dropdown doesn't need its own separate Not Applicable option.
   const AP_CONFIDENCE_OPTIONS = MAIN_CONFIDENCE_LEVELS.filter((level) => level.value !== "not-applicable");
 
+  // ---- Sections, one at a time ----
+  const sections: SectionId[] = [
+    "core",
+    ...(electiveSubjects.length > 0 ? (["electives"] as const) : []),
+    ...(formData.schoolStage === "high" ? (["courses"] as const) : []),
+    "languages",
+    "performance",
+    ...(formData.schoolStage !== "elementary" ? (["activities"] as const) : []),
+  ];
+
+  const answered = (subject: string) => !!formData.subjectConfidences[subject];
+  const coreIncomplete = coreSubjects.some((s) => !answered(s));
+  const electivesIncomplete = electiveSubjects.some((s) => !answered(s));
+  // Whether a section's required answers are in (Courses and Activities are optional).
+  const sectionComplete = (id: SectionId): boolean => {
+    switch (id) {
+      case "core":
+        return !coreIncomplete;
+      case "electives":
+        return !electivesIncomplete;
+      case "languages":
+        return !newSchoolLanguageError(formData) && !languageLevelError(formData);
+      case "performance":
+        return !!formData.overallPerformance;
+      default:
+        return true;
+    }
+  };
+
+  // Opens where the parent left off: the first section still missing a
+  // required answer, or the first section when all are in. Chosen once the
+  // subject lists have loaded, so it isn't decided on an empty list.
+  const firstOpenSection = sections.find((id) => !sectionComplete(id)) ?? sections[0];
+  const [chosenSection, setChosenSection] = useState<SectionId | null>(() => (listLoading ? null : firstOpenSection));
+  useEffect(() => {
+    if (chosenSection === null && !listLoading) setChosenSection(firstOpenSection);
+  }, [chosenSection, listLoading, firstOpenSection]);
+  const activeSection: SectionId | null = chosenSection === null ? null : sections.includes(chosenSection) ? chosenSection : sections[0];
+  const activeIndex = activeSection ? sections.indexOf(activeSection) : -1;
+
+  // A failed Continue opens the first section with a missing answer.
+  useLayoutEffect(() => {
+    if (validationAttempt === 0) return;
+    const subjectSection: SectionId | null = !fieldErrors.academicPath
+      ? null
+      : coreIncomplete
+        ? "core"
+        : electiveSubjects.length > 0 && electivesIncomplete
+          ? "electives"
+          : "core";
+    const target = sections.find(
+      (id) =>
+        id === subjectSection ||
+        (id === "languages" && !!(fieldErrors.targetLanguage || fieldErrors.languageProficiencies)) ||
+        (id === "performance" && !!fieldErrors.overallPerformance)
+    );
+    if (target) setChosenSection(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the attempt, not on every answer
+  }, [validationAttempt]);
+
+  // Keeps the section chips in view when a section changes further down the
+  // page. The site header is sticky (64px), so "out of view" starts below it.
+  const sectionsTop = useRef<HTMLDivElement>(null);
+  const goToSection = (id: SectionId) => {
+    setChosenSection(id);
+    const top = sectionsTop.current?.getBoundingClientRect().top;
+    if (top !== undefined && top < 80) {
+      sectionsTop.current?.scrollIntoView({ behavior: shouldReduceMotion ? "auto" : "smooth", block: "start" });
+    }
+  };
+  // Next on a section's last card: the next section, or after the last one the
+  // page's Continue (validates the step and moves to Learning Profile).
+  const goNextSection = () => {
+    if (activeIndex >= sections.length - 1) onContinue?.();
+    else goToSection(sections[activeIndex + 1]);
+  };
+  const goPrevSection = activeIndex > 0 ? () => goToSection(sections[activeIndex - 1]) : undefined;
+
+  const microcopy = {
+    strong: "Seems confident",
+    moderate: "Understands most of it",
+    "needs-help": "Could use more support",
+  };
+
+  const renderSection = (id: SectionId) => {
+    switch (id) {
+      case "core":
+        return (
+          <AcademicPathFlashcards
+            activeSubjectList={coreSubjects}
+            requiredSubjects={NO_REQUIRED_SUBJECTS}
+            academicPath={formData.academicPath}
+            subjectConfidences={formData.subjectConfidences}
+            setAcademicPath={(value) => onFieldChange("academicPath", value)}
+            setConfidence={(subject, value) => onRecordFieldChange("subjectConfidences", subject, value)}
+            error={fieldErrors.academicPath}
+            navTitle="Core Subjects"
+            navSubtitle="See how your child is doing in each subject."
+            microcopy={microcopy}
+            excludeFromCustom={[...AP_SUBJECTS, ...electiveSubjects, ...NOT_OFFERED_SUBJECTS]}
+            customCardTitle="Any other subjects?"
+            customCardSubtitle="Add any subject not listed above, then note your child's confidence."
+            customCardQuestion="How confident does your child seem in this subject?"
+            summaryTitle="Core subjects are ready."
+            onBack={goPrevSection}
+            onNext={goNextSection}
+          />
+        );
+      case "electives":
+        return (
+          <AcademicPathFlashcards
+            activeSubjectList={electiveSubjects}
+            requiredSubjects={NO_REQUIRED_SUBJECTS}
+            academicPath={formData.academicPath}
+            subjectConfidences={formData.subjectConfidences}
+            setAcademicPath={(value) => onFieldChange("academicPath", value)}
+            setConfidence={(subject, value) => onRecordFieldChange("subjectConfidences", subject, value)}
+            error={coreIncomplete ? undefined : fieldErrors.academicPath}
+            navTitle={usSourceSystem ? "Current Electives (US School)" : "Electives"}
+            navSubtitle="Optional subjects - mark the ones your child doesn't take."
+            microcopy={microcopy}
+            summaryTitle="Electives are ready."
+            showCustomCard={false}
+            onBack={goPrevSection}
+            onNext={goNextSection}
+          />
+        );
+      case "courses":
+        return (
+          <>
+            <RailAndCard
+              rail={
+                <SingleItemRail
+                  title="Courses"
+                  label="High School & AP Courses"
+                  done={apSectionComplete}
+                  sublabel={apSectionComplete ? `${apAddedCount} added` : "None added"}
+                />
+              }
+            >
+              <FlashcardShell accent="violet">
+                {/* Same card structure as the Indian Languages / Foreign
+                    Language cards: icon + centered title, then select-then-rate
+                    — pick which apply from one compact chip grid, then a
+                    confidence row appears only for what's selected. Display
+                    label drops the redundant "(Advanced Placement)" prefix
+                    (already stated in the title above); the stored value in
+                    academicPath stays the full string. */}
+                <div className="flex flex-col items-center text-center">
+                  <div className="mb-4">
+                    <GlobiculumIconTile tone="teal" size={64}>
+                      <GlobiculumTargetIcon size={34} />
+                    </GlobiculumIconTile>
+                  </div>
+                  <h4 className="text-xl font-bold text-foreground">High School & AP Courses</h4>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Optional. Courses your child has taken or is taking. State standards are a minimum; these tell us what was actually covered.
+                  </p>
+                  {apAddedCount > 0 && (
+                    <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-secondary">
+                      <Check className="h-3.5 w-3.5" aria-hidden="true" /> {apAddedCount} added
+                    </p>
+                  )}
+                </div>
+
+                {[
+                  { title: "Courses", courses: HIGH_SCHOOL_COURSES },
+                  { title: "AP courses", courses: AP_COURSES },
+                ].map(({ title, courses }) => (
+                  <div key={title} className="mt-5">
+                    <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h5>
+                    {/* Phones: pills sized to their text (two fixed columns squeezed
+                        them into three lines); wider screens: three columns. */}
+                    <div className="flex flex-wrap gap-2 sm:grid sm:grid-cols-3">
+                      {courses.map((ap) => (
+                        <InputCard
+                          key={ap}
+                          variant="chip"
+                          label={courseLabel(ap)}
+                          selected={formData.academicPath.includes(ap)}
+                          onClick={() => onArrayToggle("academicPath", ap)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {selectedApSubjects.length > 0 && (
+                  <div className="mt-5 space-y-1.5">
+                    <p className="text-center text-sm font-medium text-muted-foreground">How confident does your child seem in each?</p>
+                    {selectedApSubjects.map((ap) => {
+                      const label = courseLabel(ap);
+                      const current = formData.subjectConfidences[ap];
+                      return (
+                        <div key={ap} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3 py-2.5">
+                          <span className="text-base font-bold text-foreground">{label}</span>
+                          <Select value={current} onValueChange={(value) => onRecordFieldChange("subjectConfidences", ap, value)}>
+                            <SelectTrigger
+                              className="h-8 w-auto min-w-[132px] gap-1.5 rounded-full border-none bg-muted/60 px-3 text-sm font-semibold text-secondary shadow-none hover:bg-muted"
+                              aria-label={`${label} confidence`}
+                            >
+                              <SelectValue placeholder="Rate confidence" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AP_CONFIDENCE_OPTIONS.map((level) => (
+                                <SelectItem key={level.value} value={level.value}>
+                                  {level.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <CardNav onBack={goPrevSection} onNext={goNextSection} nextLabel={apAddedCount > 0 ? "Next" : "Skip, none taken"} />
+              </FlashcardShell>
+            </RailAndCard>
+
+            {(formData.academicPath.includes("Algebra") || formData.academicPath.includes("Geometry") || formData.academicPath.includes("Pre-Calculus / Calculus")) &&
+              formData.previousLocation === "us" &&
+              formData.usState && (
+                <HighSchoolMathDeepDive
+                  usState={formData.usState}
+                  curriculum={formData.currentCurriculum}
+                  selectedCourse={formData.mathCourse}
+                  programLevel={formData.mathProgramLevel}
+                  onCourseChange={(course) => onFieldChange("mathCourse", course)}
+                  onLevelChange={(level) => onFieldChange("mathProgramLevel", level)}
+                />
+              )}
+          </>
+        );
+      case "languages":
+        return (
+          <ParentLanguageJourneyCard
+            formData={formData}
+            onFieldChange={onFieldChange}
+            onRecordFieldChange={onRecordFieldChange}
+            error={fieldErrors.targetLanguage}
+            levelError={fieldErrors.languageProficiencies}
+            validationAttempt={validationAttempt}
+            onBack={goPrevSection}
+            onNext={goNextSection}
+          />
+        );
+      case "performance":
+        return (
+          <RailAndCard rail={<SingleItemRail title="Overall Performance" label="Overall Performance" done={!!formData.overallPerformance} />}>
+            <FlashcardShell accent="teal" invalid={!!fieldErrors.overallPerformance}>
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4">
+                  <GlobiculumIconTile tone="violet" size={64}>
+                    <GlobiculumSuccessIcon size={34} />
+                  </GlobiculumIconTile>
+                </div>
+                <h4 className="text-xl font-bold text-foreground">Overall Performance</h4>
+                <p className="mt-1 text-sm text-muted-foreground">A general sense of how your child is performing academically overall.</p>
+              </div>
+
+              <div role="radiogroup" aria-label="Overall Performance" className="mt-6 flex flex-wrap justify-center gap-2">
+                {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
+                  <InputCard
+                    key={opt.value}
+                    variant="chip"
+                    mode="radio"
+                    label={opt.label}
+                    selected={formData.overallPerformance === opt.value}
+                    onClick={() => onFieldChange("overallPerformance", opt.value)}
+                  />
+                ))}
+              </div>
+              <FieldError message={fieldErrors.overallPerformance} />
+              <CardNav onBack={goPrevSection} onNext={goNextSection} nextDisabled={!formData.overallPerformance} />
+            </FlashcardShell>
+          </RailAndCard>
+        );
+      case "activities":
+        // Asked last, as its own card; it used to sit under every section.
+        return (
+          <RailAndCard
+            rail={
+              <SingleItemRail
+                title="Activities"
+                label="Extracurricular Activities"
+                done={formData.extracurriculars.length > 0}
+                sublabel={formData.extracurriculars.length > 0 ? `${formData.extracurriculars.length} added` : "Optional"}
+              />
+            }
+          >
+            <FlashcardShell accent="globe">
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4">
+                  <GlobiculumIconTile tone="amber" size={64}>
+                    <Trophy size={32} aria-hidden="true" />
+                  </GlobiculumIconTile>
+                </div>
+                <h4 className="text-xl font-bold text-foreground">Current Extracurricular Activities</h4>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Optional. Activities outside academics that may highlight strengths or interests relevant to the transition.
+                </p>
+              </div>
+              <div className="mt-6 flex justify-center">
+                <MultiSelect
+                  idPrefix="Extracurricular activities"
+                  options={EXTRACURRICULARS}
+                  selected={formData.extracurriculars}
+                  onToggle={(activity) => onArrayToggle("extracurriculars", activity)}
+                />
+              </div>
+              <CardNav onBack={goPrevSection} onNext={goNextSection} nextLabel={formData.extracurriculars.length > 0 ? "Next" : "Skip, none"} />
+            </FlashcardShell>
+          </RailAndCard>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <SectionCard logo={parentLogo} title="Academic Path">
       <div className="-mt-4 text-sm text-muted-foreground">Tell us what the student studies today.</div>
 
-      {comparisonNote && (
+      {comparisonNote && (activeSection === "core" || activeSection === "electives") && (
         <div className="rounded-lg border border-secondary/30 bg-secondary/5 px-4 py-3 text-sm text-foreground">
           {comparisonNote}
         </div>
@@ -237,292 +631,54 @@ const ParentStep2 = ({ formData, onFieldChange, onArrayToggle, onRecordFieldChan
         </div>
       )}
 
-      {/* Held back until the state's list arrives, so the cards don't open on
-          the five-subject fallback and then change under the parent. */}
-      {!(usSourceSystem && usLoading) && (
-        <AcademicPathFlashcards
-          activeSubjectList={coreSubjects}
-          requiredSubjects={NO_REQUIRED_SUBJECTS}
-          academicPath={formData.academicPath}
-          subjectConfidences={formData.subjectConfidences}
-          setAcademicPath={(value) => onFieldChange("academicPath", value)}
-          setConfidence={(subject, value) => onRecordFieldChange("subjectConfidences", subject, value)}
-          error={fieldErrors.academicPath}
-          navTitle="Core Subjects"
-          navSubtitle="See how your child is doing in each subject."
-          microcopy={{
-            strong: "Seems confident",
-            moderate: "Understands most of it",
-            "needs-help": "Could use more support",
-          }}
-          excludeFromCustom={[...AP_SUBJECTS, ...electiveSubjects, ...NOT_OFFERED_SUBJECTS]}
-          customCardTitle="Any other subjects?"
-          customCardSubtitle="Add any subject not listed above, then note your child's confidence."
-          customCardQuestion="How confident does your child seem in this subject?"
-          summaryTitle="Core subjects are ready."
-          nextSectionId={electiveSubjects.length > 0 ? "academic-electives-section" : "academic-path-next-section"}
-        />
-      )}
-
-      <span id="academic-electives-section" className="sr-only" aria-hidden="true" />
-      {!(usSourceSystem && usLoading) && electiveSubjects.length > 0 && (
-        <AcademicPathFlashcards
-          activeSubjectList={electiveSubjects}
-          requiredSubjects={NO_REQUIRED_SUBJECTS}
-          academicPath={formData.academicPath}
-          subjectConfidences={formData.subjectConfidences}
-          setAcademicPath={(value) => onFieldChange("academicPath", value)}
-          setConfidence={(subject, value) => onRecordFieldChange("subjectConfidences", subject, value)}
-          navTitle={usSourceSystem ? "Current Electives (US School)" : "Electives"}
-          navSubtitle="Optional subjects - mark the ones your child doesn't take."
-          microcopy={{
-            strong: "Seems confident",
-            moderate: "Understands most of it",
-            "needs-help": "Could use more support",
-          }}
-          summaryTitle="Electives are ready."
-          showCustomCard={false}
-        />
-      )}
-
-      <span id="academic-path-next-section" className="sr-only" aria-hidden="true" />
-
-      {formData.schoolStage === "high" && (
-        // Same outer two-column shell as ParentLanguageJourneyCard's
-        // Language Exposure section: a persistent left nav rail (labeled
-        // section name + tab entry) alongside the content card on the
-        // right, for visual consistency between the two sections — even
-        // though AP Courses is a single card, not a multi-card sequence.
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <nav aria-label="Courses progress" className="hidden lg:block lg:w-[232px] lg:shrink-0">
-            <div className="lg:sticky lg:top-4">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Courses</h3>
-              <ol className="mt-3">
-                <li className="pb-3 last:pb-0">
-                  <div className="relative z-10 flex items-center gap-2.5 rounded-lg p-0.5">
-                    <span
+      {/* Held back until the subject lists arrive, so the cards don't open on
+          a fallback list and then change under the parent. */}
+      {activeSection && (
+        <>
+          <div ref={sectionsTop} className="scroll-mt-24">
+            <ol aria-label="Academic Path sections" className="flex flex-wrap items-center gap-2">
+              {sections.map((id, i) => {
+                const current = i === activeIndex;
+                const done = i < activeIndex && sectionComplete(id);
+                // Earlier sections can always be reopened; a later one only
+                // once every section before it has its required answers.
+                const reachable = i <= activeIndex || sections.slice(0, i).every(sectionComplete);
+                return (
+                  <li key={id}>
+                    <button
+                      type="button"
+                      onClick={() => !current && goToSection(id)}
+                      disabled={!reachable}
+                      aria-current={current ? "step" : undefined}
+                      title={reachable ? undefined : "Answer the sections before this one first"}
                       className={cn(
-                        "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
-                        apSectionComplete ? "border-secondary bg-secondary text-secondary-foreground" : "border-violet bg-violet"
+                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        current
+                          ? "border-secondary bg-secondary text-secondary-foreground"
+                          : done
+                            ? "border-secondary/40 bg-secondary/10 text-secondary hover:bg-secondary/15"
+                            : reachable
+                              ? "border-border bg-card text-foreground hover:bg-muted"
+                              : "cursor-not-allowed border-border bg-muted/40 text-muted-foreground"
                       )}
                     >
-                      {apSectionComplete ? (
-                        <Check className="h-3 w-3" aria-hidden="true" />
+                      {done ? (
+                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
                       ) : (
-                        <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />
+                        <span className="tabular-nums" aria-hidden="true">{i + 1}</span>
                       )}
-                    </span>
-                    <span className="min-w-0">
-                      <span className={cn("block text-sm", apSectionComplete ? "font-medium text-secondary" : "font-semibold text-foreground")}>
-                        High School & AP Courses
-                      </span>
-                      <span className={cn("block text-xs", apSectionComplete ? "font-medium text-secondary" : "text-muted-foreground/70")}>
-                        {apSectionComplete ? `${apAddedCount} added` : "None added"}
-                      </span>
-                    </span>
-                  </div>
-                </li>
-              </ol>
-            </div>
-          </nav>
-
-          <div className="min-w-0 flex-1">
-            <FlashcardShell accent="violet">
-              {/* Same card structure as the Indian Languages / Foreign
-                  Language cards: icon + centered title, then select-then-rate
-                  — pick which apply from one compact chip grid, then a
-                  confidence row appears only for what's selected. Display
-                  label drops the redundant "(Advanced Placement)" prefix
-                  (already stated in the title above); the stored value in
-                  academicPath stays the full string. */}
-              <div className="flex flex-col items-center text-center">
-                <div className="mb-4">
-                  <GlobiculumIconTile tone="teal" size={64}>
-                    <GlobiculumTargetIcon size={34} />
-                  </GlobiculumIconTile>
-                </div>
-                <h4 className="text-xl font-bold text-foreground">High School & AP Courses</h4>
-                <p className="mt-1 text-sm text-muted-foreground">Courses your child has taken or is taking. State standards are a minimum; these tell us what was actually covered.</p>
-                {apAddedCount > 0 && (
-                  <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-secondary">
-                    <Check className="h-3.5 w-3.5" aria-hidden="true" /> {apAddedCount} added
-                  </p>
-                )}
-              </div>
-
-              {[
-                { title: "Courses", courses: HIGH_SCHOOL_COURSES },
-                { title: "AP courses", courses: AP_COURSES },
-              ].map(({ title, courses }) => (
-                <div key={title} className="mt-5">
-                  <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h5>
-                  {/* Phones: pills sized to their text (two fixed columns squeezed
-                      them into three lines); wider screens: three columns. */}
-                  <div className="flex flex-wrap gap-2 sm:grid sm:grid-cols-3">
-                    {courses.map((ap) => (
-                      <InputCard
-                        key={ap}
-                        variant="chip"
-                        label={courseLabel(ap)}
-                        selected={formData.academicPath.includes(ap)}
-                        onClick={() => onArrayToggle("academicPath", ap)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {selectedApSubjects.length > 0 && (
-                <div className="mt-5 space-y-1.5">
-                  <p className="text-center text-sm font-medium text-muted-foreground">How confident does your child seem in each?</p>
-                  {selectedApSubjects.map((ap) => {
-                    const label = courseLabel(ap);
-                    const current = formData.subjectConfidences[ap];
-                    return (
-                      <div key={ap} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3 py-2.5">
-                        <span className="text-base font-bold text-foreground">{label}</span>
-                        <Select value={current} onValueChange={(value) => onRecordFieldChange("subjectConfidences", ap, value)}>
-                          <SelectTrigger
-                            className="h-8 w-auto min-w-[132px] gap-1.5 rounded-full border-none bg-muted/60 px-3 text-sm font-semibold text-secondary shadow-none hover:bg-muted"
-                            aria-label={`${label} confidence`}
-                          >
-                            <SelectValue placeholder="Rate confidence" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {AP_CONFIDENCE_OPTIONS.map((level) => (
-                              <SelectItem key={level.value} value={level.value}>
-                                {level.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {selectedApSubjects.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    document.getElementById("language-exposure-section")?.scrollIntoView({ behavior: "smooth", block: "start" })
-                  }
-                  className="mt-6 flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-secondary hover:underline"
-                >
-                  <Check className="h-3.5 w-3.5" aria-hidden="true" /> Done — continue to Language Exposure →
-                </button>
-              )}
-            </FlashcardShell>
-          </div>
-        </div>
-      )}
-
-      {formData.schoolStage === "high" &&
-        (formData.academicPath.includes("Algebra") || formData.academicPath.includes("Geometry") || formData.academicPath.includes("Pre-Calculus / Calculus")) &&
-        formData.previousLocation === "us" &&
-        formData.usState && (
-          <HighSchoolMathDeepDive
-            usState={formData.usState}
-            curriculum={formData.currentCurriculum}
-            selectedCourse={formData.mathCourse}
-            programLevel={formData.mathProgramLevel}
-            onCourseChange={(course) => onFieldChange("mathCourse", course)}
-            onLevelChange={(level) => onFieldChange("mathProgramLevel", level)}
-          />
-        )}
-
-      <div id="language-exposure-section">
-        <ParentLanguageJourneyCard
-          formData={formData}
-          onFieldChange={onFieldChange}
-          onRecordFieldChange={onRecordFieldChange}
-          error={fieldErrors.targetLanguage}
-          levelError={fieldErrors.languageProficiencies}
-          validationAttempt={validationAttempt}
-        />
-      </div>
-
-      {/* Same nav + FlashcardShell structure as AP Courses & University
-          Prep / Language Exposure, for consistent typography and layout
-          across every section in this step. */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <nav aria-label="Overall performance" className="hidden lg:block lg:w-[232px] lg:shrink-0">
-          <div className="lg:sticky lg:top-4">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Overall Performance</h3>
-            <ol className="mt-3">
-              <li className="pb-3 last:pb-0">
-                <div className="relative z-10 flex items-center gap-2.5 rounded-lg p-0.5">
-                  <span
-                    className={cn(
-                      "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
-                      formData.overallPerformance ? "border-secondary bg-secondary text-secondary-foreground" : "border-violet bg-violet"
-                    )}
-                  >
-                    {formData.overallPerformance ? (
-                      <Check className="h-3 w-3" aria-hidden="true" />
-                    ) : (
-                      <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />
-                    )}
-                  </span>
-                  <span className={cn("block text-sm", formData.overallPerformance ? "font-medium text-secondary" : "font-semibold text-foreground")}>
-                    Overall Performance
-                  </span>
-                </div>
-              </li>
+                      {SECTION_LABEL[id]}
+                    </button>
+                  </li>
+                );
+              })}
             </ol>
           </div>
-        </nav>
 
-        <div className="min-w-0 flex-1">
-          <FlashcardShell accent="teal" invalid={!!fieldErrors.overallPerformance}>
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-4">
-                <GlobiculumIconTile tone="violet" size={64}>
-                  <GlobiculumSuccessIcon size={34} />
-                </GlobiculumIconTile>
-              </div>
-              <h4 className="text-xl font-bold text-foreground">Overall Performance</h4>
-              <p className="mt-1 text-sm text-muted-foreground">A general sense of how your child is performing academically overall.</p>
-            </div>
-
-            <div role="radiogroup" aria-label="Overall Performance" className="mt-6 flex flex-wrap justify-center gap-2">
-              {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
-                <InputCard
-                  key={opt.value}
-                  variant="chip"
-                  mode="radio"
-                  label={opt.label}
-                  selected={formData.overallPerformance === opt.value}
-                  onClick={() => onFieldChange("overallPerformance", opt.value)}
-                />
-              ))}
-            </div>
-            <FieldError message={fieldErrors.overallPerformance} />
-          </FlashcardShell>
-        </div>
-      </div>
-
-      {formData.schoolStage !== "elementary" && (
-        <div className="rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/[0.06] to-transparent p-5 shadow-soft">
-          <div className="mb-4 flex items-center gap-3">
-            <img src={goalsAspirationsIcon} className="h-9 w-9 shrink-0 object-contain" alt="" aria-hidden="true" draggable={false} />
-            <div className="flex-1">
-              <QuestionCard
-                label="Current Extracurricular Activities"
-                optional
-                tooltip="Activities outside academics that may highlight strengths or interests relevant to the transition."
-              >
-                <MultiSelect
-                  idPrefix="extra"
-                  options={EXTRACURRICULARS}
-                  selected={formData.extracurriculars}
-                  onToggle={(activity) => onArrayToggle("extracurriculars", activity)}
-                />
-              </QuestionCard>
-            </div>
+          <div key={activeSection} className="animate-in fade-in-0 slide-in-from-right-2 duration-300">
+            {renderSection(activeSection)}
           </div>
-        </div>
+        </>
       )}
     </SectionCard>
   );

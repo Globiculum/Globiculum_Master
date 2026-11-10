@@ -7,6 +7,7 @@ import SectionCard from "../../shared/SectionCard";
 import QuestionCard from "../../shared/QuestionCard";
 import InputCard from "../../shared/InputCard";
 import EducationHistoryList from "../../shared/EducationHistoryList";
+import { EMPTY_EDUCATION_ENTRY } from "../../shared/priorGrades";
 import StudentProfileWizard from "./StudentProfileWizard";
 
 // Step 1: Student Profile.
@@ -45,6 +46,8 @@ const StudentProfileStep = ({ formData, setField, errors }: StudentStepProps) =>
     setHasPreviousSchool(value);
     setField("previousLocation", value ? "india" : "");
     setField("previouslyStudiedInIndia", value ? "yes" : "no");
+    // Yes shows the first school's row straight away, not only after "Add another school".
+    if (value && formData.educationHistory.length === 0) setField("educationHistory", [{ ...EMPTY_EDUCATION_ENTRY }]);
   };
 
   return (

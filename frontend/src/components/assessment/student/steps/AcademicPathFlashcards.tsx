@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowRight, Check, Minus, Plus, X,
+  Check, Minus, Plus, X,
   Calculator, Sigma, Shapes, Infinity as InfinityIcon, FlaskConical, TestTube, Atom, Dna, Code,
   BookOpen, PenTool, Languages, Landmark, ScrollText, Scale, Compass, Brain, Users, TrendingUp,
   Receipt, Briefcase, Leaf, Palette, GraduationCap,
@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 import { GlobiculumChecklistIcon, GlobiculumIconTile } from "@/components/icons";
 import FieldError from "../../shared/FieldError";
 import editIcon from "@/assets/icons-3d/edit.png";
-import backIcon from "@/assets/icons-3d/back.png";
 import FlashcardShell from "../../shared/FlashcardShell";
+import CardNav from "../../shared/CardNav";
 
 // Combines what used to be two separate questions ("Current Subjects" then
 // "How confident do you feel in each subject?") into one flashcard-per-
@@ -292,7 +292,7 @@ const MobileProgress = ({ navItems, activeLabel, position, total }: { navItems: 
       ))}
     </div>
     <p className="mt-1.5 text-xs font-medium text-muted-foreground">
-      {activeLabel} · {position} of {total} · {Math.round((position / total) * 100)}%
+      {activeLabel} · {position} of {total}
     </p>
   </div>
 );
@@ -325,6 +325,10 @@ interface AcademicPathFlashcardsProps {
   // "Other subjects" card, and its Next scrolls past the core section.
   showCustomCard?: boolean;
   nextSectionId?: string;
+  /** Back on the first card: to the previous section. Hidden when omitted. */
+  onBack?: () => void;
+  /** Next on the summary: to the next section. Without it, Next scrolls to nextSectionId. */
+  onNext?: () => void;
 }
 
 const ADVANCE_DELAY_MS = 420;
@@ -348,6 +352,8 @@ const AcademicPathFlashcards = ({
   summaryTitle = "Your Academic Path is ready.",
   showCustomCard = true,
   nextSectionId = "academic-path-next-section",
+  onBack,
+  onNext,
 }: AcademicPathFlashcardsProps) => {
   const resolvedMicrocopy: Record<ConfidenceValue, string> = { ...DEFAULT_MICROCOPY, ...microcopy };
   const shouldReduceMotion = useReducedMotion() ?? false;
@@ -357,11 +363,16 @@ const AcademicPathFlashcards = ({
   // +1 for the trailing "Other subjects" card when it is shown.
   const totalCards = activeSubjectList.length + (showCustomCard ? 1 : 0);
 
-  const hasExistingAnswers =
-    activeSubjectList.some((s) => academicPath.includes(s) && subjectConfidences[s]) || customSubjects.length > 0;
+  // Opening the section continues where the user left off: the first subject
+  // with no answer ("not taken" counts), or the summary once all are answered.
+  // It used to open the summary as soon as any subject was answered, which
+  // hid the unanswered ones after a refresh.
+  const firstUnanswered = activeSubjectList.findIndex((s) => !subjectConfidences[s]);
+  const anyAnswered = activeSubjectList.some((s) => !!subjectConfidences[s]) || customSubjects.length > 0;
+  const allAnswered = activeSubjectList.length > 0 && firstUnanswered === -1;
 
-  const [phase, setPhase] = useState<"cards" | "summary">(hasExistingAnswers ? "summary" : "cards");
-  const [cardIndex, setCardIndex] = useState(0);
+  const [phase, setPhase] = useState<"cards" | "summary">(allAnswered ? "summary" : "cards");
+  const [cardIndex, setCardIndex] = useState(anyAnswered && firstUnanswered > 0 ? firstUnanswered : 0);
   const [draftName, setDraftName] = useState("");
   const [isTransitioning, setIsTransitioning] = useState(false);
   // True when a card was opened by tapping a single row in the nav/summary
@@ -448,14 +459,30 @@ const AcademicPathFlashcards = ({
     setCardIndex(activeSubjectList.length);
   };
 
+  // Summary "Back": reopens the last card (the name is historical).
   const goToSummary = () => {
     setPhase("cards");
     setCardIndex(showCustomCard ? activeSubjectList.length : Math.max(0, activeSubjectList.length - 1));
   };
 
+  // Summary Next: on to the next section, unless a subject still has no answer
+  // (then that subject opens).
   const continueToNext = () => {
+    if (firstUnanswered !== -1) {
+      setEditingSingleCard(false);
+      setPhase("cards");
+      setCardIndex(firstUnanswered);
+      return;
+    }
+    if (onNext) {
+      onNext();
+      return;
+    }
     document.getElementById(nextSectionId)?.scrollIntoView({ behavior: shouldReduceMotion ? "auto" : "smooth", block: "start" });
   };
+
+  // Back on a card: the previous card, or from the first card the previous section.
+  const backFromCard = cardIndex > 0 ? goBackOneCard : onBack;
 
   // Drives both the persistent left nav (desktop) and the compact progress
   // dots (mobile) — same source of truth in every phase, so the left side
@@ -526,17 +553,6 @@ const AcademicPathFlashcards = ({
         <NavPanel navItems={navItems} navTitle={navTitle} navSubtitle={navSubtitle} />
 
         <div className="min-w-0 flex-1 space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Complete</span>
-            <button
-              type="button"
-              onClick={goToSummary}
-              className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            >
-              ← Back
-            </button>
-          </div>
-
           <FlashcardShell accent="teal">
             <div className="flex flex-col items-center text-center">
               <div className="mb-3">
@@ -577,18 +593,7 @@ const AcademicPathFlashcards = ({
               {answered.length} of {answered.length} complete
             </p>
 
-            <div className="mt-5 flex justify-end">
-              <button
-                type="button"
-                onClick={continueToNext}
-                className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-              >
-                Next
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </span>
-              </button>
-            </div>
+            <CardNav onBack={goToSummary} onNext={continueToNext} />
           </FlashcardShell>
 
           <FieldError message={error} />
@@ -668,13 +673,12 @@ const AcademicPathFlashcards = ({
                 ))}
               </div>
 
-              <button
-                type="button"
-                onClick={finishCustomSubjects}
-                className="mt-4 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              >
-                I&rsquo;m done adding subjects →
-              </button>
+              <CardNav
+                onBack={backFromCard}
+                onNext={finishCustomSubjects}
+                nextDisabled={isTransitioning}
+                nextLabel={customSubjects.length > 0 ? "Next" : "Skip, none to add"}
+              />
               </FlashcardShell>
             </motion.div>
           ) : (
@@ -712,29 +716,14 @@ const AcademicPathFlashcards = ({
                     />
                   ))}
                 </div>
+                {/* Picking a level moves on by itself; Next is for moving on
+                    without changing an answer already given. */}
+                <CardNav onBack={backFromCard} onNext={advance} nextDisabled={!currentSubjectSelected || isTransitioning} />
                 </FlashcardShell>
               </motion.div>
             )
           )}
         </AnimatePresence>
-
-        <div className="flex items-center justify-between px-1">
-          <button
-            type="button"
-            onClick={goBackOneCard}
-            disabled={cardIndex === 0}
-            className={cn(
-              "flex items-center gap-1 text-xs font-medium",
-              cardIndex === 0 ? "invisible" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <img src={backIcon} className="h-3.5 w-3.5 object-contain" alt="" aria-hidden="true" draggable={false} /> Back
-          </button>
-          <span className="text-xs font-medium text-muted-foreground lg:hidden">
-            {position} of {totalCards}
-          </span>
-          <span className="w-10" aria-hidden="true" />
-        </div>
       </div>
     </div>
   );

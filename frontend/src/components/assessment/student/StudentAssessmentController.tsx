@@ -4,13 +4,15 @@ import AssessmentLayout from "./ui/AssessmentLayout";
 import type { AssessmentStepperStep as StepperStep } from "../shared/AssessmentStepper";
 import { useStudentAssessmentState } from "./state/useStudentAssessmentState";
 import { useStudentAssessmentNavigation } from "./navigation/useStudentAssessmentNavigation";
-import { validateStudentAssessmentStep } from "./validation/studentAssessmentValidation";
+import { studentStepShares, validateStudentAssessmentStep } from "./validation/studentAssessmentValidation";
 import { useScrollToFirstInvalidField } from "../shared/useScrollToFirstInvalidField";
 import StudentProfileStep from "./steps/StudentProfileStep";
 import AcademicProfileStep from "./steps/AcademicProfileStep";
 import WrapUpStep from "./steps/WrapUpStep";
 import StudentReviewStep from "./steps/StudentReviewStep";
-import type { AssessmentFormData } from "../shared/types";
+import { createDefaultAssessmentFormData, type AssessmentFormData } from "../shared/types";
+import type { SubjectProgress } from "../shared/formProgress";
+import { useLeaveWarning } from "@/hooks/useLeaveWarning";
 import RestoredDraftBanner from "../shared/RestoredDraftBanner";
 import { saveDraft, type AssessmentDraft } from "@/lib/assessmentDraft";
 
@@ -105,9 +107,15 @@ const StudentAssessmentController = ({
 
   // Reported by the Academic step, which alone knows which subject cards it shows.
   const [subjectsComplete, setSubjectsComplete] = useState(false);
+  const [subjectsProgress, setSubjectsProgress] = useState<SubjectProgress | null>(null);
   const stepContext = { subjectsComplete };
   // Continue stays dimmed until every required answer on the step is in.
   const canProceed = validateStudentAssessmentStep(navigation.stepId, formData, stepContext).valid;
+
+  // Closing the tab loses the answers (kept in this tab only), so the browser
+  // asks first once anything has been entered.
+  const [emptyForm] = useState(() => JSON.stringify(createDefaultAssessmentFormData()));
+  useLeaveWarning(JSON.stringify(formData) !== emptyForm);
 
   // Clears a field's error the moment the user changes it (see
   // useStudentAssessmentNavigation's clearError), so a message doesn't
@@ -141,7 +149,7 @@ const StudentAssessmentController = ({
       case "profile":
         return <StudentProfileStep {...stepProps} />;
       case "academic":
-        return <AcademicProfileStep {...stepProps} onSubjectsCompleteChange={setSubjectsComplete} />;
+        return <AcademicProfileStep {...stepProps} onSubjectsCompleteChange={setSubjectsComplete} onSubjectsProgressChange={setSubjectsProgress} />;
       case "wrapup":
         return <WrapUpStep {...stepProps} />;
       case "review":
@@ -169,6 +177,7 @@ const StudentAssessmentController = ({
       onChangePersona={onChangePersona}
       steps={STEPS}
       currentIndex={navigation.stepIndex}
+      stepShares={studentStepShares(formData, subjectsProgress)}
       onBack={navigation.goPrev}
       onNext={() => navigation.goNext(formData, stepContext)}
       canProceed={canProceed}

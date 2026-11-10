@@ -10,6 +10,7 @@ import {
   previousSchoolingFields,
   type StepContext,
 } from "../shared/stepRules";
+import { academicAnswers, schoolAnswers, stepShare, type SubjectProgress } from "../shared/formProgress";
 
 // parentValidation.ts
 //
@@ -130,6 +131,16 @@ const PARENT_STEP_SCHEMAS: (z.ZodTypeAny | null)[] = [
   learningProfileStepSchema,
   null, // Review — no field gate; the Generate Report button owns its own isSubmitting gate.
 ];
+
+/** Share of each question step answered (School, Academic, Learning), for the
+ * "Your Process" card. Counts the questions the schemas above require. */
+export function parentStepShares(formData: ParentFormData, subjects: SubjectProgress | null): number[] {
+  return [
+    stepShare([!!formData.childName.trim() && !!formData.childLastName.trim(), ...schoolAnswers(formData, true)]),
+    stepShare(academicAnswers(formData, subjects)),
+    stepShare([formData.learningStyles.length > 0, formData.transitionConcerns.length > 0, formData.supportNeeds.length > 0]),
+  ];
+}
 
 export function validateParentStep(stepIndex: number, formData: ParentFormData, context: StepContext = {}): StepValidationResult {
   const schema = PARENT_STEP_SCHEMAS[stepIndex];

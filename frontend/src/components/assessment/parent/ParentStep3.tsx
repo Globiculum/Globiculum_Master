@@ -10,14 +10,21 @@ import type { ParentStepProps } from "./types";
 // the previous static form (see ParentLearningProfileWizard.tsx), only the
 // presentation changed.
 
-const ParentStep3 = ({ formData, onFieldChange, onArrayToggle, fieldErrors, validationAttempt }: ParentStepProps) => {
+const ParentStep3 = ({ formData, onFieldChange, onArrayToggle, fieldErrors, validationAttempt, onContinue }: ParentStepProps) => {
   const childFirstName = formData.childName.trim();
   const subtitle = childFirstName ? `Help us understand ${childFirstName}'s preferred learning style.` : "Help us understand your child's preferred learning style.";
 
   return (
     <SectionCard logo={parentLogo} title="Learning Profile">
       <div className="-mt-4 text-sm text-muted-foreground">{subtitle}</div>
-      <ParentLearningProfileWizard formData={formData} onFieldChange={onFieldChange} onArrayToggle={onArrayToggle} fieldErrors={fieldErrors} validationAttempt={validationAttempt} />
+      <ParentLearningProfileWizard
+        formData={formData}
+        onFieldChange={onFieldChange}
+        onArrayToggle={onArrayToggle}
+        fieldErrors={fieldErrors}
+        validationAttempt={validationAttempt}
+        onContinue={onContinue}
+      />
     </SectionCard>
   );
 };

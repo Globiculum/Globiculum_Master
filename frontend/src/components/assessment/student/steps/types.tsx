@@ -1,4 +1,5 @@
 import type { AssessmentFormData } from "../../shared/types";
+import type { SubjectProgress } from "../../shared/formProgress";
 
 // Shared prop contract for every Student assessment step component.
 export interface StudentStepProps {
@@ -11,4 +12,6 @@ export interface StudentStepProps {
   validationAttempt?: number;
   /** Academic step only: reports whether every subject card it shows has an answer. */
   onSubjectsCompleteChange?: (complete: boolean) => void;
+  /** Academic step only: subject cards answered, for the progress card. */
+  onSubjectsProgressChange?: (progress: SubjectProgress) => void;
 }

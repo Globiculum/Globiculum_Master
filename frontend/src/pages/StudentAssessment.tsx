@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRetakePrefill } from "@/hooks/useRetakePrefill";
 import { useAssessmentDraft } from "@/hooks/useAssessmentDraft";
+import { clearDraft, readDraft } from "@/lib/assessmentDraft";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import StudentAssessmentController from "@/components/assessment/student/StudentAssessmentController";
 
 const PERSONA_STORAGE_KEY = "globiculum-selected-persona";
@@ -19,9 +21,20 @@ const StudentAssessment = () => {
   // Bumped by "Start over" so the form remounts empty.
   const [formKey, setFormKey] = useState(0);
 
-  const handleChangePersona = () => {
+  const changePersona = () => {
     sessionStorage.removeItem(PERSONA_STORAGE_KEY);
     navigate("/begin-journey");
+  };
+
+  // Switching form throws these answers away, so ask first when any are saved.
+  const [confirmingSwitch, setConfirmingSwitch] = useState(false);
+  const handleChangePersona = () => {
+    if (readDraft()?.persona === "student") setConfirmingSwitch(true);
+    else changePersona();
+  };
+  const switchAndClear = () => {
+    clearDraft();
+    changePersona();
   };
 
   const handleStartOver = () => {
@@ -50,6 +63,15 @@ const StudentAssessment = () => {
           />
         </div>
       </section>
+
+      <ConfirmDialog
+        open={confirmingSwitch}
+        onOpenChange={setConfirmingSwitch}
+        title="Change persona?"
+        description="Your answers in this form will be cleared. You'll start again from the beginning."
+        confirmLabel="Clear answers and change"
+        onConfirm={switchAndClear}
+      />
 
       <Footer />
     </div>

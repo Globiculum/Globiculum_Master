@@ -58,8 +58,24 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/begin-journey" element={<BeginJourney />} />
-          <Route path="/student-assessment" element={<StudentAssessment />} />
+          {/* Both assessment forms need an account first: "Get Free Report"
+              while signed out goes to sign-up, then straight to the form. */}
+          <Route
+            path="/begin-journey"
+            element={
+              <ProtectedRoute skipOnboardingCheck returnAfterSignIn>
+                <BeginJourney />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student-assessment"
+            element={
+              <ProtectedRoute skipOnboardingCheck returnAfterSignIn>
+                <StudentAssessment />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/about" element={<About />} />
           <Route

@@ -10,6 +10,7 @@ import {
   previousSchoolingFields,
   type StepContext,
 } from "../../shared/stepRules";
+import { academicAnswers, schoolAnswers, stepShare, type SubjectProgress } from "../../shared/formProgress";
 
 // Independent from frontend/src/lib/validation/studentValidation.ts (the
 // Parent flow's schema / backend contract). This module only gates
@@ -78,6 +79,16 @@ const STEP_SCHEMAS: Record<StudentAssessmentStepId, z.ZodTypeAny | null> = {
   wrapup: wrapUpStepSchema,
   review: null, // nothing to validate — this step's own button triggers submission
 };
+
+/** Share of each question step answered (Profile, Academic, Wrap-up), for
+ * the "Your Process" card. Counts the questions the schemas above require. */
+export function studentStepShares(formData: AssessmentFormData, subjects: SubjectProgress | null): number[] {
+  return [
+    stepShare([!!formData.studentName.trim() && !!formData.studentLastName.trim(), ...schoolAnswers(formData, false)]),
+    stepShare(academicAnswers(formData, subjects)),
+    stepShare([formData.learningStyles.length > 0, formData.nervousness.length > 0]),
+  ];
+}
 
 export function validateStudentAssessmentStep(
   stepId: StudentAssessmentStepId,
