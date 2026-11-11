@@ -18,7 +18,7 @@ interface SingleCardSectionProps {
   /** Small line under the entry, e.g. "2 added". */
   itemDetail?: string;
   complete: boolean;
-  accent?: "violet" | "teal";
+  accent?: "violet" | "teal" | "globe";
   invalid?: boolean;
   ariaLabel: string;
   children: ReactNode;

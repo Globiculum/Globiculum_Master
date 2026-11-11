@@ -31,6 +31,7 @@ import InputCard from "../shared/InputCard";
 import FieldError from "../shared/FieldError";
 import FlashcardShell from "../shared/FlashcardShell";
 import CardNav from "../shared/CardNav";
+import OptionalBadge from "../shared/OptionalBadge";
 import EducationHistoryList from "../shared/EducationHistoryList";
 import { EMPTY_EDUCATION_ENTRY, priorGradeOptions } from "../shared/priorGrades";
 import { previousSchoolsComplete } from "../shared/stepRules";
@@ -366,8 +367,9 @@ const buildCardSequence = (formData: ParentFormData, streamElectives: StreamElec
       milestone: "Your Goal" as Milestone,
       navLabel: "Optional subjects",
       title: `Which optional subjects will your child take in Class ${entryGrade(formData.snapshotGrade, formData.targetGrade)}?`,
-      hint: "Pick any your child will take on top of the stream's main subjects. Only these are added to the report. Skip if none.",
+      hint: "Pick any your child will take on top of the stream's main subjects. Only these are added to the report.",
       errorField: null,
+      optional: true,
     }] : []),
     {
       id: "timeline",
@@ -385,7 +387,7 @@ const buildCardSequence = (formData: ParentFormData, streamElectives: StreamElec
       milestone: "Previous Learning",
       navLabel: "Indian school before",
       title: "Did your child attend an Indian school before?",
-      hint: "Optional. If yes, add each school with its grades and curriculum.",
+      hint: "If yes, add each school with its grades and curriculum.",
       errorField: "educationHistory",
       optional: true,
     }
@@ -712,6 +714,7 @@ const CardFrame = ({
   hint,
   error,
   invalid,
+  optional,
   children,
   footer,
 }: {
@@ -722,6 +725,8 @@ const CardFrame = ({
   hint?: string;
   error?: string;
   invalid?: boolean;
+  /** Shows the "Optional" badge after the title. */
+  optional?: boolean;
   children: ReactNode;
   /** The card's Back / Next row (CardNav), below any error. */
   footer?: ReactNode;
@@ -734,7 +739,10 @@ const CardFrame = ({
         </GlobiculumIconTile>
       </div>
       {kicker && <p className="mb-1 text-xs font-semibold text-secondary">{kicker}</p>}
-      <h4 className="text-xl font-bold text-foreground">{title}</h4>
+      <h4 className="text-xl font-bold text-foreground">
+        {title}
+        {optional && <OptionalBadge />}
+      </h4>
       {hint && <p className="mt-1.5 text-sm text-muted-foreground">{hint}</p>}
     </div>
     <div className="mt-6">{children}</div>
@@ -1259,6 +1267,7 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors, onCon
                 tileColor={currentCard.tileColor}
                 title={currentCard.title}
                 hint={currentCard.hint}
+                optional
                 footer={cardNav(true, continueFromText, (formData.targetElectives ?? []).length > 0 ? "Next" : "Skip, none of these")}
               >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1297,6 +1306,7 @@ const ParentSchoolProfileWizard = ({ formData, onFieldChange, fieldErrors, onCon
                 title={currentCard.title}
                 hint={currentCard.hint}
                 error={fieldErrors.educationHistory ?? fieldErrors.previouslyStudiedInIndia}
+                optional
                 footer={cardNav(
                   formData.previouslyStudiedInIndia !== "yes" || previousSchoolsComplete(formData.educationHistory),
                   continueFromText,

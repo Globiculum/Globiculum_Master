@@ -14,4 +14,7 @@ export interface StudentStepProps {
   onSubjectsCompleteChange?: (complete: boolean) => void;
   /** Academic step only: subject cards answered, for the progress card. */
   onSubjectsProgressChange?: (progress: SubjectProgress) => void;
+  /** The page's Continue (validate the step, then go to the next one), used
+   * by Next on the step's last card. */
+  onContinue?: () => void;
 }

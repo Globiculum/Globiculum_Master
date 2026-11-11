@@ -1,8 +1,16 @@
+import { useLayoutEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { CircleAlert, MessageSquareText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { GlobiculumIconTile, GlobiculumStudentIcon } from "@/components/icons";
 import type { StudentStepProps } from "./types";
+import type { AssessmentFormData } from "../../shared/types";
 import SectionCard from "../../shared/SectionCard";
-import QuestionCard from "../../shared/QuestionCard";
+import FlashcardShell from "../../shared/FlashcardShell";
+import FieldError from "../../shared/FieldError";
+import CardNav from "../../shared/CardNav";
+import OptionalBadge from "../../shared/OptionalBadge";
 import VoiceInputButton from "../../shared/VoiceInputButton";
 import { NOTES_MAX_CHARS } from "../../shared/submitAssessment";
 import childLogo from "@/assets/childlogo.png";
@@ -17,9 +25,9 @@ import strengthsIcon from "@/assets/icons-3d/strengths.png";
 // Step 3: Almost Done — the friendlier, shorter close to the Student journey.
 // No study-time/grades/strongest-subjects drilling (that stays Parent-only);
 // just learning style, what feels nervy about the move, and optional notes.
-// Stays a single page (not a flashcard sequence, per explicit instruction to
-// keep Wrap-up's structure as-is) — this pass only restyles the two option
-// grids with icon badges to match the rest of the redesigned assessment.
+// One question per card, with Back and Next in each, the same as the Parent
+// Learning Profile step. It used to be a single page; changed 11 Nov 2026 at
+// the user's request to give the student form the parent form's treatment.
 // Every value/field/toggleArrayField call below is unchanged.
 
 type Tone = "teal" | "violet" | "mint" | "amber";
@@ -121,9 +129,46 @@ const NervousnessChip = ({
   </button>
 );
 
-const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentStepProps) => {
+type CardId = "learningStyle" | "nervousness" | "notes";
+const ORDER: CardId[] = ["learningStyle", "nervousness", "notes"];
+const CARD_LABEL: Record<CardId, string> = {
+  learningStyle: "Learning Style",
+  nervousness: "What Makes You Nervous",
+  notes: "Anything Else",
+};
+// The required field each card answers (the notes are optional).
+const CARD_FIELD: Partial<Record<CardId, "learningStyles" | "nervousness">> = {
+  learningStyle: "learningStyles",
+  nervousness: "nervousness",
+};
+const isAnswered = (id: CardId, formData: AssessmentFormData) => {
+  const field = CARD_FIELD[id];
+  return !field || formData[field].length > 0;
+};
+
+const WrapUpStep = ({ formData, setField, toggleArrayField, errors, validationAttempt = 0, onContinue }: StudentStepProps) => {
+  const shouldReduceMotion = useReducedMotion() ?? false;
   const firstName = formData.studentName.trim();
   const title = firstName ? `Almost Done, ${firstName}!` : "Almost Done";
+
+  // Continues where the student left off: the first question still unanswered.
+  const [cardIndex, setCardIndex] = useState(() => Math.max(0, ORDER.findIndex((id) => !isAnswered(id, formData))));
+  const currentId = ORDER[cardIndex] ?? ORDER[0];
+  const isLast = cardIndex >= ORDER.length - 1;
+
+  // A failed Continue opens the first card with a missing answer.
+  useLayoutEffect(() => {
+    if (validationAttempt === 0) return;
+    const first = ORDER.findIndex((id) => {
+      const field = CARD_FIELD[id];
+      return !!field && !!errors[field];
+    });
+    if (first !== -1) setCardIndex(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the attempt, not on every answer
+  }, [validationAttempt]);
+
+  const cardField = CARD_FIELD[currentId];
+  const cardError = cardField ? errors[cardField] : undefined;
 
   const toggleNervousness = (label: string) => {
     const current = formData.nervousness;
@@ -134,65 +179,128 @@ const WrapUpStep = ({ formData, setField, toggleArrayField, errors }: StudentSte
     }
   };
 
+  const cardHeader = (icon: JSX.Element, tone: "violet" | "amber", heading: string, sub?: string, optional = false) => (
+    <div className="flex flex-col items-center text-center">
+      <div className="mb-4">
+        <GlobiculumIconTile tone={tone} size={72}>
+          {icon}
+        </GlobiculumIconTile>
+      </div>
+      <h4 className="text-xl font-bold text-foreground">
+        {heading}
+        {optional && <OptionalBadge />}
+      </h4>
+      {sub && <p className="mt-1 text-sm text-muted-foreground">{sub}</p>}
+    </div>
+  );
+
   return (
     <SectionCard logo={childLogo} title={title} description="Just a couple more friendly questions.">
       <div className="-mt-4 text-sm text-muted-foreground">We&rsquo;ve got everything we need to build your personalized roadmap.</div>
-      <QuestionCard label="Which learning style suits you best?" required tooltip="This tells us how you learn best so we can tailor recommendations for you." error={errors.learningStyles}>
-        <div role="group" aria-label="Which learning style suits you best?" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {LEARNING_STYLES.map((style) => (
-            <LearningStyleCard
-              key={style.value}
-              title={style.title}
-              description={style.description}
-              icon={style.icon}
-              tone={style.tone}
-              selected={formData.learningStyles.includes(style.value)}
-              onClick={() => toggleArrayField("learningStyles", style.value)}
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-1.5" role="img" aria-label={`Progress: ${cardIndex + 1} of ${ORDER.length}`}>
+          {ORDER.map((id, idx) => (
+            <span
+              key={id}
+              className={cn("h-1.5 flex-1 rounded-full transition-colors duration-200", idx <= cardIndex ? "bg-secondary" : "bg-muted")}
+              aria-hidden="true"
             />
           ))}
         </div>
-      </QuestionCard>
+        <p className="text-xs font-medium text-muted-foreground">
+          {CARD_LABEL[currentId]} · {cardIndex + 1} of {ORDER.length}
+        </p>
 
-      <QuestionCard label="What makes you nervous?" required error={errors.nervousness} tooltip="Let us know what feels most stressful about the move — pick as many as apply.">
-        <div role="group" aria-label="What makes you nervous?" className="flex flex-wrap gap-2">
-          {NERVOUSNESS_OPTIONS.map((option) => (
-            <NervousnessChip
-              key={option.label}
-              label={option.label}
-              icon={option.icon}
-              tone={option.tone}
-              selected={formData.nervousness.includes(option.label)}
-              onClick={() => toggleNervousness(option.label)}
-            />
-          ))}
-        </div>
-      </QuestionCard>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentId}
+            initial={shouldReduceMotion ? undefined : { opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={shouldReduceMotion ? undefined : { opacity: 0, x: -24 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <FlashcardShell accent="teal" invalid={!!cardError}>
+              {currentId === "learningStyle" && (
+                <>
+                  {cardHeader(<GlobiculumStudentIcon size={40} />, "violet", "Which learning style suits you best?", "Pick as many as sound like you.")}
+                  <div role="group" aria-label="Which learning style suits you best?" className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {LEARNING_STYLES.map((style) => (
+                      <LearningStyleCard
+                        key={style.value}
+                        title={style.title}
+                        description={style.description}
+                        icon={style.icon}
+                        tone={style.tone}
+                        selected={formData.learningStyles.includes(style.value)}
+                        onClick={() => toggleArrayField("learningStyles", style.value)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
 
-      <QuestionCard
-        label="Anything else you'd like to share?"
-        htmlFor="additional-notes"
-        optional
-        tooltip="Share anything else that would help us understand your situation better. We'll take it into account in your report."
-      >
-        <div className="relative">
-          <Textarea
-            id="additional-notes"
-            rows={4}
-            maxLength={NOTES_MAX_CHARS}
-            placeholder="Share anything that would help us understand you better..."
-            value={formData.additionalNotes}
-            onChange={(e) => setField("additionalNotes", e.target.value)}
-            className="pr-12"
-          />
-          <VoiceInputButton
-            label="Say your answer"
-            onResult={(text) =>
-              setField("additionalNotes", (formData.additionalNotes ? `${formData.additionalNotes} ${text}` : text).slice(0, NOTES_MAX_CHARS))
-            }
-            className="absolute right-2 top-2"
-          />
-        </div>
-      </QuestionCard>
+              {currentId === "nervousness" && (
+                <>
+                  {cardHeader(<CircleAlert size={38} />, "amber", "What makes you nervous?", "About the move. Pick as many as apply.")}
+                  <div role="group" aria-label="What makes you nervous?" className="mt-6 flex flex-wrap gap-2">
+                    {NERVOUSNESS_OPTIONS.map((option) => (
+                      <NervousnessChip
+                        key={option.label}
+                        label={option.label}
+                        icon={option.icon}
+                        tone={option.tone}
+                        selected={formData.nervousness.includes(option.label)}
+                        onClick={() => toggleNervousness(option.label)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {currentId === "notes" && (
+                <>
+                  {cardHeader(
+                    <MessageSquareText size={38} />,
+                    "violet",
+                    "Anything else you'd like to share?",
+                    "Share anything that would help us understand your situation. We'll take it into account in your report.",
+                    true
+                  )}
+                  <div className="relative mt-6">
+                    <Textarea
+                      id="additional-notes"
+                      rows={4}
+                      maxLength={NOTES_MAX_CHARS}
+                      placeholder="Share anything that would help us understand you better..."
+                      value={formData.additionalNotes}
+                      onChange={(e) => setField("additionalNotes", e.target.value)}
+                      className="pr-12"
+                    />
+                    <VoiceInputButton
+                      label="Say your answer"
+                      onResult={(text) =>
+                        setField("additionalNotes", (formData.additionalNotes ? `${formData.additionalNotes} ${text}` : text).slice(0, NOTES_MAX_CHARS))
+                      }
+                      className="absolute right-2 top-2"
+                    />
+                  </div>
+                </>
+              )}
+
+              <FieldError message={cardError} />
+              {/* Same Back / Next row as the other steps. Next on the last
+                  card (the optional notes) moves on to Review. */}
+              <CardNav
+                onBack={cardIndex > 0 ? () => setCardIndex((i) => Math.max(i - 1, 0)) : undefined}
+                onNext={isLast ? onContinue : () => setCardIndex((i) => Math.min(i + 1, ORDER.length - 1))}
+                nextDisabled={!isAnswered(currentId, formData)}
+                nextLabel={isLast && !formData.additionalNotes.trim() ? "Skip, no notes" : "Next"}
+              />
+            </FlashcardShell>
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </SectionCard>
   );
 };

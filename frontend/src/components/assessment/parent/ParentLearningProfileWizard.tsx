@@ -7,6 +7,7 @@ import { GlobiculumIconTile, GlobiculumStudentIcon } from "@/components/icons";
 import FieldError from "../shared/FieldError";
 import FlashcardShell from "../shared/FlashcardShell";
 import CardNav from "../shared/CardNav";
+import OptionalBadge from "../shared/OptionalBadge";
 import ConcernCards from "../shared/ConcernCards";
 import SupportCards from "../shared/SupportCards";
 import VoiceInputButton from "../shared/VoiceInputButton";
@@ -221,9 +222,12 @@ const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, f
                       <MessageSquareText size={38} />
                     </GlobiculumIconTile>
                   </div>
-                  <h4 className="text-xl font-bold text-foreground">Additional Notes</h4>
+                  <h4 className="text-xl font-bold text-foreground">
+                    Additional Notes
+                    <OptionalBadge />
+                  </h4>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Anything else you&rsquo;d like us to know? We&rsquo;ll take it into account in the report. This one&rsquo;s optional.
+                    Anything else you&rsquo;d like us to know? We&rsquo;ll take it into account in the report.
                   </p>
                 </div>
                 <div className="relative mt-6">

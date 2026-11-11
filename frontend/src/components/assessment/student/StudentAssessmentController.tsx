@@ -142,6 +142,8 @@ const StudentAssessmentController = ({
     setRecordField: handleSetRecordField,
     errors: navigation.errors,
     validationAttempt: navigation.validationAttempt,
+    // Next on a step's last card does what the page's Continue does.
+    onContinue: () => navigation.goNext(formData, stepContext),
   };
 
   const renderStep = () => {

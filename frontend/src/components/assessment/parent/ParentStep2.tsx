@@ -1,5 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { useReducedMotion } from "framer-motion";
+import { useEffect } from "react";
 import { Check, Trophy } from "lucide-react";
 import parentLogo from "@/assets/parentlogo.png";
 import { cn } from "@/lib/utils";
@@ -8,9 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import InputCard from "../shared/InputCard";
 import MultiSelect from "../shared/MultiSelect";
 import SectionCard from "../shared/SectionCard";
-import FlashcardShell from "../shared/FlashcardShell";
 import FieldError from "../shared/FieldError";
 import CardNav from "../shared/CardNav";
+import OptionalBadge from "../shared/OptionalBadge";
+import SectionChips from "../shared/SectionChips";
+import SingleCardSection from "../shared/SingleCardSection";
+import { useSectionFlow } from "../shared/useSectionFlow";
 import { languageLevelError, newSchoolLanguageError } from "../shared/stepRules";
 import { HighSchoolMathDeepDive } from "../HighSchoolMathDeepDive";
 import AcademicPathFlashcards, { MAIN_CONFIDENCE_LEVELS } from "../student/steps/AcademicPathFlashcards";
@@ -122,43 +124,6 @@ const SECTION_LABEL: Record<SectionId, string> = {
   activities: "Activities",
 };
 
-// The left rail for a one-card section, matching the rails the subject and
-// language sections draw, so every section keeps the same width.
-const SingleItemRail = ({ title, label, done, sublabel }: { title: string; label: string; done: boolean; sublabel?: string }) => (
-  <nav aria-label={title} className="hidden lg:block lg:w-[232px] lg:shrink-0">
-    <div className="lg:sticky lg:top-4">
-      <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{title}</h3>
-      <ol className="mt-3">
-        <li className="pb-3 last:pb-0">
-          <div className="relative z-10 flex items-center gap-2.5 rounded-lg p-0.5">
-            <span
-              className={cn(
-                "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2",
-                done ? "border-secondary bg-secondary text-secondary-foreground" : "border-violet bg-violet"
-              )}
-            >
-              {done ? <Check className="h-3 w-3" aria-hidden="true" /> : <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden="true" />}
-            </span>
-            <span className="min-w-0">
-              <span className={cn("block text-sm", done ? "font-medium text-secondary" : "font-semibold text-foreground")}>{label}</span>
-              {sublabel && (
-                <span className={cn("block text-xs", done ? "font-medium text-secondary" : "text-muted-foreground/70")}>{sublabel}</span>
-              )}
-            </span>
-          </div>
-        </li>
-      </ol>
-    </div>
-  </nav>
-);
-
-const RailAndCard = ({ rail, children }: { rail: ReactNode; children: ReactNode }) => (
-  <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-    {rail}
-    <div className="min-w-0 flex-1">{children}</div>
-  </div>
-);
-
 const ParentStep2 = ({
   formData,
   onFieldChange,
@@ -170,7 +135,6 @@ const ParentStep2 = ({
   onSubjectsProgressChange,
   onContinue,
 }: ParentStepProps) => {
-  const shouldReduceMotion = useReducedMotion() ?? false;
   const gradeNumber = parseInt(formData.snapshotGrade, 10);
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(gradeNumber);
   const subjects = getSubjectsByGradeBand(formData.schoolStage, formData.currentCurriculum, gradeNumber);
@@ -301,54 +265,34 @@ const ParentStep2 = ({
     }
   };
 
-  // Opens where the parent left off: the first section still missing a
-  // required answer, or the first section when all are in. Chosen once the
-  // subject lists have loaded, so it isn't decided on an empty list.
-  const firstOpenSection = sections.find((id) => !sectionComplete(id)) ?? sections[0];
-  const [chosenSection, setChosenSection] = useState<SectionId | null>(() => (listLoading ? null : firstOpenSection));
-  useEffect(() => {
-    if (chosenSection === null && !listLoading) setChosenSection(firstOpenSection);
-  }, [chosenSection, listLoading, firstOpenSection]);
-  const activeSection: SectionId | null = chosenSection === null ? null : sections.includes(chosenSection) ? chosenSection : sections[0];
-  const activeIndex = activeSection ? sections.indexOf(activeSection) : -1;
-
-  // A failed Continue opens the first section with a missing answer.
-  useLayoutEffect(() => {
-    if (validationAttempt === 0) return;
-    const subjectSection: SectionId | null = !fieldErrors.academicPath
-      ? null
-      : coreIncomplete
-        ? "core"
-        : electiveSubjects.length > 0 && electivesIncomplete
-          ? "electives"
-          : "core";
-    const target = sections.find(
-      (id) =>
-        id === subjectSection ||
-        (id === "languages" && !!(fieldErrors.targetLanguage || fieldErrors.languageProficiencies)) ||
-        (id === "performance" && !!fieldErrors.overallPerformance)
-    );
-    if (target) setChosenSection(target);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the attempt, not on every answer
-  }, [validationAttempt]);
-
-  // Keeps the section chips in view when a section changes further down the
-  // page. The site header is sticky (64px), so "out of view" starts below it.
-  const sectionsTop = useRef<HTMLDivElement>(null);
-  const goToSection = (id: SectionId) => {
-    setChosenSection(id);
-    const top = sectionsTop.current?.getBoundingClientRect().top;
-    if (top !== undefined && top < 80) {
-      sectionsTop.current?.scrollIntoView({ behavior: shouldReduceMotion ? "auto" : "smooth", block: "start" });
-    }
-  };
-  // Next on a section's last card: the next section, or after the last one the
-  // page's Continue (validates the step and moves to Learning Profile).
-  const goNextSection = () => {
-    if (activeIndex >= sections.length - 1) onContinue?.();
-    else goToSection(sections[activeIndex + 1]);
-  };
-  const goPrevSection = activeIndex > 0 ? () => goToSection(sections[activeIndex - 1]) : undefined;
+  const flow = useSectionFlow({
+    sections,
+    isComplete: sectionComplete,
+    loading: listLoading,
+    validationAttempt,
+    // The subject section with the missing answer, else languages, else performance.
+    sectionWithError: () => {
+      const subjectSection: SectionId | null = !fieldErrors.academicPath
+        ? null
+        : coreIncomplete
+          ? "core"
+          : electiveSubjects.length > 0 && electivesIncomplete
+            ? "electives"
+            : "core";
+      return (
+        sections.find(
+          (id) =>
+            id === subjectSection ||
+            (id === "languages" && !!(fieldErrors.targetLanguage || fieldErrors.languageProficiencies)) ||
+            (id === "performance" && !!fieldErrors.overallPerformance)
+        ) ?? null
+      );
+    },
+    onContinue,
+  });
+  const activeSection = flow.active;
+  const goNextSection = flow.goNext;
+  const goPrevSection = flow.goPrev;
 
   const microcopy = {
     strong: "Seems confident",
@@ -402,17 +346,13 @@ const ParentStep2 = ({
       case "courses":
         return (
           <>
-            <RailAndCard
-              rail={
-                <SingleItemRail
-                  title="Courses"
-                  label="High School & AP Courses"
-                  done={apSectionComplete}
-                  sublabel={apSectionComplete ? `${apAddedCount} added` : "None added"}
-                />
-              }
+            <SingleCardSection
+              railTitle="Courses"
+              itemLabel="High School & AP Courses"
+              itemDetail={apSectionComplete ? `${apAddedCount} added` : "Optional"}
+              complete={apSectionComplete}
+              ariaLabel="Courses"
             >
-              <FlashcardShell accent="violet">
                 {/* Same card structure as the Indian Languages / Foreign
                     Language cards: icon + centered title, then select-then-rate
                     — pick which apply from one compact chip grid, then a
@@ -426,9 +366,12 @@ const ParentStep2 = ({
                       <GlobiculumTargetIcon size={34} />
                     </GlobiculumIconTile>
                   </div>
-                  <h4 className="text-xl font-bold text-foreground">High School & AP Courses</h4>
+                  <h4 className="text-xl font-bold text-foreground">
+                    High School & AP Courses
+                    <OptionalBadge />
+                  </h4>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Optional. Courses your child has taken or is taking. State standards are a minimum; these tell us what was actually covered.
+                    Courses your child has taken or is taking. State standards are a minimum; these tell us what was actually covered.
                   </p>
                   {apAddedCount > 0 && (
                     <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-secondary">
@@ -490,8 +433,7 @@ const ParentStep2 = ({
                 )}
 
                 <CardNav onBack={goPrevSection} onNext={goNextSection} nextLabel={apAddedCount > 0 ? "Next" : "Skip, none taken"} />
-              </FlashcardShell>
-            </RailAndCard>
+            </SingleCardSection>
 
             {(formData.academicPath.includes("Algebra") || formData.academicPath.includes("Geometry") || formData.academicPath.includes("Pre-Calculus / Calculus")) &&
               formData.previousLocation === "us" &&
@@ -522,8 +464,14 @@ const ParentStep2 = ({
         );
       case "performance":
         return (
-          <RailAndCard rail={<SingleItemRail title="Overall Performance" label="Overall Performance" done={!!formData.overallPerformance} />}>
-            <FlashcardShell accent="teal" invalid={!!fieldErrors.overallPerformance}>
+          <SingleCardSection
+            railTitle="Overall Performance"
+            itemLabel="Overall Performance"
+            complete={!!formData.overallPerformance}
+            accent="teal"
+            invalid={!!fieldErrors.overallPerformance}
+            ariaLabel="Overall performance"
+          >
               <div className="flex flex-col items-center text-center">
                 <div className="mb-4">
                   <GlobiculumIconTile tone="violet" size={64}>
@@ -548,32 +496,31 @@ const ParentStep2 = ({
               </div>
               <FieldError message={fieldErrors.overallPerformance} />
               <CardNav onBack={goPrevSection} onNext={goNextSection} nextDisabled={!formData.overallPerformance} />
-            </FlashcardShell>
-          </RailAndCard>
+          </SingleCardSection>
         );
       case "activities":
         // Asked last, as its own card; it used to sit under every section.
         return (
-          <RailAndCard
-            rail={
-              <SingleItemRail
-                title="Activities"
-                label="Extracurricular Activities"
-                done={formData.extracurriculars.length > 0}
-                sublabel={formData.extracurriculars.length > 0 ? `${formData.extracurriculars.length} added` : "Optional"}
-              />
-            }
+          <SingleCardSection
+            railTitle="Activities"
+            itemLabel="Extracurricular Activities"
+            itemDetail={formData.extracurriculars.length > 0 ? `${formData.extracurriculars.length} added` : "Optional"}
+            complete={formData.extracurriculars.length > 0}
+            accent="globe"
+            ariaLabel="Activities"
           >
-            <FlashcardShell accent="globe">
               <div className="flex flex-col items-center text-center">
                 <div className="mb-4">
                   <GlobiculumIconTile tone="amber" size={64}>
                     <Trophy size={32} aria-hidden="true" />
                   </GlobiculumIconTile>
                 </div>
-                <h4 className="text-xl font-bold text-foreground">Current Extracurricular Activities</h4>
+                <h4 className="text-xl font-bold text-foreground">
+                  Current Extracurricular Activities
+                  <OptionalBadge />
+                </h4>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Optional. Activities outside academics that may highlight strengths or interests relevant to the transition.
+                  Activities outside academics that may highlight strengths or interests relevant to the transition.
                 </p>
               </div>
               <div className="mt-6 flex justify-center">
@@ -585,8 +532,7 @@ const ParentStep2 = ({
                 />
               </div>
               <CardNav onBack={goPrevSection} onNext={goNextSection} nextLabel={formData.extracurriculars.length > 0 ? "Next" : "Skip, none"} />
-            </FlashcardShell>
-          </RailAndCard>
+          </SingleCardSection>
         );
       default:
         return null;
@@ -635,45 +581,14 @@ const ParentStep2 = ({
           a fallback list and then change under the parent. */}
       {activeSection && (
         <>
-          <div ref={sectionsTop} className="scroll-mt-24">
-            <ol aria-label="Academic Path sections" className="flex flex-wrap items-center gap-2">
-              {sections.map((id, i) => {
-                const current = i === activeIndex;
-                const done = i < activeIndex && sectionComplete(id);
-                // Earlier sections can always be reopened; a later one only
-                // once every section before it has its required answers.
-                const reachable = i <= activeIndex || sections.slice(0, i).every(sectionComplete);
-                return (
-                  <li key={id}>
-                    <button
-                      type="button"
-                      onClick={() => !current && goToSection(id)}
-                      disabled={!reachable}
-                      aria-current={current ? "step" : undefined}
-                      title={reachable ? undefined : "Answer the sections before this one first"}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        current
-                          ? "border-secondary bg-secondary text-secondary-foreground"
-                          : done
-                            ? "border-secondary/40 bg-secondary/10 text-secondary hover:bg-secondary/15"
-                            : reachable
-                              ? "border-border bg-card text-foreground hover:bg-muted"
-                              : "cursor-not-allowed border-border bg-muted/40 text-muted-foreground"
-                      )}
-                    >
-                      {done ? (
-                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                      ) : (
-                        <span className="tabular-nums" aria-hidden="true">{i + 1}</span>
-                      )}
-                      {SECTION_LABEL[id]}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
+          <SectionChips
+            sections={sections}
+            labels={SECTION_LABEL}
+            activeIndex={flow.activeIndex}
+            isComplete={sectionComplete}
+            onSelect={flow.goTo}
+            chipsRef={flow.chipsRef}
+          />
 
           <div key={activeSection} className="animate-in fade-in-0 slide-in-from-right-2 duration-300">
             {renderSection(activeSection)}

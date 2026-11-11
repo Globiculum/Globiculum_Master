@@ -11,7 +11,7 @@ import IndianLanguageQuestion from "../../shared/IndianLanguageQuestion";
 import { NEW_TO_LANGUAGE, newSchoolLanguageGrade, newSchoolLanguageLabel, schoolLanguages, suggestedNewSchoolLanguage } from "../../shared/newSchoolLanguage";
 import { LANGUAGE_LEVEL_MESSAGE, hasKnownLanguageLevel, missingSchoolLanguageLevels } from "../../shared/stepRules";
 import type { AssessmentFormData } from "../../shared/types";
-import backIcon from "@/assets/icons-3d/back.png";
+import CardNav from "../../shared/CardNav";
 
 // Two cards now, not four: Indian Languages is a select-then-rate
 // multi-select (pick every language that applies from one chip grid, then a
@@ -83,17 +83,37 @@ interface LanguageJourneyCardProps {
   levelError?: string;
   /** Bumped on each failed Continue; opens the card with the missing answer. */
   validationAttempt?: number;
+  /** Back on the first card: to the previous section. */
+  onBack?: () => void;
+  /** Next on the summary: to the next section. */
+  onNext?: () => void;
 }
 
-const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelError, validationAttempt = 0 }: LanguageJourneyCardProps) => {
+const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelError, validationAttempt = 0, onBack, onNext }: LanguageJourneyCardProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const customIndianLanguages = formData.selectedLanguages.filter((l) => !INDIAN_LANGUAGES.includes(l));
   const hasForeign = !!formData.foreignLanguageName;
 
-  const hasExistingAnswers = formData.selectedLanguages.length > 0 || hasForeign;
+  const hasExistingAnswers = formData.selectedLanguages.length > 0 || hasForeign || !!formData.targetLanguage;
 
-  const [phase, setPhase] = useState<"cards" | "summary">(hasExistingAnswers ? "summary" : "cards");
-  const [cardIndex, setCardIndex] = useState(0);
+  const schoolGrade = newSchoolLanguageGrade(formData.targetGoal, formData.snapshotGrade, formData.targetGrade);
+  const order: CardId[] = schoolGrade ? ["indian", "school", "foreign"] : ["indian", "foreign"];
+
+  // Every language marked as known needs a level before moving on.
+  const unratedLanguages = formData.selectedLanguages.filter((lang) => !hasKnownLanguageLevel(formData.languageProficiencies[lang]));
+  // So does Hindi or Sanskrit chosen for the new school.
+  const unratedSchoolLanguages = schoolGrade ? missingSchoolLanguageLevels(formData.targetLanguage, formData.languageProficiencies) : [];
+  const schoolLanguageMissing = !!schoolGrade && (!formData.targetLanguage || unratedSchoolLanguages.length > 0);
+
+  // Opening the section continues where the student left off: a language
+  // with no level, else a missing new-school language, else the summary once
+  // something is answered (else the first card).
+  const [phase, setPhase] = useState<"cards" | "summary">(() =>
+    hasExistingAnswers && unratedLanguages.length === 0 && !schoolLanguageMissing ? "summary" : "cards"
+  );
+  const [cardIndex, setCardIndex] = useState(() =>
+    hasExistingAnswers && unratedLanguages.length === 0 && schoolLanguageMissing ? order.indexOf("school") : 0
+  );
   const [showOtherIndianInput, setShowOtherIndianInput] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [showForeignOtherInput, setShowForeignOtherInput] = useState(formData.foreignLanguageName === "other");
@@ -101,8 +121,6 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
   // True while targetLanguage holds the value pre-selected from the known languages.
   const [suggested, setSuggested] = useState(false);
 
-  const schoolGrade = newSchoolLanguageGrade(formData.targetGoal, formData.snapshotGrade, formData.targetGrade);
-  const order: CardId[] = schoolGrade ? ["indian", "school", "foreign"] : ["indian", "foreign"];
   const currentId = order[cardIndex] ?? order[0];
   const total = order.length;
 
@@ -118,11 +136,6 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
     setCardIndex(order.indexOf(target));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validationAttempt]);
-
-  // Every language marked as known needs a level before moving on.
-  const unratedLanguages = formData.selectedLanguages.filter((lang) => !hasKnownLanguageLevel(formData.languageProficiencies[lang]));
-  // So does Hindi or Sanskrit chosen for the new school.
-  const unratedSchoolLanguages = schoolGrade ? missingSchoolLanguageLevels(formData.targetLanguage, formData.languageProficiencies) : [];
 
   // A "New to it" level belongs to the new-school choice; drop it for a
   // language that is no longer chosen there (see ParentLanguageJourneyCard).
@@ -326,13 +339,6 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
         {rail}
 
         <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Complete</span>
-            <button type="button" onClick={backToCards} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
-              ← Back
-            </button>
-          </div>
-
           <FlashcardShell>
             <div className="flex flex-col items-center text-center">
               <div className="mb-3">
@@ -412,11 +418,15 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
                 )}
               </div>
             )}
+            <CardNav onBack={backToCards} onNext={onNext} />
           </FlashcardShell>
         </div>
       </div>
     );
   }
+
+  // Back on a card: the previous card, or from the first card the previous section.
+  const backFromCard = cardIndex > 0 ? goBackOneCard : onBack;
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
@@ -558,14 +568,12 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
                       {LANGUAGE_LEVEL_MESSAGE}
                     </p>
                   )}
-                  <button
-                    type="button"
-                    onClick={advance}
-                    disabled={unratedLanguages.length > 0}
-                    className="mt-5 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:no-underline"
-                  >
-                    {formData.selectedLanguages.length > 0 ? "Continue →" : "I don't know any Indian languages →"}
-                  </button>
+                  <CardNav
+                    onBack={backFromCard}
+                    onNext={advance}
+                    nextDisabled={unratedLanguages.length > 0}
+                    nextLabel={formData.selectedLanguages.length > 0 ? "Next" : "Skip, I know none"}
+                  />
                 </>
               )}
 
@@ -582,16 +590,7 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
                     suggested={suggested}
                     error={error}
                   />
-                  {formData.targetLanguage && (
-                    <button
-                      type="button"
-                      onClick={advance}
-                      disabled={unratedSchoolLanguages.length > 0}
-                      className="mt-4 block w-full text-center text-xs font-medium text-secondary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:no-underline"
-                    >
-                      Continue →
-                    </button>
-                  )}
+                  <CardNav onBack={backFromCard} onNext={advance} nextDisabled={!formData.targetLanguage || unratedSchoolLanguages.length > 0} />
                 </>
               )}
 
@@ -640,35 +639,18 @@ const LanguageJourneyCard = ({ formData, setField, setRecordField, error, levelE
                     </>
                   )}
 
-                  <button type="button" onClick={skipForeign} className="mt-4 block w-full text-center text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
-                    I&rsquo;m not studying a foreign language
-                  </button>
-
-                  {formData.foreignLanguageName && formData.foreignLanguageLevel && (
-                    <button type="button" onClick={advance} className="mt-2 block w-full text-center text-xs font-medium text-secondary underline-offset-2 hover:underline">
-                      Continue →
-                    </button>
-                  )}
+                  {/* No language picked: Next means "not studying one". */}
+                  <CardNav
+                    onBack={backFromCard}
+                    onNext={formData.foreignLanguageName ? advance : skipForeign}
+                    nextDisabled={!!formData.foreignLanguageName && !formData.foreignLanguageLevel}
+                    nextLabel={formData.foreignLanguageName ? "Next" : "Skip, not studying one"}
+                  />
                 </>
               )}
             </FlashcardShell>
           </motion.div>
         </AnimatePresence>
-
-        <div className="flex items-center justify-between px-1">
-          <button
-            type="button"
-            onClick={goBackOneCard}
-            disabled={cardIndex === 0}
-            className={cn("flex items-center gap-1 text-xs font-medium", cardIndex === 0 ? "invisible" : "text-muted-foreground hover:text-foreground")}
-          >
-            <img src={backIcon} className="h-3.5 w-3.5 object-contain" alt="" aria-hidden="true" draggable={false} /> Back
-          </button>
-          <span className="text-xs font-medium text-muted-foreground lg:hidden">
-            {position} of {total}
-          </span>
-          <span className="w-10" aria-hidden="true" />
-        </div>
       </div>
     </div>
   );

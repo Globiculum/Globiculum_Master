@@ -83,6 +83,9 @@ test("the School step starts at 0%, grows with answers, and asks Previous Learni
 
   await answerSchoolUpToPreviousLearning(page);
   await expect(progress(page)).toHaveAttribute("aria-valuenow", "33"); // School done, two steps to go
+  // Marked optional right after the title, not in the hint line.
+  await expect(cardTitle(page, "Did your child attend an Indian school before?")).toContainText("Optional");
+  await expect(page.getByText("If yes, add each school with its grades and curriculum.")).toBeVisible();
 
   // Yes shows the first school's row at once, with only the grades before Grade 4.
   await page.getByRole("radio", { name: "Yes", exact: true }).click();
@@ -159,4 +162,62 @@ test("the Academic step opens one section at a time, with Back and Next in each 
 
   await expect(cardTitle(page, "How does your child learn best?")).toBeVisible();
   await expect(progress(page)).toHaveAttribute("aria-valuenow", "66");
+});
+
+test("the student form gets the same journey: one question or section at a time, Previous Learning last", async ({ page }) => {
+  test.setTimeout(120_000); // answers the whole form, card by card
+  await signIn(page, PARENT_A);
+  await page.goto("/student-assessment");
+  await expect(page.locator("#student-first-name")).toBeVisible();
+  await expect(progress(page)).toHaveAttribute("aria-valuenow", "0");
+  await expect(page.getByText("Did you attend an Indian school before?")).toHaveCount(0);
+
+  // School: one card at a time, Previous Learning last and marked optional.
+  await page.locator("#student-first-name").fill("Asha");
+  await page.locator("#student-last-name").fill("Rao");
+  await nextButton(page).click();
+  await page.getByRole("radio", { name: /^Elementary/ }).click();
+  await page.getByRole("radio", { name: "4", exact: true }).click();
+  await page.getByRole("radio", { name: /^United States/ }).click();
+  await page.locator("#us-state").click();
+  await page.getByRole("option", { name: "California (CA)" }).click();
+  await page.getByRole("radio", { name: /^California State Curriculum/ }).click();
+  await page.getByRole("radio", { name: /^CBSE/ }).click();
+  await page.getByRole("radio", { name: /^Same Grade/ }).click();
+  await page.getByRole("radio", { name: /^3.6 months/ }).click();
+  await expect(cardTitle(page, "Did you attend an Indian school before?")).toContainText("Optional");
+  await page.getByRole("radio", { name: "Yes", exact: true }).click();
+  await expect(page.locator("#edu-history-from-0")).toBeVisible();
+  await page.getByRole("radio", { name: "No", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "You're all set." })).toBeVisible();
+  await nextButton(page).click();
+
+  // Academic: one section at a time.
+  const sections = page.getByRole("list", { name: "Academic Path sections" });
+  await expect(sections.getByRole("button", { name: /Core subjects/ })).toHaveAttribute("aria-current", "step");
+  await expect(sections.getByRole("button", { name: /Languages/ })).toBeDisabled();
+  await answerAllSubjects(page, "Core subjects are ready.");
+  await nextButton(page).click();
+  if (await sections.getByRole("button", { name: /Electives/ }).getAttribute("aria-current")) {
+    await answerAllSubjects(page, "Electives are ready.");
+    await nextButton(page).click();
+  }
+  await page.getByRole("button", { name: "Skip, I know none" }).click();
+  await page.getByRole("button", { name: "Skip, not studying one" }).click();
+  await nextButton(page).click();
+  await page.getByRole("radio", { name: "On Track" }).click();
+  await nextButton(page).click(); // last section: on to Almost Done
+
+  // Almost Done: one question per card; the notes are marked optional.
+  await expect(cardTitle(page, "Which learning style suits you best?")).toBeVisible();
+  await expect(nextButton(page)).toBeDisabled();
+  await page.getByRole("checkbox", { name: /Visual Learning/ }).click();
+  await nextButton(page).click();
+  await page.getByRole("checkbox", { name: "Not really nervous" }).click();
+  await nextButton(page).click();
+  await expect(cardTitle(page, "Anything else you'd like to share?")).toContainText("Optional");
+  await page.getByRole("button", { name: "Skip, no notes" }).click();
+
+  await expect(page.getByText("Asha's Review")).toBeVisible();
+  await expect(progress(page)).toHaveAttribute("aria-valuenow", "100");
 });

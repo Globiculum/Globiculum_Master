@@ -6,6 +6,11 @@ import SectionCard from "../../shared/SectionCard";
 import SingleCardSection from "../../shared/SingleCardSection";
 import FieldError from "../../shared/FieldError";
 import InputCard from "../../shared/InputCard";
+import CardNav from "../../shared/CardNav";
+import OptionalBadge from "../../shared/OptionalBadge";
+import SectionChips from "../../shared/SectionChips";
+import { useSectionFlow } from "../../shared/useSectionFlow";
+import { languageLevelError, newSchoolLanguageError } from "../../shared/stepRules";
 import AcademicPathFlashcards from "./AcademicPathFlashcards";
 import LanguageJourneyCard from "./LanguageJourneyCard";
 import { ALL_COURSES, AP_COURSES, HIGH_SCHOOL_COURSES, courseLabel } from "../../shared/highSchoolCourses";
@@ -44,6 +49,20 @@ const OVERALL_PERFORMANCE_OPTIONS = [
 // AcademicPathFlashcards itself is untouched (reverted to its original
 // per-subject form) since the language experience no longer reuses it — one
 // flashcard per language was the exact fatigue this revision removes.
+//
+// Shown one section at a time (Core subjects, Electives, Courses, Languages,
+// Performance), the same as the Parent step: Back and Next in every card,
+// chips above showing where the student is, and a later section only once the
+// earlier required answers are in (shared/useSectionFlow.ts).
+
+type SectionId = "core" | "electives" | "courses" | "languages" | "performance";
+const SECTION_LABEL: Record<SectionId, string> = {
+  core: "Core subjects",
+  electives: "Electives",
+  courses: "Courses",
+  languages: "Languages",
+  performance: "Performance",
+};
 
 const SUBJECTS = [
   "Mathematics",
@@ -74,7 +93,16 @@ const REQUIRED_SUBJECTS = new Set(["Mathematics", "Science", "English / Language
 const US_CORE_FALLBACK = ["Mathematics", "English", "Science", "Social Studies", "Computer Science"];
 const US_REQUIRED_SUBJECTS = new Set(["Mathematics", "English", "Science", "Social Studies"]);
 
-const AcademicProfileStep = ({ formData, setField, setRecordField, errors, validationAttempt, onSubjectsCompleteChange, onSubjectsProgressChange }: StudentStepProps) => {
+const AcademicProfileStep = ({
+  formData,
+  setField,
+  setRecordField,
+  errors,
+  validationAttempt = 0,
+  onSubjectsCompleteChange,
+  onSubjectsProgressChange,
+  onContinue,
+}: StudentStepProps) => {
   const isHigherSecondary = HIGHER_SECONDARY_GRADES.includes(formData.snapshotGrade);
   const gradeNumber = parseInt(formData.snapshotGrade, 10);
 
@@ -151,20 +179,62 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
 
   const coursesAdded = ALL_COURSES.filter((course) => formData.academicPath.includes(course)).length;
 
-  return (
-    <SectionCard logo={childLogo} title="Academic Path">
-      <div className="-mt-4 text-sm text-muted-foreground">Tell us what you're studying right now.</div>
+  // ---- Sections, one at a time ----
+  const sections: SectionId[] = [
+    "core",
+    ...(electiveSubjects.length > 0 ? (["electives"] as const) : []),
+    ...(formData.schoolStage === "high" ? (["courses"] as const) : []),
+    "languages",
+    "performance",
+  ];
+  const answered = (subject: string) => !!formData.subjectConfidences[subject];
+  const coreIncomplete = coreSubjects.some((s) => !answered(s));
+  const electivesIncomplete = electiveSubjects.some((s) => !answered(s));
+  // Whether a section's required answers are in (Courses is optional).
+  const sectionComplete = (id: SectionId): boolean => {
+    switch (id) {
+      case "core":
+        return !coreIncomplete;
+      case "electives":
+        return !electivesIncomplete;
+      case "languages":
+        return !newSchoolLanguageError(formData) && !languageLevelError(formData);
+      case "performance":
+        return !!formData.overallPerformance;
+      default:
+        return true;
+    }
+  };
+  const flow = useSectionFlow({
+    sections,
+    isComplete: sectionComplete,
+    loading: listLoading,
+    validationAttempt,
+    // The subject section with the missing answer, else languages, else performance.
+    sectionWithError: () => {
+      const subjectSection: SectionId | null = !errors.academicPath
+        ? null
+        : coreIncomplete
+          ? "core"
+          : electiveSubjects.length > 0 && electivesIncomplete
+            ? "electives"
+            : "core";
+      return (
+        sections.find(
+          (id) =>
+            id === subjectSection ||
+            (id === "languages" && !!(errors.targetLanguage || errors.languageProficiencies)) ||
+            (id === "performance" && !!errors.overallPerformance)
+        ) ?? null
+      );
+    },
+    onContinue,
+  });
 
-      {comparisonNote && (
-        <div className="rounded-lg border border-secondary/30 bg-secondary/5 px-4 py-3 text-sm text-foreground">
-          {comparisonNote}
-        </div>
-      )}
-
-      {usSourceSystem && usLoading ? (
-        <div className="text-sm text-muted-foreground">Loading your state&apos;s subjects…</div>
-      ) : (
-        <>
+  const renderSection = (id: SectionId) => {
+    switch (id) {
+      case "core":
+        return (
           <AcademicPathFlashcards
             activeSubjectList={coreSubjects}
             requiredSubjects={requiredSubjects}
@@ -176,138 +246,173 @@ const AcademicProfileStep = ({ formData, setField, setRecordField, errors, valid
             excludeFromCustom={[...ALL_COURSES, ...electiveSubjects, ...NOT_OFFERED_SUBJECTS]}
             navTitle="Core Subjects"
             summaryTitle="Core subjects are ready."
-            nextSectionId={electiveSubjects.length > 0 ? "academic-electives-section" : "academic-path-next-section"}
+            onBack={flow.goPrev}
+            onNext={flow.goNext}
           />
-          <span id="academic-electives-section" className="sr-only" aria-hidden="true" />
-          {electiveSubjects.length > 0 && (
-            <AcademicPathFlashcards
-              activeSubjectList={electiveSubjects}
-              requiredSubjects={new Set<string>()}
-              academicPath={formData.academicPath}
-              subjectConfidences={formData.subjectConfidences}
-              setAcademicPath={(value) => setField("academicPath", value)}
-              setConfidence={(subject, value) => setRecordField("subjectConfidences", subject, value)}
-              navTitle={usSourceSystem ? "Current Electives (US School)" : "Electives"}
-              navSubtitle="Optional subjects - mark the ones you don't take."
-              summaryTitle="Electives are ready."
-              showCustomCard={false}
-            />
-          )}
-        </>
-      )}
-
-      <span id="academic-path-next-section" className="sr-only" aria-hidden="true" />
-
-      {formData.schoolStage === "high" && (
+        );
+      case "electives":
+        return (
+          <AcademicPathFlashcards
+            activeSubjectList={electiveSubjects}
+            requiredSubjects={new Set<string>()}
+            academicPath={formData.academicPath}
+            subjectConfidences={formData.subjectConfidences}
+            setAcademicPath={(value) => setField("academicPath", value)}
+            setConfidence={(subject, value) => setRecordField("subjectConfidences", subject, value)}
+            error={coreIncomplete ? undefined : errors.academicPath}
+            navTitle={usSourceSystem ? "Current Electives (US School)" : "Electives"}
+            navSubtitle="Optional subjects - mark the ones you don't take."
+            summaryTitle="Electives are ready."
+            showCustomCard={false}
+            onBack={flow.goPrev}
+            onNext={flow.goNext}
+          />
+        );
+      case "courses":
         // Same course list as the parent flow (shared/highSchoolCourses.ts):
         // the report credits what these courses teach beyond state standards.
-        // Same layout as the parent's section (rail on the left, card on the right).
-        <SingleCardSection
-          railTitle="Courses"
-          itemLabel="High School & AP Courses"
-          itemDetail={coursesAdded > 0 ? `${coursesAdded} added` : "None added"}
-          complete={coursesAdded > 0}
-          ariaLabel="Courses progress"
-        >
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-4">
-              <GlobiculumIconTile tone="teal" size={64}>
-                <GlobiculumTargetIcon size={34} />
-              </GlobiculumIconTile>
-            </div>
-            <h4 className="text-xl font-bold text-foreground">High School & AP Courses</h4>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Courses you have taken or are taking. State standards are a minimum; these tell us what you actually covered.
-            </p>
-            {coursesAdded > 0 && (
-              <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-secondary">
-                <Check className="h-3.5 w-3.5" aria-hidden="true" /> {coursesAdded} added
-              </p>
-            )}
-          </div>
-          {[
-            { title: "Courses", courses: HIGH_SCHOOL_COURSES },
-            { title: "AP courses", courses: AP_COURSES },
-          ].map(({ title, courses }) => (
-            <div key={title} className="mt-5">
-              <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h5>
-              {/* Phones: pills sized to their text (two fixed columns squeezed
-                  them into three lines); wider screens: three columns. */}
-              <div className="flex flex-wrap gap-2 sm:grid sm:grid-cols-3">
-                {courses.map((course) => {
-                  const selected = formData.academicPath.includes(course);
-                  return (
-                    <InputCard
-                      key={course}
-                      variant="chip"
-                      label={courseLabel(course)}
-                      selected={selected}
-                      onClick={() =>
-                        setField(
-                          "academicPath",
-                          selected ? formData.academicPath.filter((s) => s !== course) : [...formData.academicPath, course]
-                        )
-                      }
-                    />
-                  );
-                })}
+        return (
+          <SingleCardSection
+            railTitle="Courses"
+            itemLabel="High School & AP Courses"
+            itemDetail={coursesAdded > 0 ? `${coursesAdded} added` : "Optional"}
+            complete={coursesAdded > 0}
+            ariaLabel="Courses progress"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4">
+                <GlobiculumIconTile tone="teal" size={64}>
+                  <GlobiculumTargetIcon size={34} />
+                </GlobiculumIconTile>
               </div>
+              <h4 className="text-xl font-bold text-foreground">
+                High School & AP Courses
+                <OptionalBadge />
+              </h4>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Courses you have taken or are taking. State standards are a minimum; these tell us what you actually covered.
+              </p>
+              {coursesAdded > 0 && (
+                <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-secondary">
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" /> {coursesAdded} added
+                </p>
+              )}
             </div>
-          ))}
-          {coursesAdded > 0 && (
-            <button
-              type="button"
-              onClick={() => document.getElementById("language-exposure-section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              className="mt-6 flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-secondary hover:underline"
-            >
-              <Check className="h-3.5 w-3.5" aria-hidden="true" /> Done — continue to Language Exposure →
-            </button>
-          )}
-        </SingleCardSection>
+            {[
+              { title: "Courses", courses: HIGH_SCHOOL_COURSES },
+              { title: "AP courses", courses: AP_COURSES },
+            ].map(({ title, courses }) => (
+              <div key={title} className="mt-5">
+                <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h5>
+                {/* Phones: pills sized to their text (two fixed columns squeezed
+                    them into three lines); wider screens: three columns. */}
+                <div className="flex flex-wrap gap-2 sm:grid sm:grid-cols-3">
+                  {courses.map((course) => {
+                    const selected = formData.academicPath.includes(course);
+                    return (
+                      <InputCard
+                        key={course}
+                        variant="chip"
+                        label={courseLabel(course)}
+                        selected={selected}
+                        onClick={() =>
+                          setField(
+                            "academicPath",
+                            selected ? formData.academicPath.filter((s) => s !== course) : [...formData.academicPath, course]
+                          )
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            <CardNav onBack={flow.goPrev} onNext={flow.goNext} nextLabel={coursesAdded > 0 ? "Next" : "Skip, none taken"} />
+          </SingleCardSection>
+        );
+      case "languages":
+        return (
+          <LanguageJourneyCard
+            formData={formData}
+            setField={setField}
+            setRecordField={setRecordField}
+            error={errors.targetLanguage}
+            levelError={errors.languageProficiencies}
+            validationAttempt={validationAttempt}
+            onBack={flow.goPrev}
+            onNext={flow.goNext}
+          />
+        );
+      case "performance":
+        return (
+          <SingleCardSection
+            railTitle="Overall Performance"
+            itemLabel="Overall Performance"
+            complete={!!formData.overallPerformance}
+            accent="teal"
+            invalid={!!errors.overallPerformance}
+            ariaLabel="Overall performance"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4">
+                <GlobiculumIconTile tone="violet" size={64}>
+                  <GlobiculumSuccessIcon size={34} />
+                </GlobiculumIconTile>
+              </div>
+              <h4 className="text-xl font-bold text-foreground">Overall Performance</h4>
+              <p className="mt-1 text-sm text-muted-foreground">A general sense of how you&apos;re performing academically overall.</p>
+            </div>
+            <div role="radiogroup" aria-label="Overall Performance" className="mt-6 flex flex-wrap justify-center gap-2">
+              {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
+                <InputCard
+                  key={opt.value}
+                  variant="chip"
+                  mode="radio"
+                  label={opt.label}
+                  selected={formData.overallPerformance === opt.value}
+                  onClick={() => setField("overallPerformance", opt.value)}
+                />
+              ))}
+            </div>
+            <FieldError message={errors.overallPerformance} />
+            {/* The last section: Next moves on to the next step. */}
+            <CardNav onBack={flow.goPrev} onNext={flow.goNext} nextDisabled={!formData.overallPerformance} />
+          </SingleCardSection>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <SectionCard logo={childLogo} title="Academic Path">
+      <div className="-mt-4 text-sm text-muted-foreground">Tell us what you're studying right now.</div>
+
+      {comparisonNote && (flow.active === "core" || flow.active === "electives") && (
+        <div className="rounded-lg border border-secondary/30 bg-secondary/5 px-4 py-3 text-sm text-foreground">
+          {comparisonNote}
+        </div>
       )}
 
-      <div id="language-exposure-section">
-        <LanguageJourneyCard
-          formData={formData}
-          setField={setField}
-          setRecordField={setRecordField}
-          error={errors.targetLanguage}
-          levelError={errors.languageProficiencies}
-          validationAttempt={validationAttempt}
-        />
-      </div>
+      {listLoading && <div className="text-sm text-muted-foreground">Loading your subjects…</div>}
 
-      <SingleCardSection
-        railTitle="Overall Performance"
-        itemLabel="Overall Performance"
-        complete={!!formData.overallPerformance}
-        accent="teal"
-        invalid={!!errors.overallPerformance}
-        ariaLabel="Overall performance"
-      >
-        <div className="flex flex-col items-center text-center">
-          <div className="mb-4">
-            <GlobiculumIconTile tone="violet" size={64}>
-              <GlobiculumSuccessIcon size={34} />
-            </GlobiculumIconTile>
+      {/* Held back until the subject lists arrive, so the cards don't open on
+          a fallback list and then change under the student. */}
+      {flow.active && (
+        <>
+          <SectionChips
+            sections={sections}
+            labels={SECTION_LABEL}
+            activeIndex={flow.activeIndex}
+            isComplete={sectionComplete}
+            onSelect={flow.goTo}
+            chipsRef={flow.chipsRef}
+          />
+          <div key={flow.active} className="animate-in fade-in-0 slide-in-from-right-2 duration-300">
+            {renderSection(flow.active)}
           </div>
-          <h4 className="text-xl font-bold text-foreground">Overall Performance</h4>
-          <p className="mt-1 text-sm text-muted-foreground">A general sense of how you&apos;re performing academically overall.</p>
-        </div>
-        <div role="radiogroup" aria-label="Overall Performance" className="mt-6 flex flex-wrap justify-center gap-2">
-          {OVERALL_PERFORMANCE_OPTIONS.map((opt) => (
-            <InputCard
-              key={opt.value}
-              variant="chip"
-              mode="radio"
-              label={opt.label}
-              selected={formData.overallPerformance === opt.value}
-              onClick={() => setField("overallPerformance", opt.value)}
-            />
-          ))}
-        </div>
-        <FieldError message={errors.overallPerformance} />
-      </SingleCardSection>
+        </>
+      )}
     </SectionCard>
   );
 };

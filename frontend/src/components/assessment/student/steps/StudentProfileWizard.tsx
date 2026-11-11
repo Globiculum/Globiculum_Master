@@ -1,14 +1,14 @@
 import { useLayoutEffect, useState, type ComponentType, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, ArrowUpCircle, BarChart3, BookOpen, Check, Equal, Globe2, Minus, Target } from "lucide-react";
+import { ArrowUpCircle, BarChart3, BookOpen, Check, Equal, Globe2, Minus, Target } from "lucide-react";
 import editIcon from "@/assets/icons-3d/edit.png";
-import backIcon from "@/assets/icons-3d/back.png";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   GlobiculumChecklistIcon,
+  GlobiculumEducationIcon,
   GlobiculumGlobeIcon,
   GlobiculumGradeIcon,
   GlobiculumIconTile,
@@ -30,6 +30,11 @@ import {
 import InputCard from "../../shared/InputCard";
 import FieldError from "../../shared/FieldError";
 import FlashcardShell from "../../shared/FlashcardShell";
+import CardNav from "../../shared/CardNav";
+import OptionalBadge from "../../shared/OptionalBadge";
+import EducationHistoryList from "../../shared/EducationHistoryList";
+import { EMPTY_EDUCATION_ENTRY, priorGradeOptions } from "../../shared/priorGrades";
+import { previousSchoolsComplete } from "../../shared/stepRules";
 import TimelineSelector, { type TimelineOption } from "../../shared/TimelineSelector";
 import { targetGradeLabel } from "../../shared/reviewFormatting";
 import { boardCoverageNote, boardHasData, coverageCardToFix, currentCurriculumHasData, targetGradeHasData } from "../../shared/dataCoverage";
@@ -59,8 +64,9 @@ type ProfileIcon = ComponentType<GlobiculumIconProps> | LucideIcon;
 // AcademicPathFlashcards.tsx (left nav / mobile progress dots + single
 // active animated card + auto-advance + summary phase) — duplicated locally
 // rather than shared, so this sprint's diff stays scoped to Profile-step
-// files only. Education History stays a separate static section below this
-// wizard, unchanged, in StudentProfileStep.tsx.
+// files only. The optional "attended an Indian school before?" question, with
+// the prior schools, is the last card (it used to be a box under the wizard,
+// so it showed below every card).
 //
 // Every field name, setField call, and validation rule is identical to the
 // previous single-scroll form — this file only changes how the same fields
@@ -203,7 +209,8 @@ type ProfileFieldId =
   | "targetGrade"
   | "targetStream"
   | "targetElectives"
-  | "timeline";
+  | "timeline"
+  | "previousSchool";
 
 // Static forward order for the 8 base cards — conditional cards (usState /
 // countryOther / curriculumOther) are spliced in around "country" and
@@ -220,6 +227,7 @@ const BASE_ORDER: ProfileFieldId[] = [
   "targetStream",
   "targetElectives",
   "timeline",
+  "previousSchool",
 ];
 
 type StreamElectives = Record<TargetStream, string[]>;
@@ -229,7 +237,7 @@ type StreamElectives = Record<TargetStream, string[]>;
 // is used exactly once (Target) to stay a "tiny accent," per the brand's
 // semantic color guidance.
 type TileColor = "violet" | "teal" | "amber";
-type Milestone = "About You" | "Your School" | "Your Goal" | "Your Plan";
+type Milestone = "About You" | "Your School" | "Your Goal" | "Your Plan" | "Previous Learning";
 
 interface ProfileCard {
   id: ProfileFieldId;
@@ -245,6 +253,8 @@ interface ProfileCard {
   title: string;
   hint?: string;
   errorField: keyof AssessmentFormData | null;
+  /** Can be left unanswered: not a reason to reopen the cards on return. */
+  optional?: boolean;
 }
 
 const buildCardSequence = (formData: AssessmentFormData, streamElectives: StreamElectives): ProfileCard[] => {
@@ -376,8 +386,9 @@ const buildCardSequence = (formData: AssessmentFormData, streamElectives: Stream
       milestone: "Your Goal" as Milestone,
       navLabel: "Optional subjects",
       title: `Which optional subjects will you take in Class ${entryGrade(formData.snapshotGrade, formData.targetGrade)}?`,
-      hint: "Pick any you will take on top of the stream's main subjects. Only these are added to your report. Skip if none.",
+      hint: "Pick any you will take on top of the stream's main subjects. Only these are added to your report.",
       errorField: null,
+      optional: true,
     }] : []),
     {
       id: "timeline",
@@ -387,6 +398,17 @@ const buildCardSequence = (formData: AssessmentFormData, streamElectives: Stream
       navLabel: "Timeline",
       title: "When are you planning to transition?",
       errorField: "timeline",
+    },
+    {
+      id: "previousSchool",
+      icon: GlobiculumEducationIcon,
+      tileColor: "amber",
+      milestone: "Previous Learning",
+      navLabel: "Indian school before",
+      title: "Did you attend an Indian school before?",
+      hint: "If yes, add each school with its grades and curriculum.",
+      errorField: "educationHistory",
+      optional: true,
     }
   );
 
@@ -430,8 +452,11 @@ const nextCardId = (
 
 const cardHasError = (card: ProfileCard, errors: Record<string, string>): boolean => {
   if (card.id === "name") return !!(errors.studentName || errors.studentLastName);
+  if (card.id === "previousSchool") return !!(errors.previouslyStudiedInIndia || errors.educationHistory);
   return !!(card.errorField && errors[card.errorField]);
 };
+
+const gradeLabel = (grade: string) => (grade === "KG" ? "KG" : `Grade ${grade}`);
 
 const isCardAnswered = (card: ProfileCard, formData: AssessmentFormData): boolean => {
   switch (card.id) {
@@ -461,6 +486,8 @@ const isCardAnswered = (card: ProfileCard, formData: AssessmentFormData): boolea
       return (formData.targetElectives ?? []).length > 0;
     case "timeline":
       return !!formData.timeline;
+    case "previousSchool":
+      return formData.previouslyStudiedInIndia === "no" || (formData.previouslyStudiedInIndia === "yes" && previousSchoolsComplete(formData.educationHistory));
     default:
       return false;
   }
@@ -504,6 +531,14 @@ const displayValue = (id: ProfileFieldId, formData: AssessmentFormData): string 
       return (formData.targetElectives ?? []).length > 0 ? formData.targetElectives.join(", ") : "None";
     case "timeline":
       return TIMELINES.find((t) => t.value === formData.timeline)?.label;
+    case "previousSchool": {
+      if (formData.previouslyStudiedInIndia === "no") return "No";
+      if (formData.previouslyStudiedInIndia !== "yes") return undefined;
+      const schools = formData.educationHistory
+        .filter((e) => e.curriculum || e.fromGrade)
+        .map((e) => [e.curriculum, e.fromGrade && e.toGrade ? `${gradeLabel(e.fromGrade)}–${gradeLabel(e.toGrade)}` : ""].filter(Boolean).join(" "));
+      return schools.length > 0 ? `Yes · ${schools.join("; ")}` : "Yes";
+    }
     default:
       return undefined;
   }
@@ -563,6 +598,7 @@ const buildSummarySections = (formData: AssessmentFormData, streamElectives: Str
       ? [{ key: "electives", icon: BookOpen, tileColor: "violet" as TileColor, label: "Optional Subjects", value: displayValue("targetElectives", formData), editCardId: "targetElectives" as const }]
       : []),
     { key: "timeline", icon: GlobiculumTimelineIcon, tileColor: "teal", label: "Timeline", value: displayValue("timeline", formData), editCardId: "timeline" },
+    { key: "previousSchool", icon: GlobiculumEducationIcon, tileColor: "amber", label: "Previous Learning (optional)", value: displayValue("previousSchool", formData), editCardId: "previousSchool" },
   ];
 };
 
@@ -719,7 +755,7 @@ const MobileProgress = ({ navItems, activeLabel, position, total }: { navItems: 
       ))}
     </div>
     <p className="mt-1.5 text-xs font-medium text-muted-foreground">
-      {activeLabel} · {position} of {total} · {Math.round((position / total) * 100)}%
+      {activeLabel} · {position} of {total}
     </p>
   </div>
 );
@@ -732,9 +768,9 @@ const CardFrame = ({
   hint,
   error,
   invalid,
+  optional,
   children,
-  editing,
-  onFinishEditing,
+  footer,
 }: {
   icon: ProfileIcon;
   tileColor: TileColor;
@@ -743,16 +779,11 @@ const CardFrame = ({
   hint?: string;
   error?: string;
   invalid?: boolean;
+  /** Shows the "Optional" badge after the title. */
+  optional?: boolean;
   children: ReactNode;
-  /** True when this card was reached by clicking an already-answered nav
-   * item to revisit it, rather than the normal forward sequence. Auto-advance
-   * cards (radio/select, no manual "Next" of their own) only move on when the
-   * selection actually changes — if reopened just to check it and nothing
-   * changes, there was previously no way back to the summary except
-   * retracing every "Back" step. Showing an explicit "Next" here, only while
-   * editing, gives a guaranteed way out either way. */
-  editing?: boolean;
-  onFinishEditing?: () => void;
+  /** The card's Back / Next row (CardNav), below any error. */
+  footer?: ReactNode;
 }) => (
   <FlashcardShell invalid={invalid || !!error} accent="teal" accentBorder>
     <div className="flex flex-col items-center text-center">
@@ -762,25 +793,15 @@ const CardFrame = ({
         </GlobiculumIconTile>
       </div>
       {kicker && <p className="mb-1 text-xs font-semibold text-secondary">{kicker}</p>}
-      <h4 className="text-xl font-bold text-foreground">{title}</h4>
+      <h4 className="text-xl font-bold text-foreground">
+        {title}
+        {optional && <OptionalBadge />}
+      </h4>
       {hint && <p className="mt-1.5 text-sm text-muted-foreground">{hint}</p>}
     </div>
     <div className="mt-6">{children}</div>
     <FieldError message={error} />
-    {editing && onFinishEditing && (
-      <div className="mt-4 flex justify-end">
-        <button
-          type="button"
-          onClick={onFinishEditing}
-          className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-        >
-          Next
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </span>
-        </button>
-      </div>
-    )}
+    {footer}
   </FlashcardShell>
 );
 
@@ -788,30 +809,24 @@ interface StudentProfileWizardProps {
   formData: AssessmentFormData;
   setField: <K extends keyof AssessmentFormData>(field: K, value: AssessmentFormData[K]) => void;
   errors: Record<string, string>;
+  /** The page's Continue: Next on the finished summary moves to the next step. */
+  onContinue?: () => void;
 }
 
 const ADVANCE_DELAY_MS = 420;
 
-const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWizardProps) => {
+const StudentProfileWizard = ({ formData, setField, errors, onContinue }: StudentProfileWizardProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const streamElectives = useStreamElectives(formData);
   const sequence = buildCardSequence(formData, streamElectives);
 
-  // targetStream is in BASE_ORDER but not always in the sequence, so a
-  // missing card counts as unanswered instead of crashing the page.
-  const hasExistingAnswers = BASE_ORDER.some((id) => {
-    const card = sequence.find((c) => c.id === id);
-    return card ? isCardAnswered(card, formData) : false;
-  });
-  const firstUnansweredId = (): ProfileFieldId => {
-    for (const card of sequence) {
-      if (!isCardAnswered(card, formData)) return card.id;
-    }
-    return "timeline";
-  };
+  // Opening the step (after a refresh, or coming back to it) continues where
+  // the student left off: the first required question still unanswered, or
+  // the summary once they are all in (a retake, or a finished step).
+  const firstUnanswered = sequence.find((card) => !card.optional && !isCardAnswered(card, formData));
 
-  const [phase, setPhase] = useState<"cards" | "summary">(hasExistingAnswers ? "summary" : "cards");
-  const [currentCardId, setCurrentCardId] = useState<ProfileFieldId>(firstUnansweredId());
+  const [phase, setPhase] = useState<"cards" | "summary">(firstUnanswered ? "cards" : "summary");
+  const [currentCardId, setCurrentCardId] = useState<ProfileFieldId>(firstUnanswered?.id ?? "name");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [editingSingleCard, setEditingSingleCard] = useState(false);
 
@@ -916,19 +931,37 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
     setCurrentCardId(id);
   };
 
-  // For auto-advance cards (radio/select) reached via editCard: selecting a
-  // value already jumps back to the summary via advanceTo's editingSingleCard
-  // check, but if nothing changes there was previously no way back except
-  // "Back"-ing through every earlier card. This gives a direct, guaranteed
-  // way out regardless of whether anything changed.
-  const finishEditing = () => {
+  // Summary "Back" reopens the last question.
+  const backFromSummary = () => {
     setEditingSingleCard(false);
-    setPhase("summary");
+    setPhase("cards");
+    setCurrentCardId(sequence[sequence.length - 1].id);
   };
 
-  const continueToNext = () => {
-    document.getElementById("student-profile-next-section")?.scrollIntoView({ behavior: shouldReduceMotion ? "auto" : "smooth", block: "start" });
+  // Yes shows the first school's row straight away; No needs nothing more, so
+  // it moves on like the other single-choice cards.
+  const answerPreviousSchool = (studied: boolean) => {
+    if (isTransitioning) return;
+    setField("previousLocation", studied ? "india" : "");
+    if (studied) {
+      setField("previouslyStudiedInIndia", "yes");
+      if (formData.educationHistory.length === 0) setField("educationHistory", [{ ...EMPTY_EDUCATION_ENTRY }]);
+    } else {
+      selectChoice("previouslyStudiedInIndia", "no");
+    }
   };
+
+  // The Back / Next row inside each card. Back is hidden on the first card;
+  // Next moves on once the question is answered (radio cards also move on by
+  // themselves when picked).
+  const cardNav = (answered: boolean, onNext: () => void = continueFromText, nextLabel = "Next") => (
+    <CardNav
+      onBack={currentIndex > 0 ? goBackOneCard : undefined}
+      onNext={onNext}
+      nextDisabled={!answered || isTransitioning}
+      nextLabel={nextLabel}
+    />
+  );
 
   const navItems: NavItem[] = sequence.map((card, idx) => {
     const answered = isCardAnswered(card, formData);
@@ -1003,18 +1036,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
               })}
             </div>
 
-            <div className="mt-5 flex justify-end">
-              <button
-                type="button"
-                onClick={continueToNext}
-                className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-              >
-                Next
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </span>
-              </button>
-            </div>
+            <CardNav onBack={backFromSummary} onNext={onContinue} />
           </FlashcardShell>
         </div>
       </div>
@@ -1037,7 +1059,14 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
             {currentCard.id === "name" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} invalid={cardHasError(currentCard, errors)}>
+              <CardFrame
+                icon={currentCard.icon}
+                tileColor={currentCard.tileColor}
+                title={currentCard.title}
+                hint={currentCard.hint}
+                invalid={cardHasError(currentCard, errors)}
+                footer={cardNav(!!formData.studentName.trim() && !!formData.studentLastName.trim(), continueFromName)}
+              >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Input
@@ -1059,24 +1088,11 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
                   </div>
                 </div>
                 {/* No voice input here: browser speech recognition sends the audio to Google. */}
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={continueFromName}
-                    disabled={!formData.studentName.trim() || !formData.studentLastName.trim()}
-                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-                  >
-                    Next
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                </div>
               </CardFrame>
             )}
 
             {currentCard.id === "schoolStage" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} kicker={currentCard.kicker} title={currentCard.title} hint={currentCard.hint} error={errors.schoolStage} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} kicker={currentCard.kicker} title={currentCard.title} hint={currentCard.hint} error={errors.schoolStage} footer={cardNav(!!formData.schoolStage)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {SCHOOL_STAGES.map((stage) => (
                     <InputCard
@@ -1100,7 +1116,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "grade" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.snapshotGrade} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.snapshotGrade} footer={cardNav(!!formData.snapshotGrade)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="flex flex-wrap justify-center gap-2">
                   {getGradeOptions(formData.schoolStage).map((grade) => (
                     <InputCard
@@ -1117,7 +1133,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "country" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.snapshotLocation} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.snapshotLocation} footer={cardNav(!!formData.snapshotLocation)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {COUNTRIES.map((loc) => (
                     <InputCard
@@ -1140,7 +1156,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "usState" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.usState} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.usState} footer={cardNav(!!formData.usState)}>
                 <Select value={formData.usState} onValueChange={(value) => selectChoice("usState", value)}>
                   <SelectTrigger id="us-state">
                     <SelectValue placeholder="Select your state" />
@@ -1157,30 +1173,18 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "countryOther" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} footer={cardNav(!!formData.snapshotLocationOther.trim())}>
                 <Input
                   id="snapshot-location-other"
                   placeholder="Enter country name"
                   value={formData.snapshotLocationOther}
                   onChange={(e) => setField("snapshotLocationOther", e.target.value)}
                 />
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={continueFromText}
-                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-                  >
-                    Next
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                </div>
               </CardFrame>
             )}
 
             {currentCard.id === "curriculum" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.currentCurriculum} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.currentCurriculum} footer={cardNav(formData.currentCurriculum.length > 0)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {getCurriculumOptions(formData.schoolStage, formData.snapshotLocation).map((c) => (
                     <InputCard
@@ -1200,30 +1204,18 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "curriculumOther" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} footer={cardNav(!!formData.currentCurriculumOther.trim())}>
                 <Input
                   id="current-curriculum-other"
                   placeholder="Enter curriculum name"
                   value={formData.currentCurriculumOther}
                   onChange={(e) => setField("currentCurriculumOther", e.target.value)}
                 />
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={continueFromText}
-                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-                  >
-                    Next
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                </div>
               </CardFrame>
             )}
 
             {currentCard.id === "targetBoard" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetGoal} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetGoal} footer={cardNav(!!formData.targetGoal)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-2 gap-3">
                   {TARGET_BOARDS.map((board) => (
                     <InputCard
@@ -1243,7 +1235,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "targetGrade" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetGrade} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetGrade} footer={cardNav(!!formData.targetGrade)}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-2 gap-3">
                   {TARGET_GRADE_OPTIONS.map((option) => {
                     const available = !formData.targetGoal || targetGradeHasData(formData.targetGoal, formData.snapshotGrade, option.value);
@@ -1268,7 +1260,7 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "targetStream" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetStream} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.targetStream} footer={cardNav(!!normalizeTargetStream(formData.targetStream))}>
                 <div role="radiogroup" aria-label={currentCard.title} className="grid grid-cols-1 gap-3">
                   {TARGET_STREAMS.map((stream) => (
                     <InputCard
@@ -1291,7 +1283,14 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
             )}
 
             {currentCard.id === "targetElectives" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint}>
+              <CardFrame
+                icon={currentCard.icon}
+                tileColor={currentCard.tileColor}
+                title={currentCard.title}
+                hint={currentCard.hint}
+                optional
+                footer={cardNav(true, continueFromText, (formData.targetElectives ?? []).length > 0 ? "Next" : "Skip, none of these")}
+              >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {electivesForStream(streamElectives, formData.targetStream).map((subject) => {
                     const chosen = (formData.targetElectives ?? []).includes(subject);
@@ -1312,43 +1311,51 @@ const StudentProfileWizard = ({ formData, setField, errors }: StudentProfileWiza
                     );
                   })}
                 </div>
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={continueFromText}
-                    className="group inline-flex items-center gap-2 rounded-full bg-secondary py-2.5 pl-5 pr-2 text-sm font-semibold text-secondary-foreground shadow-soft transition-all hover:-translate-y-0.5 hover:bg-secondary/90"
-                  >
-                    {(formData.targetElectives ?? []).length > 0 ? "Next" : "Skip, none of these"}
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-200 group-hover:translate-x-0.5">
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </button>
-                </div>
               </CardFrame>
             )}
 
             {currentCard.id === "timeline" && (
-              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.timeline} editing={editingSingleCard} onFinishEditing={finishEditing}>
+              <CardFrame icon={currentCard.icon} tileColor={currentCard.tileColor} title={currentCard.title} hint={currentCard.hint} error={errors.timeline} footer={cardNav(!!formData.timeline)}>
                 <TimelineSelector options={TIMELINES} value={formData.timeline} onChange={(value) => selectChoice("timeline", value)} />
+              </CardFrame>
+            )}
+
+            {currentCard.id === "previousSchool" && (
+              <CardFrame
+                icon={currentCard.icon}
+                tileColor={currentCard.tileColor}
+                title={currentCard.title}
+                hint={currentCard.hint}
+                error={errors.educationHistory ?? errors.previouslyStudiedInIndia}
+                optional
+                footer={cardNav(
+                  formData.previouslyStudiedInIndia !== "yes" || previousSchoolsComplete(formData.educationHistory),
+                  continueFromText,
+                  formData.previouslyStudiedInIndia ? "Next" : "Skip"
+                )}
+              >
+                <div role="radiogroup" aria-label={currentCard.title} className="flex justify-center gap-3">
+                  <InputCard variant="chip" mode="radio" label="Yes" selected={formData.previouslyStudiedInIndia === "yes"} onClick={() => answerPreviousSchool(true)} />
+                  <InputCard variant="chip" mode="radio" label="No" selected={formData.previouslyStudiedInIndia === "no"} onClick={() => answerPreviousSchool(false)} />
+                </div>
+                {formData.previouslyStudiedInIndia === "yes" && (
+                  <div className="mt-6">
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      {priorGradeOptions(formData.snapshotGrade).length > 1
+                        ? `Add each school and the grades you studied there (before Grade ${formData.snapshotGrade}).`
+                        : "Add the school you attended."}
+                    </p>
+                    <EducationHistoryList
+                      entries={formData.educationHistory}
+                      onChange={(entries) => setField("educationHistory", entries)}
+                      currentGrade={formData.snapshotGrade}
+                    />
+                  </div>
+                )}
               </CardFrame>
             )}
           </motion.div>
         </AnimatePresence>
-
-        <div className="flex items-center justify-between px-1">
-          <button
-            type="button"
-            onClick={goBackOneCard}
-            disabled={currentIndex === 0}
-            className={cn("flex items-center gap-1 text-xs font-medium", currentIndex === 0 ? "invisible" : "text-muted-foreground hover:text-foreground")}
-          >
-            <img src={backIcon} className="h-3.5 w-3.5 object-contain" alt="" aria-hidden="true" draggable={false} /> Back
-          </button>
-          <span className="text-xs font-medium text-muted-foreground lg:hidden">
-            {position} of {total}
-          </span>
-          <span className="w-10" aria-hidden="true" />
-        </div>
       </div>
     </div>
   );

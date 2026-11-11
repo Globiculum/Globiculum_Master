@@ -106,7 +106,7 @@ const StudentAssessmentStepper = ({ steps, currentIndex, stepShares }: { steps: 
         </span>
       </div>
 
-      <div className="relative mb-4 flex gap-1.5">
+      <div className="relative mb-4 flex gap-1.5" role="progressbar" aria-label="Answers given" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
         {steps.map((step, index) => (
           <div key={step.id} className="h-2 flex-1 overflow-hidden rounded-full bg-border">
             <div
