@@ -7,7 +7,7 @@ import { GlobiculumIconTile, GlobiculumStudentIcon } from "@/components/icons";
 import FieldError from "../shared/FieldError";
 import FlashcardShell from "../shared/FlashcardShell";
 import CardNav from "../shared/CardNav";
-import OptionalBadge from "../shared/OptionalBadge";
+import OptionalLabel from "../shared/OptionalLabel";
 import ConcernCards from "../shared/ConcernCards";
 import SupportCards from "../shared/SupportCards";
 import VoiceInputButton from "../shared/VoiceInputButton";
@@ -224,7 +224,7 @@ const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, f
                   </div>
                   <h4 className="text-xl font-bold text-foreground">
                     Additional Notes
-                    <OptionalBadge />
+                    <OptionalLabel />
                   </h4>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Anything else you&rsquo;d like us to know? We&rsquo;ll take it into account in the report.

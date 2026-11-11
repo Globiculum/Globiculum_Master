@@ -9,7 +9,7 @@ import MultiSelect from "../shared/MultiSelect";
 import SectionCard from "../shared/SectionCard";
 import FieldError from "../shared/FieldError";
 import CardNav from "../shared/CardNav";
-import OptionalBadge from "../shared/OptionalBadge";
+import OptionalLabel from "../shared/OptionalLabel";
 import SectionChips from "../shared/SectionChips";
 import SingleCardSection from "../shared/SingleCardSection";
 import { useSectionFlow } from "../shared/useSectionFlow";
@@ -368,7 +368,7 @@ const ParentStep2 = ({
                   </div>
                   <h4 className="text-xl font-bold text-foreground">
                     High School & AP Courses
-                    <OptionalBadge />
+                    <OptionalLabel />
                   </h4>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Courses your child has taken or is taking. State standards are a minimum; these tell us what was actually covered.
@@ -517,7 +517,7 @@ const ParentStep2 = ({
                 </div>
                 <h4 className="text-xl font-bold text-foreground">
                   Current Extracurricular Activities
-                  <OptionalBadge />
+                  <OptionalLabel />
                 </h4>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Activities outside academics that may highlight strengths or interests relevant to the transition.

@@ -10,7 +10,7 @@ import SectionCard from "../../shared/SectionCard";
 import FlashcardShell from "../../shared/FlashcardShell";
 import FieldError from "../../shared/FieldError";
 import CardNav from "../../shared/CardNav";
-import OptionalBadge from "../../shared/OptionalBadge";
+import OptionalLabel from "../../shared/OptionalLabel";
 import VoiceInputButton from "../../shared/VoiceInputButton";
 import { NOTES_MAX_CHARS } from "../../shared/submitAssessment";
 import childLogo from "@/assets/childlogo.png";
@@ -188,7 +188,7 @@ const WrapUpStep = ({ formData, setField, toggleArrayField, errors, validationAt
       </div>
       <h4 className="text-xl font-bold text-foreground">
         {heading}
-        {optional && <OptionalBadge />}
+        {optional && <OptionalLabel />}
       </h4>
       {sub && <p className="mt-1 text-sm text-muted-foreground">{sub}</p>}
     </div>

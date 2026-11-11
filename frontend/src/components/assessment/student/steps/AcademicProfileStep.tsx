@@ -7,7 +7,7 @@ import SingleCardSection from "../../shared/SingleCardSection";
 import FieldError from "../../shared/FieldError";
 import InputCard from "../../shared/InputCard";
 import CardNav from "../../shared/CardNav";
-import OptionalBadge from "../../shared/OptionalBadge";
+import OptionalLabel from "../../shared/OptionalLabel";
 import SectionChips from "../../shared/SectionChips";
 import { useSectionFlow } from "../../shared/useSectionFlow";
 import { languageLevelError, newSchoolLanguageError } from "../../shared/stepRules";
@@ -287,7 +287,7 @@ const AcademicProfileStep = ({
               </div>
               <h4 className="text-xl font-bold text-foreground">
                 High School & AP Courses
-                <OptionalBadge />
+                <OptionalLabel />
               </h4>
               <p className="mt-1 text-sm text-muted-foreground">
                 Courses you have taken or are taking. State standards are a minimum; these tell us what you actually covered.

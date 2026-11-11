@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import InfoTooltip from "./InfoTooltip";
 import FieldError from "./FieldError";
-import OptionalBadge from "./OptionalBadge";
+import OptionalLabel from "./OptionalLabel";
 
 // Per-field wrapper (label + tooltip + hint + error + input) shared by every
 // step in both the Parent and Student assessments — same label/required/
@@ -60,7 +60,7 @@ const QuestionCard = ({
           <Label htmlFor={htmlFor} className="text-sm font-semibold text-foreground">
             {label}
             {required && <span className="ml-1 text-warning">*</span>}
-            {optional && <OptionalBadge />}
+            {optional && <OptionalLabel className="ml-1.5 text-xs" />}
           </Label>
           {tooltip && <InfoTooltip description={tooltip} />}
         </div>

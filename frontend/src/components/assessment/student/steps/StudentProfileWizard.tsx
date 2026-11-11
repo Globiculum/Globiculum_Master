@@ -31,7 +31,7 @@ import InputCard from "../../shared/InputCard";
 import FieldError from "../../shared/FieldError";
 import FlashcardShell from "../../shared/FlashcardShell";
 import CardNav from "../../shared/CardNav";
-import OptionalBadge from "../../shared/OptionalBadge";
+import OptionalLabel from "../../shared/OptionalLabel";
 import EducationHistoryList from "../../shared/EducationHistoryList";
 import { EMPTY_EDUCATION_ENTRY, priorGradeOptions } from "../../shared/priorGrades";
 import { previousSchoolsComplete } from "../../shared/stepRules";
@@ -779,7 +779,7 @@ const CardFrame = ({
   hint?: string;
   error?: string;
   invalid?: boolean;
-  /** Shows the "Optional" badge after the title. */
+  /** Shows "(Optional)" after the title. */
   optional?: boolean;
   children: ReactNode;
   /** The card's Back / Next row (CardNav), below any error. */
@@ -795,7 +795,7 @@ const CardFrame = ({
       {kicker && <p className="mb-1 text-xs font-semibold text-secondary">{kicker}</p>}
       <h4 className="text-xl font-bold text-foreground">
         {title}
-        {optional && <OptionalBadge />}
+        {optional && <OptionalLabel />}
       </h4>
       {hint && <p className="mt-1.5 text-sm text-muted-foreground">{hint}</p>}
     </div>

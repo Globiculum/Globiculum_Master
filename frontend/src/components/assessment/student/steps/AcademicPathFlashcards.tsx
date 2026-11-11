@@ -14,7 +14,7 @@ import FieldError from "../../shared/FieldError";
 import editIcon from "@/assets/icons-3d/edit.png";
 import FlashcardShell from "../../shared/FlashcardShell";
 import CardNav from "../../shared/CardNav";
-import OptionalBadge from "../../shared/OptionalBadge";
+import OptionalLabel from "../../shared/OptionalLabel";
 
 // Combines what used to be two separate questions ("Current Subjects" then
 // "How confident do you feel in each subject?") into one flashcard-per-
@@ -629,7 +629,7 @@ const AcademicPathFlashcards = ({
                 </div>
                 <h4 className="text-xl font-bold text-foreground">
                   {customCardTitle}
-                  <OptionalBadge />
+                  <OptionalLabel />
                 </h4>
                 <p className="mt-1 text-xs text-muted-foreground">{customCardSubtitle}</p>
               </div>
