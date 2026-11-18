@@ -34,3 +34,12 @@ export const ALL_COURSES: string[] = [...HIGH_SCHOOL_COURSES, ...AP_COURSES];
 
 /** Chip label: "AP (Advanced Placement) Physics" -> "AP Physics". */
 export const courseLabel = (course: string): string => course.replace("(Advanced Placement) ", "");
+
+/**
+ * Courses taken: the listed ones in academicPath, then any typed in on the
+ * Courses card (customCourses, also kept in academicPath).
+ */
+export const coursesTakenList = (academicPath: string[], customCourses: string[] = []): string[] => [
+  ...ALL_COURSES.filter((c) => academicPath.includes(c)),
+  ...customCourses.filter((c) => academicPath.includes(c) && !ALL_COURSES.includes(c)),
+];

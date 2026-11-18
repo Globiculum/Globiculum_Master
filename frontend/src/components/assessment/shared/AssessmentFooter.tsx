@@ -53,6 +53,11 @@ const AssessmentFooter = ({ onPrev, onNext, saveStatus = "idle", isFirstStep, ca
         </PremiumButton>
       </div>
     </div>
+    {/* The dimmed Continue read as "this card won't let me go on" on optional
+        cards (e.g. Courses) while later questions of the step were still open. */}
+    {!canProceed && (
+      <p className="mt-2 text-right text-xs text-muted-foreground">Answer the remaining questions in this step to continue.</p>
+    )}
   </div>
 );
 

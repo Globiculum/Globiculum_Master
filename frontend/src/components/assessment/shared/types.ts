@@ -31,6 +31,12 @@ export interface AssessmentFormData {
   // selectedLanguages as their own entries — no separate literal "Other"
   // marker or single free-text field for either.
   academicPath: string[]; // current subjects
+  // Which typed-in entries of academicPath are electives / courses, so the
+  // core "Any other subjects?" card, the "Any other electives?" card and the
+  // Courses card each show only their own. Display only: the backend reads academicPath.
+  customElectives: string[];
+  customCourses: string[];
+  coursesTaken: string; // "yes" | "no" | "" — "Taken any high-school or AP courses?" (optional)
   selectedLanguages: string[];
   languageProficiencies: Record<string, string>;
   foreignLanguageName: string; // new: foreign-language studied (mirrors Parent flow)
@@ -91,6 +97,9 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   currentCurriculumOther: "",
   curriculumType: "",
   academicPath: [],
+  customElectives: [],
+  customCourses: [],
+  coursesTaken: "",
   selectedLanguages: [],
   languageProficiencies: {},
   foreignLanguageName: "",

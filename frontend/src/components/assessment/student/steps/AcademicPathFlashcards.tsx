@@ -321,8 +321,20 @@ interface AcademicPathFlashcardsProps {
   customCardTitle?: string;
   customCardSubtitle?: string;
   customCardQuestion?: string;
+  customCardPlaceholder?: string;
+  /**
+   * The typed-in subjects this card owns. Core subjects and electives each have
+   * an "Any other…?" card, and all typed-in subjects live in academicPath, so
+   * the Electives card keeps its own list (customElectives): otherwise each card
+   * would also show the other's. Omitted: everything in academicPath not listed
+   * and not in excludeFromCustom.
+   */
+  customList?: string[];
+  /** Called after a typed-in subject is added or removed (to keep customList in step). */
+  onCustomAdd?: (subject: string) => void;
+  onCustomRemove?: (subject: string) => void;
   summaryTitle?: string;
-  // The Electives section reuses this component without the trailing
+  // The Electives section can reuse this component without the trailing
   // "Other subjects" card, and its Next scrolls past the core section.
   showCustomCard?: boolean;
   nextSectionId?: string;
@@ -350,6 +362,10 @@ const AcademicPathFlashcards = ({
   customCardTitle = "Any other subjects?",
   customCardSubtitle = "Add any subject not listed above, then rate your confidence.",
   customCardQuestion = "How confident do you feel in this subject?",
+  customCardPlaceholder = "e.g. Robotics, Design Thinking",
+  customList,
+  onCustomAdd,
+  onCustomRemove,
   summaryTitle = "Your Academic Path is ready.",
   showCustomCard = true,
   nextSectionId = "academic-path-next-section",
@@ -358,9 +374,11 @@ const AcademicPathFlashcards = ({
 }: AcademicPathFlashcardsProps) => {
   const resolvedMicrocopy: Record<ConfidenceValue, string> = { ...DEFAULT_MICROCOPY, ...microcopy };
   const shouldReduceMotion = useReducedMotion() ?? false;
-  const customSubjects = showCustomCard
-    ? academicPath.filter((s) => !activeSubjectList.includes(s) && !excludeFromCustom.includes(s))
-    : [];
+  const customSubjects = !showCustomCard
+    ? []
+    : customList
+      ? customList.filter((s) => academicPath.includes(s) && !activeSubjectList.includes(s))
+      : academicPath.filter((s) => !activeSubjectList.includes(s) && !excludeFromCustom.includes(s));
   // +1 for the trailing "Other subjects" card when it is shown.
   const totalCards = activeSubjectList.length + (showCustomCard ? 1 : 0);
 
@@ -429,11 +447,16 @@ const AcademicPathFlashcards = ({
       setAcademicPath([...academicPath, trimmed]);
     }
     setConfidence(trimmed, value);
+    onCustomAdd?.(trimmed);
     setDraftName("");
   };
 
   const removeCustomSubject = (subject: string) => {
     setAcademicPath(academicPath.filter((s) => s !== subject));
+    // Its rating would otherwise still count as a strong/weak subject
+    // (deriveSubjectStrengths reads every rating).
+    setConfidence(subject, "not-applicable");
+    onCustomRemove?.(subject);
   };
 
   const finishCustomSubjects = () => {
@@ -658,7 +681,7 @@ const AcademicPathFlashcards = ({
               <Input
                 value={draftName}
                 onChange={(e) => setDraftName(e.target.value)}
-                placeholder="e.g. Robotics, Design Thinking"
+                placeholder={customCardPlaceholder}
                 className="mt-4"
                 aria-label="Other subject name"
               />

@@ -13,7 +13,8 @@ import { useSectionFlow } from "../../shared/useSectionFlow";
 import { languageLevelError, newSchoolLanguageError } from "../../shared/stepRules";
 import AcademicPathFlashcards from "./AcademicPathFlashcards";
 import LanguageJourneyCard from "./LanguageJourneyCard";
-import { ALL_COURSES, AP_COURSES, HIGH_SCHOOL_COURSES, courseLabel } from "../../shared/highSchoolCourses";
+import CoursesCard from "../../shared/CoursesCard";
+import { ALL_COURSES, coursesTakenList } from "../../shared/highSchoolCourses";
 import { splitCoreElectives } from "../../shared/subjectGroups";
 import childLogo from "@/assets/childlogo.png";
 import {
@@ -177,7 +178,9 @@ const AcademicProfileStep = ({
     if (!listLoading) onSubjectsProgressChange?.({ answered: subjectCardsAnswered, total: subjectCardCount });
   }, [listLoading, subjectCardsAnswered, subjectCardCount, onSubjectsProgressChange]);
 
-  const coursesAdded = ALL_COURSES.filter((course) => formData.academicPath.includes(course)).length;
+  // Courses taken, listed or typed in (see shared/CoursesCard.tsx).
+  const customCourses = formData.customCourses ?? [];
+  const coursesAdded = coursesTakenList(formData.academicPath, customCourses).length;
 
   // ---- Sections, one at a time ----
   const sections: SectionId[] = [
@@ -231,6 +234,16 @@ const AcademicProfileStep = ({
     onContinue,
   });
 
+  // See ParentStep2: typed-in electives are shown on the Electives card only,
+  // unless there's no Electives section.
+  const hasElectivesSection = sections.includes("electives");
+  const customElectives = hasElectivesSection ? formData.customElectives ?? [] : [];
+  const keepOutOfElectives = (subject: string) => {
+    if ((formData.customElectives ?? []).includes(subject)) {
+      setField("customElectives", (formData.customElectives ?? []).filter((s) => s !== subject));
+    }
+  };
+
   const renderSection = (id: SectionId) => {
     switch (id) {
       case "core":
@@ -243,7 +256,14 @@ const AcademicProfileStep = ({
             setAcademicPath={(value) => setField("academicPath", value)}
             setConfidence={(subject, value) => setRecordField("subjectConfidences", subject, value)}
             error={errors.academicPath}
-            excludeFromCustom={[...ALL_COURSES, ...electiveSubjects, ...NOT_OFFERED_SUBJECTS]}
+            excludeFromCustom={[...ALL_COURSES, ...customCourses, ...electiveSubjects, ...customElectives, ...NOT_OFFERED_SUBJECTS]}
+            onCustomAdd={keepOutOfElectives}
+            customCardSubtitle={
+              hasElectivesSection
+                ? "Add any core subject not listed above, then rate your confidence. Electives come next."
+                : undefined
+            }
+            customCardPlaceholder={hasElectivesSection ? "e.g. Integrated Math III, Ethnic Studies" : undefined}
             navTitle="Core Subjects"
             summaryTitle="Core subjects are ready."
             onBack={flow.goPrev}
@@ -262,8 +282,16 @@ const AcademicProfileStep = ({
             error={coreIncomplete ? undefined : errors.academicPath}
             navTitle={usSourceSystem ? "Current Electives (US School)" : "Electives"}
             navSubtitle="Optional subjects - mark the ones you don't take."
+            customList={customElectives}
+            onCustomAdd={(subject) => {
+              if (!customElectives.includes(subject)) setField("customElectives", [...customElectives, subject]);
+            }}
+            onCustomRemove={(subject) => setField("customElectives", customElectives.filter((s) => s !== subject))}
+            customCardTitle="Any other electives?"
+            customCardSubtitle="Add any elective not listed above, then rate your confidence."
+            customCardQuestion="How confident do you feel in this elective?"
+            customCardPlaceholder="e.g. Spanish, Journalism, Photography"
             summaryTitle="Electives are ready."
-            showCustomCard={false}
             onBack={flow.goPrev}
             onNext={flow.goNext}
           />
@@ -275,59 +303,21 @@ const AcademicProfileStep = ({
           <SingleCardSection
             railTitle="Courses"
             itemLabel="High School & AP Courses"
-            itemDetail={coursesAdded > 0 ? `${coursesAdded} added` : "Optional"}
-            complete={coursesAdded > 0}
+            itemDetail={coursesAdded > 0 ? `${coursesAdded} added` : formData.coursesTaken === "no" ? "None taken" : "Optional"}
+            complete={coursesAdded > 0 || formData.coursesTaken === "no"}
             ariaLabel="Courses progress"
           >
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-4">
-                <GlobiculumIconTile tone="teal" size={64}>
-                  <GlobiculumTargetIcon size={34} />
-                </GlobiculumIconTile>
-              </div>
-              <h4 className="text-xl font-bold text-foreground">
-                High School & AP Courses
-                <OptionalLabel />
-              </h4>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Courses you have taken or are taking. State standards are a minimum; these tell us what you actually covered.
-              </p>
-              {coursesAdded > 0 && (
-                <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-secondary">
-                  <Check className="h-3.5 w-3.5" aria-hidden="true" /> {coursesAdded} added
-                </p>
-              )}
-            </div>
-            {[
-              { title: "Courses", courses: HIGH_SCHOOL_COURSES },
-              { title: "AP courses", courses: AP_COURSES },
-            ].map(({ title, courses }) => (
-              <div key={title} className="mt-5">
-                <h5 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h5>
-                {/* Phones: pills sized to their text (two fixed columns squeezed
-                    them into three lines); wider screens: three columns. */}
-                <div className="flex flex-wrap gap-2 sm:grid sm:grid-cols-3">
-                  {courses.map((course) => {
-                    const selected = formData.academicPath.includes(course);
-                    return (
-                      <InputCard
-                        key={course}
-                        variant="chip"
-                        label={courseLabel(course)}
-                        selected={selected}
-                        onClick={() =>
-                          setField(
-                            "academicPath",
-                            selected ? formData.academicPath.filter((s) => s !== course) : [...formData.academicPath, course]
-                          )
-                        }
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-            <CardNav onBack={flow.goPrev} onNext={flow.goNext} nextLabel={coursesAdded > 0 ? "Next" : "Skip, none taken"} />
+            <CoursesCard
+              persona="student"
+              academicPath={formData.academicPath}
+              customCourses={customCourses}
+              coursesTaken={formData.coursesTaken ?? ""}
+              setAcademicPath={(value) => setField("academicPath", value)}
+              setCustomCourses={(value) => setField("customCourses", value)}
+              setCoursesTaken={(value) => setField("coursesTaken", value)}
+              onBack={flow.goPrev}
+              onNext={flow.goNext}
+            />
           </SingleCardSection>
         );
       case "languages":

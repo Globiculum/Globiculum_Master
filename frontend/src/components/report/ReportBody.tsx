@@ -16,7 +16,7 @@ import {
 } from "@/lib/reportContent";
 import type { GapItem } from "@/lib/subjectGaps";
 import { entryGrade, targetStreamLabel } from "@/hooks/useCurriculumSubjects";
-import { ALL_COURSES, courseLabel } from "@/components/assessment/shared/highSchoolCourses";
+import { courseLabel, coursesTakenList } from "@/components/assessment/shared/highSchoolCourses";
 import { levelledLanguage, useLearningResources } from "@/hooks/useLearningResources";
 
 /**
@@ -105,8 +105,12 @@ const computeTargetGradeLabel = (snapshotGrade?: string | number, targetGrade?: 
   return `Grade ${target}`;
 };
 
-const coursesTakenRow = (academicPath: unknown): { label: string; value: string }[] => {
-  const taken = Array.isArray(academicPath) ? ALL_COURSES.filter((c) => academicPath.includes(c)) : [];
+// Listed courses, then any typed in on the Courses card (customCourses).
+const coursesTakenRow = (academicPath: unknown, customCourses: unknown): { label: string; value: string }[] => {
+  const taken = coursesTakenList(
+    Array.isArray(academicPath) ? academicPath : [],
+    Array.isArray(customCourses) ? customCourses : []
+  );
   return taken.length > 0 ? [{ label: "Courses Taken", value: taken.map(courseLabel).join(", ") }] : [];
 };
 
@@ -288,7 +292,7 @@ export function ReportBody({ formData, analysis, onDownload, onShare, isSharing 
     ...(languages ? [{ label: "Languages spoken", value: languages }] : []),
     ...(formData.targetLanguage && formData.targetLanguage !== "undecided" ? [{ label: "Indian language at new school", value: humanizeSlug(formData.targetLanguage) }] : []),
     ...(stream ? [{ label: "Stream", value: stream }] : []),
-    ...coursesTakenRow(formData.academicPath),
+    ...coursesTakenRow(formData.academicPath, formData.customCourses),
   ];
 
   if (!analysis) {

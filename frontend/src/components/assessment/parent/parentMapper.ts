@@ -44,6 +44,11 @@ export interface ParentFormData {
   // selectedLanguages as their own entries — no separate literal "Other"
   // marker or single free-text field for either.
   academicPath: string[];
+  // See shared/types.ts: which typed-in academicPath entries are electives /
+  // courses (display only), and the optional "taken any courses?" answer.
+  customElectives: string[];
+  customCourses: string[];
+  coursesTaken: string; // "yes" | "no" | ""
   selectedLanguages: string[];
   languageProficiencies: Record<string, string>;
   extracurriculars: string[];
