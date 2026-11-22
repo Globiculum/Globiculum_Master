@@ -8,6 +8,7 @@
 // unchanged from before this refactor.
 
 import type { EducationHistoryEntry } from "../shared/EducationHistoryList";
+import type { LanguageSkill } from "../shared/languageSkills";
 
 export interface ParentFormData {
   // Step 1: School Profile
@@ -50,7 +51,10 @@ export interface ParentFormData {
   customCourses: string[];
   coursesTaken: string; // "yes" | "no" | ""
   selectedLanguages: string[];
+  // Worked out from languageSkills (see shared/languageSkills.ts); "new" = New to it.
   languageProficiencies: Record<string, string>;
+  // What the child can do in each Indian language: understand, speak, read, write.
+  languageSkills: Record<string, LanguageSkill[]>;
   extracurriculars: string[];
   languagesAtHome: string[];
   foreignLanguageName: string;

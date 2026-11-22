@@ -6,6 +6,7 @@
 // submit through the existing backend pipeline without any backend changes.
 
 import type { EducationHistoryEntry } from "./EducationHistoryList";
+import type { LanguageSkill } from "./languageSkills";
 
 export interface AssessmentFormData {
   // ---- Student Profile ----
@@ -38,7 +39,10 @@ export interface AssessmentFormData {
   customCourses: string[];
   coursesTaken: string; // "yes" | "no" | "" — "Taken any high-school or AP courses?" (optional)
   selectedLanguages: string[];
+  // Worked out from languageSkills (see languageSkills.ts); "new" = New to it.
   languageProficiencies: Record<string, string>;
+  // What the student can do in each Indian language: understand, speak, read, write.
+  languageSkills: Record<string, LanguageSkill[]>;
   foreignLanguageName: string; // new: foreign-language studied (mirrors Parent flow)
   foreignLanguageNameOther: string;
   foreignLanguageLevel: string;
@@ -102,6 +106,7 @@ export const createDefaultAssessmentFormData = (): AssessmentFormData => ({
   coursesTaken: "",
   selectedLanguages: [],
   languageProficiencies: {},
+  languageSkills: {},
   foreignLanguageName: "",
   foreignLanguageNameOther: "",
   foreignLanguageLevel: "",

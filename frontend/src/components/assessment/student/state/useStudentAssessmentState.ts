@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { type AssessmentFormData, createDefaultAssessmentFormData } from "../../shared/types";
 import { normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
+import { withLanguageSkills } from "../../shared/languageSkills";
 
 // Isolated from the Parent flow's local useState inside AssessmentForm.tsx —
 // the Student module owns its own state container so the two flows can
@@ -24,8 +25,9 @@ export function useStudentAssessmentState(
 ): UseStudentAssessmentStateResult {
   const [formData, setFormData] = useState<AssessmentFormData>(() => {
     const defaults = createDefaultAssessmentFormData();
-    if (restoredData) return { ...defaults, ...restoredData };
-    const merged: AssessmentFormData = { ...defaults, ...prefillData };
+    // Older answers have a level per language but no ticks: see withLanguageSkills.
+    if (restoredData) return withLanguageSkills({ ...defaults, ...restoredData });
+    const merged: AssessmentFormData = withLanguageSkills({ ...defaults, ...prefillData });
     // Older saved reports stored currentCurriculum as a single string —
     // normalize into the list shape this field now uses.
     const rawCurriculum = prefillData?.currentCurriculum as unknown;

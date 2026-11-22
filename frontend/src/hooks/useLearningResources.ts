@@ -50,10 +50,28 @@ export function levelledLanguage(label: string): "hindi" | "sanskrit" | null {
 }
 
 /**
- * Where a student should start in Hindi or Sanskrit, from the familiarity
- * picked on the form (undefined: the language wasn't marked as known).
+ * Where a student should start in Hindi or Sanskrit, from what was ticked on
+ * the form (understands / speaks / reads / writes), or, for reports saved
+ * before the tick-boxes, the single level (undefined: not marked as known).
  */
-export function languageStartNote(subject: string, grade: number, familiarity?: LanguageFamiliarity): string {
+export function languageStartNote(subject: string, grade: number, familiarity?: LanguageFamiliarity, skills?: string[]): string {
+  const can = (s: string) => !!skills?.includes(s);
+  if (skills && skills.length > 0 && familiarity !== "new") {
+    const reads = can("read");
+    const writes = can("write");
+    if (skills.length === 4) {
+      return `Understands, speaks, reads and writes ${subject}: the gaps are Class ${grade} grammar and literature.`;
+    }
+    if (!reads && !writes) {
+      return `${can("speak") ? "Speaks" : "Understands"} ${subject} but doesn't read or write it yet: start with the Devanagari letters and matras using the starter resources, then work up to Class ${grade} material.`;
+    }
+    if (!can("speak")) {
+      return `${reads && writes ? "Reads and writes" : reads ? "Reads" : "Writes"} ${subject} but doesn't speak it yet: build listening and speaking alongside Class ${grade} grammar and writing.`;
+    }
+    if (reads && !writes) {
+      return `Speaks and reads ${subject} but doesn't write it yet: focus on writing and grammar with the next-step and Class ${grade} material.`;
+    }
+  }
   switch (familiarity) {
     case "fluent":
       return `Marked as Fluent: spoken ${subject} is in place, so the gaps are mainly reading, writing and grammar at Class ${grade} level.`;

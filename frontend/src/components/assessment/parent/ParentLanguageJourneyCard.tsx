@@ -4,11 +4,12 @@ import { Check, Minus, X } from "lucide-react";
 import CardNav from "../shared/CardNav";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GlobiculumChecklistIcon, GlobiculumEducationIcon, GlobiculumGlobeIcon, GlobiculumIconTile } from "@/components/icons";
 import InputCard from "../shared/InputCard";
 import FlashcardShell from "../shared/FlashcardShell";
 import IndianLanguageQuestion from "../shared/IndianLanguageQuestion";
+import LanguageSkillRow from "../shared/LanguageSkillRow";
+import { cleanSkills, forgetLanguage, markNewToLanguage, skillsLabel, toggleSkill, type LanguageSkill, type SkillAnswers } from "../shared/languageSkills";
 import { NEW_TO_LANGUAGE, newSchoolLanguageGrade, newSchoolLanguageLabel, schoolLanguages, suggestedNewSchoolLanguage } from "../shared/newSchoolLanguage";
 import { LANGUAGE_LEVEL_MESSAGE, hasKnownLanguageLevel, missingSchoolLanguageLevels } from "../shared/stepRules";
 import type { ParentFormData } from "./parentMapper";
@@ -27,12 +28,6 @@ import type { ParentFormData } from "./parentMapper";
 // two separate fields internally, unchanged.
 
 const INDIAN_LANGUAGES = ["Hindi", "Sanskrit", "Bengali", "Tamil", "Telugu", "Kannada"];
-
-const INDIAN_LEVELS = [
-  { value: "beginner", label: "Beginner" },
-  { value: "intermediate", label: "Intermediate" },
-  { value: "fluent", label: "Fluent" },
-];
 
 const FOREIGN_LANGUAGE_CHIPS = [
   { value: "spanish", label: "Spanish" },
@@ -78,10 +73,11 @@ const LevelButton = ({ label, selected, onSelect }: { label: string; selected: b
 interface ParentLanguageJourneyCardProps {
   formData: ParentFormData;
   onFieldChange: <K extends keyof ParentFormData>(field: K, value: ParentFormData[K]) => void;
-  onRecordFieldChange: (field: "languageProficiencies", key: string, value: string) => void;
+  /** No longer used here (ticks and levels change together, see languageSkills.ts); kept for callers. */
+  onRecordFieldChange?: (field: "languageProficiencies", key: string, value: string) => void;
   /** Error for the new-school language (targetLanguage), which is required. */
   error?: string;
-  /** Error when a known Indian language has no familiarity level (languageProficiencies). */
+  /** Error when a known Indian language has nothing ticked (languageProficiencies). */
   levelError?: string;
   /** Bumped on each failed Continue; opens the card with the missing answer. */
   validationAttempt?: number;
@@ -91,7 +87,7 @@ interface ParentLanguageJourneyCardProps {
   onNext?: () => void;
 }
 
-const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChange, error, levelError, validationAttempt = 0, onBack, onNext }: ParentLanguageJourneyCardProps) => {
+const ParentLanguageJourneyCard = ({ formData, onFieldChange, error, levelError, validationAttempt = 0, onBack, onNext }: ParentLanguageJourneyCardProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const customIndianLanguages = formData.selectedLanguages.filter((l) => !INDIAN_LANGUAGES.includes(l));
   const hasForeign = !!formData.foreignLanguageName;
@@ -139,32 +135,42 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validationAttempt]);
 
-  // A "New to it" level belongs to the new-school choice; drop it for a
+  // What each language's ticks and level are now (see languageSkills.ts); they
+  // always change together.
+  const answers: SkillAnswers = { languageSkills: formData.languageSkills ?? {}, languageProficiencies: formData.languageProficiencies };
+  const saveAnswers = (next: SkillAnswers) => {
+    onFieldChange("languageSkills", next.languageSkills);
+    onFieldChange("languageProficiencies", next.languageProficiencies);
+  };
+
+  // A "New to it" answer belongs to the new-school choice; drop it for a
   // language that is no longer chosen there.
   const chooseSchoolLanguage = (value: string) => {
     onFieldChange("targetLanguage", value);
     setSuggested(false);
     const keep = schoolLanguages(value);
-    const levels = Object.entries(formData.languageProficiencies);
-    if (levels.some(([lang, level]) => level === NEW_TO_LANGUAGE && !keep.includes(lang))) {
-      onFieldChange(
-        "languageProficiencies",
-        Object.fromEntries(levels.filter(([lang, level]) => level !== NEW_TO_LANGUAGE || keep.includes(lang)))
-      );
+    const dropped = Object.entries(formData.languageProficiencies)
+      .filter(([lang, level]) => level === NEW_TO_LANGUAGE && !keep.includes(lang))
+      .map(([lang]) => lang);
+    if (dropped.length) saveAnswers(dropped.reduce(forgetLanguage, answers));
+  };
+
+  // A box ticked for the new-school language means the child knows it, so it
+  // joins the known languages (and shows there).
+  const toggleSchoolSkill = (lang: string, skill: LanguageSkill) => {
+    const next = toggleSkill(answers, lang, skill);
+    saveAnswers(next);
+    if (next.languageProficiencies[lang] && !formData.selectedLanguages.includes(lang)) {
+      onFieldChange("selectedLanguages", [...formData.selectedLanguages, lang]);
     }
   };
 
-  // A level picked for the new-school language. Any real level means the child
-  // knows the language, so it joins the known languages (and shows there);
-  // "New to it" takes it out of them.
-  const rateSchoolLanguage = (lang: string, level: string) => {
-    const known = formData.selectedLanguages.includes(lang);
-    if (level === NEW_TO_LANGUAGE && known) {
+  // "New to it" takes it out of the known languages.
+  const markSchoolLanguageNew = (lang: string) => {
+    saveAnswers(markNewToLanguage(answers, lang));
+    if (formData.selectedLanguages.includes(lang)) {
       onFieldChange("selectedLanguages", formData.selectedLanguages.filter((l) => l !== lang));
-    } else if (level !== NEW_TO_LANGUAGE && !known) {
-      onFieldChange("selectedLanguages", [...formData.selectedLanguages, lang]);
     }
-    onRecordFieldChange("languageProficiencies", lang, level);
   };
   const position = cardIndex + 1;
 
@@ -186,14 +192,11 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
     }
   };
 
-  // Removing a language also drops its familiarity rating, so a deleted
+  // Removing a language also drops its ticks and level, so a deleted
   // language doesn't linger in the saved answers.
   const removeLanguage = (lang: string) => {
     onFieldChange("selectedLanguages", formData.selectedLanguages.filter((l) => l !== lang));
-    onFieldChange(
-      "languageProficiencies",
-      Object.fromEntries(Object.entries(formData.languageProficiencies).filter(([key]) => key !== lang))
-    );
+    saveAnswers(forgetLanguage(answers, lang));
   };
 
   const toggleIndianLanguage = (lang: string) => {
@@ -201,18 +204,13 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
       removeLanguage(lang);
     } else {
       onFieldChange("selectedLanguages", [...formData.selectedLanguages, lang]);
-      // Marked "New to it" for the new school, now marked as known: needs a real level.
-      if (formData.languageProficiencies[lang] === NEW_TO_LANGUAGE) {
-        onFieldChange(
-          "languageProficiencies",
-          Object.fromEntries(Object.entries(formData.languageProficiencies).filter(([key]) => key !== lang))
-        );
-      }
+      // Marked "New to it" for the new school, now marked as known: needs ticks.
+      if (formData.languageProficiencies[lang] === NEW_TO_LANGUAGE) saveAnswers(forgetLanguage(answers, lang));
     }
   };
 
-  const rateIndianLanguage = (lang: string, level: string) => {
-    onRecordFieldChange("languageProficiencies", lang, level);
+  const toggleIndianSkill = (lang: string, skill: LanguageSkill) => {
+    saveAnswers(toggleSkill(answers, lang, skill));
   };
 
   const addCustomIndianLanguage = () => {
@@ -367,8 +365,8 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
                         <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
                         {lang}
                       </span>
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        {INDIAN_LEVELS.find((lv) => lv.value === formData.languageProficiencies[lang])?.label ?? "—"}
+                      <span className="text-right text-xs font-semibold text-muted-foreground">
+                        {skillsLabel(cleanSkills(formData.languageSkills?.[lang]), formData.languageProficiencies[lang])}
                       </span>
                     </button>
                     <button
@@ -538,30 +536,15 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
 
                   {formData.selectedLanguages.length > 0 && (
                     <div className="mt-5 space-y-1.5">
-                      <p className="text-center text-sm font-medium text-muted-foreground">How familiar is your child with each?</p>
+                      <p className="text-center text-sm font-medium text-muted-foreground">What can your child do in each? Tick all that apply.</p>
                       {formData.selectedLanguages.map((lang) => (
-                        <div key={lang} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-3 py-2.5">
-                          <span className="text-base font-bold text-foreground">{lang}</span>
-                          <Select value={formData.languageProficiencies[lang]} onValueChange={(value) => rateIndianLanguage(lang, value)}>
-                            <SelectTrigger
-                              className={cn(
-                                "h-8 w-auto min-w-[132px] gap-1.5 rounded-full border-none bg-muted/60 px-3 text-sm font-semibold text-secondary shadow-none hover:bg-muted",
-                                !formData.languageProficiencies[lang] && "ring-1 ring-amber-400"
-                              )}
-                              aria-label={`${lang} familiarity`}
-                              aria-invalid={!formData.languageProficiencies[lang]}
-                            >
-                              <SelectValue placeholder="Rate familiarity" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {INDIAN_LEVELS.map((level) => (
-                                <SelectItem key={level.value} value={level.value}>
-                                  {level.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        <LanguageSkillRow
+                          key={lang}
+                          lang={lang}
+                          skills={cleanSkills(formData.languageSkills?.[lang])}
+                          level={formData.languageProficiencies[lang]}
+                          onToggle={(skill) => toggleIndianSkill(lang, skill)}
+                        />
                       ))}
                     </div>
                   )}
@@ -589,7 +572,9 @@ const ParentLanguageJourneyCard = ({ formData, onFieldChange, onRecordFieldChang
                     value={formData.targetLanguage ?? ""}
                     onChange={chooseSchoolLanguage}
                     levels={formData.languageProficiencies}
-                    onLevelChange={rateSchoolLanguage}
+                    skills={formData.languageSkills ?? {}}
+                    onToggleSkill={toggleSchoolSkill}
+                    onNewToIt={markSchoolLanguageNew}
                     suggested={suggested}
                     error={error}
                   />

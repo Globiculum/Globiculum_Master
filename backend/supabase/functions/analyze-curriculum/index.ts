@@ -15,6 +15,7 @@ import {
   API_VERSION,
 } from "../_shared/apiContracts.ts";
 import { createLogger } from "../_shared/observability.ts";
+import { describeLanguageSkills, sanitizeLanguageSkills, type LanguageSkill } from "../_shared/languageSkills.ts";
 import { 
   checkRateLimit, 
   getRateLimitIdentifier, 
@@ -639,12 +640,16 @@ interface FormData {
   strongestSubjects?: string[];
   challengingAreas?: string[];
   languagesSpoken?: string[];
+  // What the child can do in each Indian language, from the form's tick-boxes:
+  // { Hindi: ["understand", "speak"] }; [] = "New to it" (the new-school language).
+  languageSkills?: Record<string, LanguageSkill[]>;
   transitionTimeline?: string;
   additionalNotes?: string;   // free text from the form's "Additional notes" box
 }
 
 // Longest notes text passed to the model (the form caps it at the same length).
 const NOTES_MAX_CHARS = 1000;
+
 
 // Debug log entry for visibility in browser console / Supabase function logs
 interface DebugLog {
@@ -872,6 +877,7 @@ serve(async (req) => {
       strongestSubjects: sanitizeArray(rawFormData.strongestSubjects, 10, 50),
       challengingAreas: sanitizeArray(rawFormData.challengingAreas, 10, 50),
       languagesSpoken: sanitizeArray(rawFormData.languagesSpoken, 10, 50),
+      languageSkills: sanitizeLanguageSkills(rawFormData.languageSkills, sanitizeForPrompt),
       transitionTimeline: sanitizeForPrompt(rawFormData.transitionTimeline, 50) || undefined,
       // Triple quotes would close the block the notes are quoted in.
       additionalNotes: sanitizeForPrompt(rawFormData.additionalNotes, NOTES_MAX_CHARS).replace(/"{3,}/g, '"') || undefined,
@@ -892,6 +898,7 @@ serve(async (req) => {
       strongSubjects: formData.strongestSubjects,
       challengingAreas: formData.challengingAreas,
       languages: formData.languagesSpoken,
+      languageSkills: formData.languageSkills ?? null,
       timeline: formData.transitionTimeline,
       // Length only: the notes can hold personal details, so they aren't logged.
       notesChars: formData.additionalNotes?.length ?? 0,
@@ -1514,7 +1521,7 @@ ${streamName ? `- Target Stream (Classes XI-XII): ${streamName}\n` : ''}- Subjec
 - Strong Areas: ${formData.strongestSubjects?.join(', ') || 'Not specified'}
 - Challenges: ${formData.challengingAreas?.join(', ') || 'Not specified'}
 - Languages: ${formData.languagesSpoken?.join(', ') || 'English'}
-${excludedLanguageSubjects.length > 0 ? `- Indian language at the new school: ${formData.targetLanguage === 'sanskrit' ? 'Sanskrit' : formData.targetLanguage === 'both' ? 'Hindi and Sanskrit' : 'Hindi'} (do not plan for ${excludedLanguageSubjects.join(', ')})\n` : ''}- Timeline: ${formData.transitionTimeline || 'Standard pace'}
+${formData.languageSkills ? `- What the child can do in each Indian language: ${describeLanguageSkills(formData.languageSkills)}. Plan Hindi/Sanskrit from this: a child who speaks or understands but can't read starts with the Devanagari script and matras; one who reads and writes but doesn't speak needs listening and speaking practice; don't plan script basics for a language they already read and write.\n` : ''}${excludedLanguageSubjects.length > 0 ? `- Indian language at the new school: ${formData.targetLanguage === 'sanskrit' ? 'Sanskrit' : formData.targetLanguage === 'both' ? 'Hindi and Sanskrit' : 'Hindi'} (do not plan for ${excludedLanguageSubjects.join(', ')})\n` : ''}- Timeline: ${formData.transitionTimeline || 'Standard pace'}
 ${notesSection}${ragSection}
 **Return ONLY this JSON structure with SHORT bullet points (max 10 words each):**
 {

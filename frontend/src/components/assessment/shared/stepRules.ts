@@ -13,7 +13,7 @@ export interface StepContext {
   subjectsComplete?: boolean;
 }
 
-export const LANGUAGE_LEVEL_MESSAGE = "Pick a level for each language";
+export const LANGUAGE_LEVEL_MESSAGE = "Tick at least one box for each language";
 
 /** The Indian language at the new school is required wherever it is asked
  * (Classes 6-10 of an Indian board); "Not decided yet" counts as an answer.

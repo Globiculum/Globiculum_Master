@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { withOwner } from "@/lib/childDataStorage";
+import { languageSkillsForAnalysis } from "./languageSkills";
 
 /**
  * Shared submission pipeline used by both the Parent and Student flows:
@@ -45,6 +46,8 @@ export interface SubmittableFormData {
   strongestSubjects: string[];
   challengingSubjects: string[];
   selectedLanguages: string[];
+  languageProficiencies: Record<string, string>;
+  languageSkills?: Record<string, unknown>;
   subjectConfidences: Record<string, string>;
 }
 
@@ -234,6 +237,9 @@ export async function submitAssessment<T extends SubmittableFormData>({
           strongestSubjects: strongest.length > 0 ? strongest : undefined,
           challengingAreas: challenging.length > 0 ? challenging : undefined,
           languagesSpoken: formData.selectedLanguages.length > 0 ? formData.selectedLanguages : undefined,
+          // What the child can do in each Indian language ("New to it" = []),
+          // so the plan starts Hindi or Sanskrit at the right point.
+          languageSkills: languageSkillsForAnalysis(formData.selectedLanguages, formData.languageSkills, formData.languageProficiencies),
           transitionTimeline: formData.timeline || undefined,
           // Read by the AI to personalise the plan and its "About your notes" reply.
           additionalNotes: notesForAnalysis(formData as unknown as Record<string, unknown>),

@@ -6,7 +6,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SHARED_FORM_FIELDS = [
   "childName", "studentName", "schoolStage", "snapshotGrade", "snapshotLocation", "usState",
   "currentCurriculum", "targetGoal", "targetGrade", "targetStream", "targetElectives", "targetLanguage",
-  "academicPath", "customCourses", "subjectConfidences", "selectedLanguages", "languageProficiencies", "supportNeeds", "timeline",
+  "academicPath", "customCourses", "subjectConfidences", "selectedLanguages", "languageProficiencies", "languageSkills", "supportNeeds", "timeline",
 ];
 
 const sharedFormData = (formData: Record<string, unknown> | null) =>

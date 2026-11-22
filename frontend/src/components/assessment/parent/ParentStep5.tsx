@@ -11,6 +11,7 @@ import SectionCard from "../shared/SectionCard";
 import ReviewActionBar from "../shared/ReviewActionBar";
 import ReviewSection from "../shared/ReviewSection";
 import { newSchoolLanguageLabel } from "../shared/newSchoolLanguage";
+import { formatLanguageSkills } from "../shared/languageSkills";
 import { prettify, targetBoardLabel, targetGradeLabel, joinList, joinPrettyList, joinRecord, curriculumLabel } from "../shared/reviewFormatting";
 import type { ParentFormData } from "./parentMapper";
 
@@ -112,7 +113,10 @@ const ParentStep5 = ({ formData, prevReportId, isRetake = false, onPrev, onValid
         ...(formData.targetLanguage ? [{ label: "Indian Language", value: newSchoolLanguageLabel(formData.targetLanguage) ?? prettify(formData.targetLanguage) }] : []),
         { label: "Overall Performance", value: prettify(formData.overallPerformance) },
         { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
-        { label: "Language Proficiencies", value: joinRecord(formData.languageProficiencies) },
+        {
+          label: "Can do in each language",
+          value: formatLanguageSkills(Object.keys(formData.languageProficiencies), formData.languageSkills, formData.languageProficiencies),
+        },
         { label: "Extracurriculars", value: joinList(formData.extracurriculars) },
         { label: "Math Course", value: prettify(formData.mathCourse) },
       ],

@@ -897,6 +897,10 @@ export const Schemas = {
             type: 'array' as const,
             items: { type: 'string' as const, maxLength: 100 }
           },
+          // { Hindi: ["understand", "speak"] }: cleaned and allow-listed in analyze-curriculum.
+          languageSkills: {
+            type: 'object' as const
+          },
           transitionTimeline: {
             type: 'string' as const,
             maxLength: 50,

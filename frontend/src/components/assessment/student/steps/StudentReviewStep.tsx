@@ -12,7 +12,8 @@ import SectionCard from "../../shared/SectionCard";
 import ReviewActionBar from "../../shared/ReviewActionBar";
 import ReviewSection from "../../shared/ReviewSection";
 import { newSchoolLanguageLabel } from "../../shared/newSchoolLanguage";
-import { prettify, targetBoardLabel, targetGradeLabel, joinList, joinPrettyList, joinRecord, curriculumLabel } from "../../shared/reviewFormatting";
+import { formatLanguageSkills } from "../../shared/languageSkills";
+import { prettify, targetBoardLabel, targetGradeLabel, joinList, joinPrettyList, curriculumLabel } from "../../shared/reviewFormatting";
 
 // Step 4: Review.
 // Mirrors ParentStep5's Review pattern (editable summary + per-section Edit
@@ -109,7 +110,10 @@ const StudentReviewStep = ({ formData, prevReportId, isRetake = false, onPrev, o
         ...(formData.targetLanguage ? [{ label: "Indian Language", value: newSchoolLanguageLabel(formData.targetLanguage) ?? prettify(formData.targetLanguage) }] : []),
         { label: "Overall Performance", value: prettify(formData.overallPerformance) },
         { label: "Language Exposure", value: joinList(formData.selectedLanguages) },
-        { label: "Language Proficiencies", value: joinRecord(formData.languageProficiencies) },
+        {
+          label: "Can do in each language",
+          value: formatLanguageSkills(Object.keys(formData.languageProficiencies), formData.languageSkills, formData.languageProficiencies),
+        },
         {
           label: "Foreign Language",
           value: formData.foreignLanguageName

@@ -25,6 +25,8 @@ interface SubjectBreakdownProps {
   learning: Learning;
   /** formData.languageProficiencies: { Hindi: "fluent", ... } */
   languageProficiencies?: Record<string, string>;
+  /** formData.languageSkills: { Hindi: ["understand", "speak"], ... } (newer reports). */
+  languageSkills?: Record<string, unknown>;
 }
 
 const UNASSESSED = "Assessment unavailable";
@@ -90,12 +92,13 @@ function TopicGroup({ title, caption, rows, startIndex, limit }: { title: string
   );
 }
 
-function SubjectDetail({ subject, criticalGaps, entryGrade, learning, familiarity }: {
+function SubjectDetail({ subject, criticalGaps, entryGrade, learning, familiarity, skills }: {
   subject: ReportSubject;
   criticalGaps: GapItem[];
   entryGrade?: number;
   learning: Learning;
   familiarity?: LanguageFamiliarity;
+  skills?: string[];
 }) {
   const [showAll, setShowAll] = useState(false);
   const status = SUBJECT_STATUS[subject.alignmentLevel];
@@ -168,7 +171,7 @@ function SubjectDetail({ subject, criticalGaps, entryGrade, learning, familiarit
       <div className="lg:col-span-2">
         <p className="font-heading text-sm font-semibold text-secondary-contrast">Where to study</p>
         {isLanguage && (
-          <p className="mt-1 font-body text-[14px] leading-snug text-muted-foreground">{resourceStartNote(subject.subject, entryGrade!, familiarity)}</p>
+          <p className="mt-1 font-body text-[14px] leading-snug text-muted-foreground">{resourceStartNote(subject.subject, entryGrade!, familiarity, skills)}</p>
         )}
         {groups.length > 0 ? (
           <div className="mt-1 space-y-3">
@@ -195,7 +198,7 @@ const isFamiliarity = (v: unknown): v is LanguageFamiliarity => v === "new" || v
  * shows the missing topics with links to the chapters, beside where to study.
  * Details stay in the page when closed (hidden), so the PDF always includes them.
  */
-export function SubjectBreakdown({ subjects, criticalGaps, entryGrade, electives, learning, languageProficiencies }: SubjectBreakdownProps) {
+export function SubjectBreakdown({ subjects, criticalGaps, entryGrade, electives, learning, languageProficiencies, languageSkills }: SubjectBreakdownProps) {
   // Already in card order (orderSubjectsByNeed in lib/reportContent.ts).
   const ordered = useMemo(() => subjects.filter((s) => s.totalTopics > 0 || s.keyGaps.length > 0), [subjects]);
   // Every card starts closed.
@@ -230,6 +233,7 @@ export function SubjectBreakdown({ subjects, criticalGaps, entryGrade, electives
           const coverage = SUBJECT_COVERAGE[subject.alignmentLevel];
           const pace = SUBJECT_PACE[subject.alignmentLevel];
           const picked = Object.entries(languageProficiencies ?? {}).find(([lang]) => lang.toLowerCase() === subject.subject.toLowerCase())?.[1];
+          const ticked = Object.entries(languageSkills ?? {}).find(([lang]) => lang.toLowerCase() === subject.subject.toLowerCase())?.[1];
           const pill = "whitespace-nowrap rounded-full px-2.5 py-0.5 font-heading text-xs font-semibold";
           return (
             <Collapsible
@@ -269,6 +273,7 @@ export function SubjectBreakdown({ subjects, criticalGaps, entryGrade, electives
                   entryGrade={entryGrade}
                   learning={learning}
                   familiarity={isFamiliarity(picked) ? picked : undefined}
+                  skills={Array.isArray(ticked) ? ticked.filter((s): s is string => typeof s === "string") : undefined}
                 />
               </CollapsibleContent>
             </Collapsible>

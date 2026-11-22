@@ -11,6 +11,7 @@ import { validateParentStep, parentStepShares, PARENT_TOTAL_STEPS } from "./pare
 import type { ParentFormData } from "./parentMapper";
 import RestoredDraftBanner from "../shared/RestoredDraftBanner";
 import type { SubjectProgress } from "../shared/formProgress";
+import { withLanguageSkills } from "../shared/languageSkills";
 import { normalizeTargetStream } from "@/hooks/useCurriculumSubjects";
 import { useLeaveWarning } from "@/hooks/useLeaveWarning";
 import { saveDraft, type AssessmentDraft } from "@/lib/assessmentDraft";
@@ -75,6 +76,7 @@ const createDefaultParentFormData = (): ParentFormData => ({
   coursesTaken: "",
   selectedLanguages: [],
   languageProficiencies: {},
+  languageSkills: {},
   extracurriculars: [],
   languagesAtHome: [],
   foreignLanguageName: "",
@@ -109,7 +111,8 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
   const mergedLanguages =
     legacyCustomLanguage && !baseLanguages.includes(legacyCustomLanguage) ? [...baseLanguages, legacyCustomLanguage] : baseLanguages;
 
-  return {
+  // Older reports have a level per language but no ticks: see withLanguageSkills.
+  return withLanguageSkills({
     ...defaults,
     // childName/childLastName: prefer the current Parent-flow keys; fall back
     // to the Student-flow keys (studentName/studentLastName) so retaking a
@@ -153,6 +156,7 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
     coursesTaken: prefillData.coursesTaken === "yes" || prefillData.coursesTaken === "no" ? prefillData.coursesTaken : defaults.coursesTaken,
     selectedLanguages: mergedLanguages,
     languageProficiencies: prefillData.languageProficiencies || defaults.languageProficiencies,
+    languageSkills: prefillData.languageSkills,
     extracurriculars: Array.isArray(prefillData.extracurriculars) ? prefillData.extracurriculars : defaults.extracurriculars,
     languagesAtHome: Array.isArray(prefillData.languagesAtHome) ? prefillData.languagesAtHome : defaults.languagesAtHome,
     foreignLanguageName: prefillData.foreignLanguageName || defaults.foreignLanguageName,
@@ -175,7 +179,7 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
         : defaults.subjectConfidences,
     // Saved with the report (form_data) and read by the AI, so a retake keeps it.
     additionalNotes: typeof prefillData.additionalNotes === "string" ? prefillData.additionalNotes : defaults.additionalNotes,
-  };
+  });
 };
 
 const ParentAssessment = ({
@@ -199,7 +203,7 @@ const ParentAssessment = ({
   );
   const [formData, setFormData] = useState<ParentFormData>(() =>
     draft
-      ? { ...createDefaultParentFormData(), ...(draft.formData as Partial<ParentFormData>) }
+      ? withLanguageSkills({ ...createDefaultParentFormData(), ...(draft.formData as Partial<ParentFormData>) })
       : mergePrefillData(createDefaultParentFormData(), prefillData)
   );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});

@@ -378,6 +378,7 @@ export function ReportBody({ formData, analysis, onDownload, onShare, isSharing 
           electives={formData.targetElectives ?? []}
           learning={learning}
           languageProficiencies={formData.languageProficiencies}
+          languageSkills={formData.languageSkills}
         />
         {/* With a stream chosen the subject cards already show each subject's
             readiness; only older reports saved without one get a suggestion. */}
