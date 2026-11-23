@@ -108,7 +108,7 @@ const Onboarding = () => {
   }
 
   if (!user) {
-    navigate("/auth", { replace: true });
+    navigate("/login", { replace: true });
     return null;
   }
 

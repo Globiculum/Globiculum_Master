@@ -164,13 +164,13 @@ const Header = ({ children }: HeaderProps = {}) => {
           className="hidden lg:inline-flex text-primary-foreground hover:text-secondary hover:bg-primary-foreground/10"
           asChild
         >
-          <a href="/auth">Sign In</a>
+          <a href="/login">Sign In</a>
         </Button>
         <Button
           className="hidden lg:inline-flex bg-accent text-accent-foreground hover:bg-accent/90 transition-all duration-300 font-semibold"
           asChild
         >
-          <a href="/auth">Get Started</a>
+          <a href="/signup">Get Started</a>
         </Button>
       </>
     );
@@ -275,7 +275,7 @@ const Header = ({ children }: HeaderProps = {}) => {
                 )}
                 {!children && !loading && !user && (
                   <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" asChild>
-                    <a href="/auth" onClick={() => setMobileMenuOpen(false)}>Get Started</a>
+                    <a href="/signup" onClick={() => setMobileMenuOpen(false)}>Get Started</a>
                   </Button>
                 )}
               </div>

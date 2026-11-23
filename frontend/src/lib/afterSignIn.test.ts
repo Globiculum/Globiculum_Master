@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { safeFormPath, signInPathFor } from "./afterSignIn";
+import { loginPath, safeFormPath, signInPathFor, signupPath } from "./afterSignIn";
 
 describe("safeFormPath", () => {
   it("allows the two assessment forms, with their query string", () => {
@@ -16,11 +16,23 @@ describe("safeFormPath", () => {
 });
 
 describe("signInPathFor", () => {
-  it("links to sign-in with the form to come back to", () => {
-    expect(signInPathFor("/begin-journey")).toBe("/auth?next=%2Fbegin-journey");
+  it("opens Sign up from a form, with the form to come back to", () => {
+    expect(signInPathFor("/begin-journey")).toBe("/signup?next=%2Fbegin-journey");
   });
 
-  it("links to plain sign-in for any other page", () => {
-    expect(signInPathFor("/reports")).toBe("/auth");
+  it("opens plain Log in from any other page", () => {
+    expect(signInPathFor("/reports")).toBe("/login");
+  });
+});
+
+describe("loginPath and signupPath", () => {
+  it("keep the form to come back to when switching between the two pages", () => {
+    expect(loginPath("/student-assessment")).toBe("/login?next=%2Fstudent-assessment");
+    expect(signupPath("/begin-journey")).toBe("/signup?next=%2Fbegin-journey");
+  });
+
+  it("drop anything that is not a form page", () => {
+    expect(loginPath("https://evil.example")).toBe("/login");
+    expect(signupPath(null)).toBe("/signup");
   });
 });

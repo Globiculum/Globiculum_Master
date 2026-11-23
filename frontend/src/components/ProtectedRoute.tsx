@@ -80,7 +80,7 @@ const ProtectedRoute = ({ children, skipOnboardingCheck = false, returnAfterSign
   }
 
   if (!session) {
-    return <Navigate to={returnAfterSignIn ? signInPathFor(location.pathname + location.search) : "/auth"} replace />;
+    return <Navigate to={returnAfterSignIn ? signInPathFor(location.pathname + location.search) : "/login"} replace />;
   }
 
   if (needsOnboarding) {

@@ -1,0 +1,919 @@
+/*
+ * Log in, Sign up and the password / email-link pages: Version 2 design
+ * (GLOBICULUM_AUTH_PAGES_V2.md): a Deep Navy frame holding a teal panel, the
+ * logo, headline and family photo on the left and a white form card on the
+ * right. Colours are the brief's token list only.
+ */
+
+.ga-frame {
+  --ga-navy: #0f172a;
+  --ga-white: #ffffff;
+  --ga-teal-top: #0e8278;
+  --ga-teal-mid: #0f766e;
+  --ga-teal-deep: #115e59;
+  --ga-teal-600: #0d9488;
+  --ga-mint: #5eead4;
+  --ga-mint-light: #99f6e4;
+  --ga-mint-pale: #ecfdfa;
+  --ga-mint-pale-2: #ccfbf1;
+  --ga-indigo: #5b6cff;
+  --ga-slate: #64748b;
+  --ga-slate-700: #475569;
+  --ga-field-border: #7c8ca3;
+  --ga-line: #e2e8f0;
+  --ga-line-strong: #cbd5e1;
+  --ga-hover-tint: #f0fdfa;
+  /* Dark red, 6.5:1 on white (the brief asks for at least 4.5:1). */
+  --ga-error: #b91c1c;
+  --ga-heading: Poppins, Arial, sans-serif;
+  /* Carlito is the site's self-hosted, metric-compatible Calibri. */
+  --ga-body: Carlito, Calibri, Helvetica, sans-serif;
+
+  box-sizing: border-box;
+  display: flex;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--ga-navy);
+  color: var(--ga-navy);
+  font-family: var(--ga-body);
+}
+
+.ga-frame *,
+.ga-frame *::before,
+.ga-frame *::after {
+  box-sizing: border-box;
+}
+
+/* ---------- Panel ---------- */
+
+.ga-panel {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-radius: 28px;
+  overflow: hidden;
+  background:
+    radial-gradient(60% 55% at 90% 8%, rgba(94, 234, 212, 0.3) 0%, rgba(94, 234, 212, 0) 70%),
+    radial-gradient(70% 60% at 0% 0%, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0) 62%),
+    radial-gradient(55% 55% at 100% 100%, rgba(91, 108, 255, 0.15) 0%, rgba(91, 108, 255, 0) 70%),
+    linear-gradient(150deg, var(--ga-teal-top) 0%, var(--ga-teal-mid) 46%, var(--ga-teal-deep) 100%);
+}
+
+.ga-glow,
+.ga-glow-2,
+.ga-dots,
+.ga-network,
+.ga-card-network {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ga-glow {
+  left: -20%;
+  bottom: -230px;
+  width: 84%;
+  height: 780px;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    #ffffff 0%,
+    #ffffff 30%,
+    rgba(236, 253, 250, 0.92) 46%,
+    rgba(153, 246, 228, 0.58) 64%,
+    rgba(94, 234, 212, 0.18) 82%,
+    rgba(94, 234, 212, 0) 100%
+  );
+  filter: blur(14px);
+}
+
+.ga-glow-2 {
+  left: 24%;
+  bottom: -160px;
+  width: 52%;
+  height: 560px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(204, 251, 241, 0.5), rgba(204, 251, 241, 0));
+  filter: blur(20px);
+}
+
+.ga-dots {
+  right: 0;
+  top: 0;
+  width: 520px;
+  height: 360px;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+}
+
+.ga-network {
+  left: 34%;
+  top: 36%;
+  opacity: 0.3;
+}
+
+.ga-inner {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 48px;
+  padding: 44px 56px 0;
+}
+
+/* ---------- Left column ---------- */
+
+.ga-left {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.ga-logo-link {
+  align-self: flex-start;
+  border-radius: 14px;
+}
+
+.ga-logo {
+  display: block;
+  height: 52px;
+  width: auto;
+  border-radius: 14px;
+}
+
+.ga-h1 {
+  margin: 0;
+  max-width: 640px;
+  font-family: var(--ga-heading);
+  font-size: 52px;
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ga-white);
+}
+
+.ga-h1-accent {
+  background: linear-gradient(90deg, #ffffff 0%, #99f6e4 55%, #5eead4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ga-photo {
+  position: relative;
+  margin: auto 0 28px -8px;
+  max-width: 740px;
+  width: 94%;
+}
+
+.ga-photo img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- Card ---------- */
+
+.ga-card {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 440px;
+  max-width: 440px;
+  align-self: center;
+  margin-bottom: 44px;
+  padding: 40px 40px 36px;
+  border-radius: 28px;
+  background: var(--ga-white);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 40px 80px -30px rgba(15, 23, 42, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.ga-card-network {
+  right: -14px;
+  top: -10px;
+  opacity: 0.16;
+  transform: scaleY(-1);
+}
+
+.ga-card--center {
+  text-align: center;
+  align-items: stretch;
+}
+
+.ga-title {
+  position: relative;
+  margin: 0;
+  font-family: var(--ga-heading);
+  font-size: 26px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--ga-navy);
+}
+
+.ga-text {
+  position: relative;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ga-slate-700);
+}
+
+.ga-text strong {
+  color: var(--ga-navy);
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.ga-status-icon {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ga-mint-pale);
+  color: var(--ga-teal-mid);
+}
+
+.ga-status-icon--error {
+  background: var(--ga-white);
+  border: 1px solid var(--ga-line);
+  color: var(--ga-error);
+}
+
+.ga-note {
+  position: relative;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--ga-mint-pale);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ga-navy);
+  text-align: left;
+}
+
+/* ---------- Form ---------- */
+
+.ga-form {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+}
+
+.ga-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.ga-label {
+  font-family: var(--ga-heading);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ga-navy);
+}
+
+.ga-input-wrap {
+  position: relative;
+}
+
+.ga-input-icon {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  display: flex;
+  pointer-events: none;
+}
+
+.ga-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px 0 46px;
+  border: 1px solid var(--ga-field-border);
+  border-radius: 12px;
+  background: var(--ga-white);
+  font-family: var(--ga-body);
+  font-size: 16px;
+  color: var(--ga-navy);
+}
+
+.ga-input--password {
+  padding-right: 48px;
+}
+
+.ga-input::placeholder {
+  color: var(--ga-slate);
+  opacity: 1;
+}
+
+.ga-input:focus,
+.ga-input:focus-visible {
+  outline: 2px solid var(--ga-teal-600);
+  outline-offset: 2px;
+  border-color: var(--ga-teal-600);
+}
+
+.ga-input[aria-invalid="true"] {
+  border-color: var(--ga-error);
+}
+
+.ga-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.ga-toggle {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ga-toggle:focus-visible {
+  outline: 2px solid var(--ga-teal-600);
+  outline-offset: -4px;
+}
+
+.ga-field-error {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--ga-error);
+}
+
+.ga-link {
+  color: var(--ga-teal-mid);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: 2px;
+}
+
+.ga-link:hover {
+  color: var(--ga-navy);
+}
+
+.ga-link:focus-visible,
+.ga-logo-link:focus-visible {
+  outline: 2px solid var(--ga-teal-600);
+  outline-offset: 2px;
+}
+
+.ga-logo-link:focus-visible {
+  outline-color: var(--ga-white);
+  outline-offset: 4px;
+}
+
+.ga-forgot {
+  align-self: flex-end;
+  font-size: 14px;
+}
+
+.ga-link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ga-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: 28px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ga-navy);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ga-check--small {
+  font-size: 14px;
+}
+
+.ga-check input {
+  width: 18px;
+  height: 18px;
+  /* Lines the box up with the first line of text when the label wraps. */
+  margin: 2px 0 0;
+  flex: none;
+  accent-color: var(--ga-teal-mid);
+  cursor: pointer;
+}
+
+.ga-check input:focus-visible {
+  outline: 2px solid var(--ga-teal-600);
+  outline-offset: 2px;
+}
+
+/* ---------- Strength meter ---------- */
+
+.ga-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ga-meter--empty {
+  display: none;
+}
+
+.ga-meter-bars {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.ga-meter-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--ga-line);
+}
+
+.ga-meter-bar--on {
+  background: var(--ga-teal-600);
+}
+
+.ga-meter-label {
+  min-width: 3.25em;
+  font-size: 13px;
+  text-align: right;
+  color: var(--ga-slate-700);
+}
+
+/* ---------- Buttons ---------- */
+
+.ga-btn {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--ga-teal-mid) 0%, var(--ga-teal-deep) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  color: var(--ga-white);
+  font-family: var(--ga-heading);
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.ga-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  color: var(--ga-white);
+}
+
+.ga-btn:focus-visible {
+  outline: 2px solid var(--ga-teal-600);
+  outline-offset: 2px;
+}
+
+.ga-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* White button: Continue with Google, and secondary actions (Resend). */
+.ga-btn--plain {
+  min-height: 48px;
+  gap: 12px;
+  border: 1px solid var(--ga-line-strong);
+  background: var(--ga-white);
+  box-shadow: none;
+  color: var(--ga-navy);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.ga-btn--plain:hover:not(:disabled) {
+  background: var(--ga-hover-tint);
+  color: var(--ga-navy);
+}
+
+.ga-spinner {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: var(--ga-white);
+  animation: ga-spin 0.8s linear infinite;
+}
+
+.ga-btn--plain .ga-spinner {
+  border-color: var(--ga-line-strong);
+  border-top-color: var(--ga-navy);
+}
+
+.ga-spinner--large {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+  border-color: var(--ga-mint-pale-2);
+  border-top-color: var(--ga-teal-mid);
+}
+
+@keyframes ga-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ga-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ga-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--ga-line);
+}
+
+.ga-divider-text {
+  font-size: 14px;
+  color: var(--ga-slate);
+}
+
+/* Server errors (wrong password, email already registered, network). */
+.ga-alert {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ga-error);
+  border-radius: 12px;
+  background: var(--ga-white);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ga-error);
+  text-align: left;
+}
+
+.ga-alert .ga-link {
+  color: var(--ga-error);
+}
+
+.ga-alert .ga-link:hover {
+  color: var(--ga-navy);
+}
+
+.ga-success {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--ga-mint-pale);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ga-navy);
+  text-align: left;
+}
+
+.ga-footer {
+  position: relative;
+  margin: 0;
+  text-align: center;
+  font-size: 15px;
+  color: var(--ga-navy);
+}
+
+.ga-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---------- Laptop and desktop: the page fits the screen, no scrolling ---------- */
+
+/*
+ * The design is drawn at 1440 x 900. Here the frame is exactly one screen
+ * tall: the photo takes whatever height is left under the headline, and the
+ * spacing, logo and headline shrink on shorter screens. Every clamp() below
+ * gives the design's own value at 1440 x 900. The glow behind the family is
+ * sized from the photo (container query units), so it scales with it and
+ * never rises behind the headline.
+ */
+.ga-photo-glow,
+.ga-photo-glow-2 {
+  display: none;
+}
+
+@media (min-width: 961px) and (min-height: 560px) {
+  .ga-frame {
+    /* The panel's top padding, and the least space kept above and below the card. */
+    --ga-pad-top: clamp(24px, 4.9vh, 44px);
+    --ga-card-gap: clamp(12px, 2.2vh, 20px);
+    height: 100vh;
+    height: 100dvh;
+    padding: clamp(12px, 2.67vh, 24px);
+  }
+
+  .ga-panel {
+    min-height: 0;
+    /* Lets the photo glows sit behind the panel's dots and network lines. */
+    isolation: isolate;
+  }
+
+  .ga-inner {
+    min-height: 0;
+    gap: clamp(32px, 3.34vw, 48px);
+    padding: var(--ga-pad-top) clamp(32px, 3.9vw, 56px) 0;
+  }
+
+  .ga-left {
+    min-height: 0;
+    gap: clamp(16px, 3.56vh, 32px);
+  }
+
+  .ga-logo {
+    height: clamp(40px, 5.8vh, 52px);
+  }
+
+  .ga-h1 {
+    flex: none;
+    font-size: clamp(36px, min(3.62vw, 5.8vh), 52px);
+  }
+
+  .ga-photo {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 94%;
+    max-width: 740px;
+    margin: 0 0 clamp(16px, 3.12vh, 28px) -8px;
+    container-type: size;
+  }
+
+  /* The photo's shown width: the box's width, or less when height is short. */
+  .ga-photo img {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: min(100cqw, 154.33cqh);
+    height: auto;
+  }
+
+  .ga-glow,
+  .ga-glow-2 {
+    display: none;
+  }
+
+  /* Same glows as the design, measured from the photo instead of the panel
+     (W = photo width, H = photo height = W / 1.5433). */
+  .ga-photo-glow,
+  .ga-photo-glow-2 {
+    display: block;
+    position: absolute;
+    z-index: -1;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .ga-photo-glow {
+    left: calc(-0.44 * min(100cqw, 154.33cqh));
+    bottom: calc(-0.54 * min(64.8cqw, 100cqh));
+    width: calc(1.58 * min(100cqw, 154.33cqh));
+    height: calc(1.63 * min(64.8cqw, 100cqh));
+    background: radial-gradient(
+      closest-side,
+      #ffffff 0%,
+      #ffffff 30%,
+      rgba(236, 253, 250, 0.92) 46%,
+      rgba(153, 246, 228, 0.58) 64%,
+      rgba(94, 234, 212, 0.18) 82%,
+      rgba(94, 234, 212, 0) 100%
+    );
+    filter: blur(14px);
+  }
+
+  .ga-photo-glow-2 {
+    left: calc(0.387 * min(100cqw, 154.33cqh));
+    bottom: calc(-0.3935 * min(64.8cqw, 100cqh));
+    width: calc(0.978 * min(100cqw, 154.33cqh));
+    height: calc(1.169 * min(64.8cqw, 100cqh));
+    background: radial-gradient(closest-side, rgba(204, 251, 241, 0.5), rgba(204, 251, 241, 0));
+    filter: blur(20px);
+  }
+
+  .ga-card {
+    /* Centred in the panel (as in the design) and allowed to use its full
+       height less a small gap, so a long form still fits. It scrolls inside
+       only as a last resort (a very short screen with every error showing). */
+    margin-top: calc(var(--ga-card-gap) - var(--ga-pad-top));
+    margin-bottom: var(--ga-card-gap);
+    max-height: calc(100% + var(--ga-pad-top) - 2 * var(--ga-card-gap));
+    overflow-y: auto;
+    padding: clamp(24px, 4.45vh, 40px) 40px clamp(22px, 4vh, 36px);
+    gap: clamp(14px, 2.45vh, 22px);
+  }
+
+  .ga-form {
+    gap: clamp(10px, 1.78vh, 16px);
+  }
+
+  /* While error messages show, the card tightens its spacing so the longer
+     form still fits; without errors it keeps the design's spacing. */
+  .ga-card:has(.ga-field-error, .ga-alert) {
+    padding-top: clamp(18px, 2.8vh, 40px);
+    padding-bottom: clamp(16px, 2.5vh, 36px);
+    gap: clamp(12px, 1.9vh, 22px);
+  }
+
+  .ga-card:has(.ga-field-error, .ga-alert) .ga-form {
+    gap: clamp(8px, 1.4vh, 16px);
+  }
+
+  .ga-card:has(.ga-field-error, .ga-alert) .ga-field {
+    gap: 3px;
+  }
+}
+
+/* Short laptop screens (e.g. 1366 x 768 with the browser's bars): tighter
+   spacing and slightly smaller controls, still at least 44px to tap, so the
+   Sign up card (four fields, Terms, Create account, or, Google) fits. */
+@media (min-width: 961px) and (min-height: 560px) and (max-height: 820px) {
+  .ga-frame {
+    padding: 12px;
+    --ga-card-gap: 10px;
+  }
+
+  .ga-card {
+    padding: clamp(16px, 2.6vh, 28px) 40px clamp(14px, 2.4vh, 26px);
+    gap: clamp(10px, 1.6vh, 16px);
+  }
+
+  .ga-form {
+    gap: clamp(8px, 1.3vh, 12px);
+  }
+
+  .ga-divider {
+    margin-block: -2px;
+  }
+
+  .ga-field {
+    gap: 4px;
+  }
+
+  .ga-input {
+    height: 44px;
+  }
+
+  .ga-input-icon {
+    top: 12px;
+  }
+
+  .ga-toggle {
+    top: 0;
+  }
+
+  .ga-btn {
+    min-height: 48px;
+  }
+
+  .ga-btn--plain {
+    min-height: 44px;
+  }
+
+  .ga-check {
+    min-height: 24px;
+  }
+
+  .ga-title {
+    font-size: 24px;
+  }
+
+  /* Error messages showing: tighter again (this rule must beat the general
+     one above, which is written for taller screens). */
+  .ga-card:has(.ga-field-error, .ga-alert) {
+    padding-top: clamp(14px, 2.2vh, 28px);
+    padding-bottom: clamp(12px, 2vh, 26px);
+    gap: clamp(8px, 1.3vh, 16px);
+  }
+
+  .ga-card:has(.ga-field-error, .ga-alert) .ga-form {
+    gap: clamp(6px, 1vh, 12px);
+  }
+
+  .ga-card:has(.ga-field-error, .ga-alert) .ga-field {
+    gap: 2px;
+  }
+
+  .ga-field-error {
+    font-size: 13px;
+    line-height: 1.25;
+  }
+}
+
+/* Very short screens (about 640px tall, e.g. 1280 x 720 with the browser's bars). */
+@media (min-width: 961px) and (min-height: 560px) and (max-height: 640px) {
+  .ga-card {
+    padding-top: 14px;
+    padding-bottom: 12px;
+    gap: 8px;
+  }
+
+  .ga-form {
+    gap: 7px;
+  }
+
+  .ga-title {
+    font-size: 21px;
+  }
+
+  .ga-footer {
+    font-size: 14px;
+  }
+}
+
+/* ---------- Tablet and phone: one column ---------- */
+
+@media (max-width: 960px) {
+  .ga-frame {
+    padding: 12px;
+  }
+
+  .ga-inner {
+    flex-direction: column;
+    gap: 28px;
+    padding: 28px 20px 0;
+  }
+
+  .ga-left {
+    order: 1;
+    gap: 20px;
+  }
+
+  .ga-h1 {
+    font-size: 36px;
+  }
+
+  .ga-photo {
+    margin: 0 0 20px;
+    width: 100%;
+  }
+
+  .ga-card {
+    order: 2;
+    /* Full width, but only as tall as its content (short status cards). */
+    flex: none;
+    width: 100%;
+    max-width: none;
+    margin-bottom: 20px;
+    padding: 32px 22px;
+  }
+
+  .ga-glow {
+    left: -30%;
+    width: 160%;
+    top: 300px;
+    bottom: auto;
+    height: 520px;
+  }
+
+  .ga-glow-2,
+  .ga-card-network {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ga-btn {
+    transition: none;
+  }
+
+  .ga-btn:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .ga-spinner {
+    animation-duration: 1.6s;
+  }
+}

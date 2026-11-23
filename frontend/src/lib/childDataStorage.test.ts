@@ -82,8 +82,12 @@ describe("withOwner / isOwnedBy", () => {
 // Every browser-storage write in the app, read from the source. A new key that
 // holds child data must be added to CHILD_DATA_SESSION_KEYS, or sign-out would
 // leave it behind; localStorage outlives the tab, so it must not be written at all.
+//
+// The one exception is lib/authSessionStorage.ts: the Supabase login itself
+// (no child data), kept in localStorage or, with "Keep me signed in" unticked,
+// this tab only. Sign-out removes it from both (authSessionStorage.test.ts).
 describe("browser storage writes in the app", () => {
-  const sources = import.meta.glob(["/src/**/*.{ts,tsx}", "!/src/**/*.test.{ts,tsx}"], {
+  const sources = import.meta.glob(["/src/**/*.{ts,tsx}", "!/src/**/*.test.{ts,tsx}", "!/src/lib/authSessionStorage.ts"], {
     query: "?raw",
     import: "default",
     eager: true,

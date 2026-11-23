@@ -6,8 +6,12 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-route
 import { MotionConfig } from "framer-motion";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
 import AuthCallback from "./pages/AuthCallback";
 import ResetPassword from "./pages/ResetPassword";
+import LegalPlaceholder from "./pages/LegalPlaceholder";
 import DashboardPage from "./pages/DashboardPage";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -106,7 +110,14 @@ const App = () => (
               </AdminProtectedRoute>
             } 
           />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          {/* Old combined page: redirects to /login or /signup. */}
           <Route path="/auth" element={<Auth />} />
+          {/* Placeholders until the real documents exist (T27). */}
+          <Route path="/terms" element={<LegalPlaceholder title="Terms of Service" />} />
+          <Route path="/privacy" element={<LegalPlaceholder title="Privacy Policy" />} />
           {/* Landing target for every emailed auth link (signup confirmation,
               email change, magic link). Must stay public — the user is by
               definition not signed in yet when they arrive here. */}

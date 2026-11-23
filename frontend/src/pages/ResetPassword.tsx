@@ -1,34 +1,26 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { z, ZodError } from "zod";
-import { PasswordStrengthIndicator } from "@/components/PasswordStrengthIndicator";
-import { Loader2 } from "lucide-react";
+import AuthLayout from "@/components/auth/AuthLayout";
+import { FormAlert, PasswordField, PrimaryButton, Spinner, StrengthMeter } from "@/components/auth/AuthFormParts";
+import { AlertIcon } from "@/components/auth/AuthIcons";
+import { signOut, updatePassword } from "@/lib/authClient";
+import { confirmProblem } from "@/lib/authValidation";
+import { newPasswordProblem } from "@/lib/passwordRules";
 
-const passwordSchema = z
-  .string()
-  .min(8, "Password must be at least 8 characters")
-  .max(100, "Password must be less than 100 characters")
-  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-  .regex(/[0-9]/, "Password must contain at least one number")
-  .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character");
+type LinkState = "checking" | "valid" | "invalid";
 
+/** The page a password reset email links to: set a new password. */
 const ResetPassword = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(true);
+  const [linkState, setLinkState] = useState<LinkState>("checking");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isValidSession, setIsValidSession] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | undefined>();
-  const [confirmPasswordError, setConfirmPasswordError] = useState<string | undefined>();
+  const [confirm, setConfirm] = useState("");
+  const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -42,15 +34,7 @@ const ResetPassword = () => {
     const settle = (valid: boolean) => {
       if (!active || settled) return;
       settled = true;
-      setIsValidSession(valid);
-      setVerifying(false);
-      if (!valid) {
-        toast({
-          variant: "destructive",
-          title: "Invalid or expired link",
-          description: "Please request a new password reset link.",
-        });
-      }
+      setLinkState(valid ? "valid" : "invalid");
     };
 
     const {
@@ -73,149 +57,119 @@ const ResetPassword = () => {
       clearTimeout(timer);
       subscription.unsubscribe();
     };
-  }, [toast]);
+  }, []);
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordError(undefined);
-    setConfirmPasswordError(undefined);
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (busy) return;
+    const found = { password: newPasswordProblem(password), confirm: confirmProblem(password, confirm) };
+    setErrors(found);
+    if (found.password) return passwordRef.current?.focus();
+    if (found.confirm) return confirmRef.current?.focus();
 
-    if (password !== confirmPassword) {
-      setConfirmPasswordError("Passwords don't match. Please make sure both passwords are the same.");
+    setBusy(true);
+    setServerError(null);
+    const { error } = await updatePassword(password);
+    if (error) {
+      setBusy(false);
+      if (error.code === "weak_password") {
+        setErrors({ password: error.message });
+        passwordRef.current?.focus();
+      } else {
+        setServerError(error.code === "network" ? "We couldn't reach Globiculum. Check your connection and try again." : error.message);
+      }
       return;
     }
-
-    try {
-      passwordSchema.parse(password);
-      setLoading(true);
-
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Password updated!",
-        description: "Your password has been successfully reset.",
-      });
-
-      // Sign out and redirect to login
-      await supabase.auth.signOut();
-      navigate("/auth");
-    } catch (error: unknown) {
-      if (error instanceof ZodError) {
-        setPasswordError(error.errors[0]?.message);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to reset password",
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
+    // Log in again with the new password (the page shows that it was changed).
+    await signOut();
+    navigate("/login", { replace: true, state: { passwordChanged: true } });
   };
 
-  if (verifying) {
+  if (linkState === "checking") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardContent role="status" aria-live="polite" className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" aria-hidden="true" />
-            <p className="text-muted-foreground">Verifying your reset link...</p>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthLayout pageTitle="Reset your password | Globiculum" title="Checking your link" centered>
+        <div role="status" aria-live="polite" className="ga-stack" style={{ alignItems: "center" }}>
+          <Spinner large />
+          <p className="ga-text">This takes a moment.</p>
+        </div>
+      </AuthLayout>
     );
   }
 
-  if (!isValidSession) {
+  if (linkState === "invalid") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader className="text-center space-y-2">
-            <h1 className="text-2xl font-bold leading-none tracking-tight">Link Expired</h1>
-            <CardDescription>
-              This password reset link is invalid or has expired.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate("/auth")} className="w-full">
-              Back to Sign In
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthLayout
+        pageTitle="Link expired | Globiculum"
+        title="This link has expired"
+        centered
+        icon={
+          <div className="ga-status-icon ga-status-icon--error">
+            <AlertIcon />
+          </div>
+        }
+        footer={
+          <Link to="/login" className="ga-link">
+            Back to log in
+          </Link>
+        }
+      >
+        <p className="ga-text">
+          Password reset links work once and expire after a while. Ask for a new one, then open it on this device.
+        </p>
+        <Link to="/forgot-password" className="ga-btn">
+          Send me a new link
+        </Link>
+      </AuthLayout>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="text-center space-y-2">
-          <h1 className="text-2xl font-bold leading-none tracking-tight">Reset Your Password</h1>
-          <CardDescription>Enter your new password below</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleResetPassword} className="space-y-4" noValidate>
-            <div className="space-y-2">
-              <Label htmlFor="new-password">New Password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (passwordError) setPasswordError(undefined);
-                }}
-                required
-                disabled={loading}
-                autoComplete="new-password"
-                aria-invalid={!!passwordError}
-                aria-describedby={passwordError ? "new-password-error" : "new-password-strength"}
-              />
-              {passwordError && (
-                <p id="new-password-error" role="alert" className="text-sm text-destructive">
-                  {passwordError}
-                </p>
-              )}
-              <div id="new-password-strength">
-                <PasswordStrengthIndicator password={password} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  if (confirmPasswordError) setConfirmPasswordError(undefined);
-                }}
-                required
-                disabled={loading}
-                autoComplete="new-password"
-                aria-invalid={!!confirmPasswordError}
-                aria-describedby={confirmPasswordError ? "confirm-password-error" : undefined}
-              />
-              {confirmPasswordError && (
-                <p id="confirm-password-error" role="alert" className="text-sm text-destructive">
-                  {confirmPasswordError}
-                </p>
-              )}
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Resetting..." : "Reset Password"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthLayout
+      pageTitle="Set a new password | Globiculum"
+      title="Set a new password"
+      footer={
+        <Link to="/login" className="ga-link">
+          Back to log in
+        </Link>
+      }
+    >
+      <form className="ga-form" onSubmit={handleSubmit} noValidate>
+        <PasswordField
+          ref={passwordRef}
+          id="new-password"
+          label="New password"
+          autoComplete="new-password"
+          placeholder="Create a password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (errors.password) setErrors((prev) => ({ ...prev, password: newPasswordProblem(e.target.value) }));
+          }}
+          onBlur={() => password && setErrors((prev) => ({ ...prev, password: newPasswordProblem(password) }))}
+          error={errors.password}
+          describedBy="new-password-strength"
+          disabled={busy}
+          meter={<StrengthMeter id="new-password-strength" password={password} />}
+        />
+        <PasswordField
+          ref={confirmRef}
+          id="confirm-password"
+          label="Confirm new password"
+          autoComplete="new-password"
+          placeholder="Re-enter your password"
+          value={confirm}
+          onChange={(e) => {
+            setConfirm(e.target.value);
+            if (errors.confirm) setErrors((prev) => ({ ...prev, confirm: confirmProblem(password, e.target.value) }));
+          }}
+          onBlur={() => confirm && setErrors((prev) => ({ ...prev, confirm: confirmProblem(password, confirm) }))}
+          error={errors.confirm}
+          disabled={busy}
+        />
+        {serverError && <FormAlert>{serverError}</FormAlert>}
+        <PrimaryButton busy={busy}>{busy ? "Saving..." : "Save new password"}</PrimaryButton>
+      </form>
+    </AuthLayout>
   );
 };
 

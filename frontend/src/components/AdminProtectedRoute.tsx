@@ -65,7 +65,7 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
   }
 
   if (!session) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (!isAdmin) {

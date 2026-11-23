@@ -7,13 +7,13 @@ import { expect, test } from "./fixtures";
 test.describe("consent before collecting child data (T27)", () => {
   test("the parent form asks for sign-in before any child data is entered", async ({ page }) => {
     await page.goto("/begin-journey");
-    await expect(page).toHaveURL(/\/auth/);
+    await expect(page).toHaveURL(/\/signup\?next=%2Fbegin-journey$/);
     await expect(page.locator("#parent-child-first-name")).toHaveCount(0);
   });
 
   test("the student form asks for sign-in before any data is entered", async ({ page }) => {
     await page.goto("/student-assessment");
-    await expect(page).toHaveURL(/\/auth/);
+    await expect(page).toHaveURL(/\/signup\?next=%2Fstudent-assessment$/);
   });
 
   test.fixme("the form cannot start until consent is given", async ({ page }) => {

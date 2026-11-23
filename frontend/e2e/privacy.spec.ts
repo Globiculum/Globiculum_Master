@@ -1,5 +1,5 @@
 import { browserStorage, expect, signIn, signOut, test } from "./fixtures";
-import { CHILD, PARENT_A, PARENT_B, REPORT_TITLE } from "./testData";
+import { CHILD, PARENT_A, PARENT_B, PASSWORD, REPORT_TITLE } from "./testData";
 
 const AUTH_TOKEN_KEY = /^sb-.*-auth-token/;
 
@@ -30,7 +30,7 @@ test("sign-out removes the child's answers and the login from the browser", asyn
   // Signed out, the form asks for a sign-in again; once back in, nothing of
   // the previous answers comes back.
   await page.goto("/begin-journey");
-  await expect(page).toHaveURL(/\/auth\?next=%2Fbegin-journey/);
+  await expect(page).toHaveURL(/\/signup\?next=%2Fbegin-journey/);
   await signIn(page, PARENT_A);
   await page.goto("/begin-journey");
   await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
@@ -51,5 +51,21 @@ test("the next account in the same tab sees none of the previous account's repor
 
 test("My Reports needs a sign-in", async ({ page }) => {
   await page.goto("/reports");
-  await expect(page).toHaveURL(/\/auth/);
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("Keep me signed in unticked keeps the login for this tab only", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("checkbox", { name: "Keep me signed in" }).uncheck();
+  await page.locator("#signin-email").fill(PARENT_A.email);
+  await page.locator("#signin-password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Log in" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+  await expect(page.getByRole("button", { name: new RegExp(PARENT_A.name) })).toBeVisible();
+  const stored = await browserStorage(page);
+  expect(Object.keys(stored.session).some((k) => AUTH_TOKEN_KEY.test(k))).toBe(true);
+  expect(Object.keys(stored.local).filter((k) => AUTH_TOKEN_KEY.test(k))).toEqual([]);
+  // Still signed in after a reload in the same tab.
+  await page.reload();
+  await expect(page.getByRole("button", { name: new RegExp(PARENT_A.name) })).toBeVisible();
 });

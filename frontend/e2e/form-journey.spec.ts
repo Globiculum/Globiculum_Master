@@ -63,11 +63,13 @@ async function answerAllSubjects(page: Page, summaryTitle: string) {
 test("Get Free Report while signed out asks for an account first, then opens the form", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "Get Free Report" }).first().click();
-  await expect(page).toHaveURL(/\/auth\?next=%2Fbegin-journey$/);
-  // Most people arriving this way are new: the page opens on Sign Up.
-  await expect(page.getByRole("tab", { name: "Sign Up" })).toHaveAttribute("aria-selected", "true");
+  // Most people arriving this way are new: Sign up opens, and its Log in link
+  // keeps the way back to the form.
+  await expect(page).toHaveURL(/\/signup\?next=%2Fbegin-journey$/);
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
 
-  await page.getByRole("tab", { name: "Sign In" }).click();
+  await page.getByRole("link", { name: "Log in" }).click();
+  await expect(page).toHaveURL(/\/login\?next=%2Fbegin-journey$/);
   await page.locator("#signin-email").fill(PARENT_A.email);
   await page.locator("#signin-password").fill(PASSWORD);
   await page.locator("#signin-password").press("Enter");

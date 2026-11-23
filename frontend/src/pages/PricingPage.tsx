@@ -60,7 +60,7 @@ const PLANS = [
       "Session Booking",
       "Report History",
     ],
-    cta: { label: "Upgrade Now", to: "/auth" },
+    cta: { label: "Upgrade Now", to: "/signup" },
   },
   {
     id: "institution",

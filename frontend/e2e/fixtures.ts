@@ -43,7 +43,7 @@ export const test = base.extend<{ consoleGuard: void }>({
 export { expect };
 
 export async function signIn(page: Page, user: { email: string; name: string }) {
-  await page.goto("/auth");
+  await page.goto("/login");
   await page.locator("#signin-email").fill(user.email);
   await page.locator("#signin-password").fill(PASSWORD);
   await page.locator("#signin-password").press("Enter");
@@ -60,7 +60,7 @@ export async function signOut(page: Page, user: { name: string }, { withFormAnsw
     await expect(dialog).toContainText("clears the answers");
     await dialog.getByRole("button", { name: "Sign out and clear" }).click();
   }
-  // Lands on the home page, or on /auth when signing out on a page that needs a sign-in.
+  // Lands on the home page, or on /login when signing out on a page that needs a sign-in.
   await expect(page.getByRole("button", { name: new RegExp(user.name) })).toHaveCount(0);
   await expect
     .poll(() => page.evaluate(() => Object.keys(localStorage).filter((k) => /^sb-.*-auth-token/.test(k))))

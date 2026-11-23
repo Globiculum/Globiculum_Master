@@ -1,7 +1,7 @@
 /**
  * Where to send someone after they sign in, when they were sent to sign in
  * from an assessment form ("Get Free Report" while signed out). Only the two
- * form pages are allowed, so a crafted /auth?next=... link can't send people
+ * form pages are allowed, so a crafted /login?next=... link can't send people
  * to another site or page.
  *
  * A new account confirms its email through a link that usually opens in a new
@@ -29,8 +29,22 @@ export function safeFormPath(value: unknown): string | null {
   return url.pathname + url.search;
 }
 
-/** The sign-in page link that comes back to `path` afterwards. */
+const withNext = (page: string, next: string | null | undefined) => {
+  const safe = safeFormPath(next);
+  return safe ? `${page}?next=${encodeURIComponent(safe)}` : page;
+};
+
+/** Log in, then back to the form `next` (if it is one). */
+export const loginPath = (next?: string | null) => withNext("/login", next);
+
+/** Sign up, then back to the form `next` (if it is one). */
+export const signupPath = (next?: string | null) => withNext("/signup", next);
+
+/**
+ * Where a signed-out visitor is sent from a page that needs an account.
+ * From a form, most people are new, so it opens Sign up (with a Log in link
+ * that keeps the way back); from anywhere else, Log in.
+ */
 export function signInPathFor(path: string): string {
-  const next = safeFormPath(path);
-  return next ? `/auth?next=${encodeURIComponent(next)}` : "/auth";
+  return safeFormPath(path) ? signupPath(path) : "/login";
 }

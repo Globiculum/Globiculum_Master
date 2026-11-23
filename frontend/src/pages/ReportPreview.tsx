@@ -418,7 +418,7 @@ const ReportPreview = () => {
           const { data: { session: fallback } } = await supabase.auth.getSession();
           if (!fallback?.user) {
             toast.error("Session expired. Please sign in again to save your report.");
-            navigate("/auth", { replace: true });
+            navigate("/login", { replace: true });
             return;
           }
           userId = fallback.user.id;
@@ -519,7 +519,7 @@ const ReportPreview = () => {
           if (!accessToken) {
             console.error("[ReportPreview] No valid access token, redirecting to auth");
             await supabase.auth.signOut();
-            navigate("/auth", { replace: true });
+            navigate("/login", { replace: true });
             return;
           }
 
