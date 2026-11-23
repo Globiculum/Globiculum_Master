@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { CircleAlert, HeartHandshake, MessageSquareText } from "lucide-react";
+import { MessageSquareText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { GlobiculumIconTile, GlobiculumStudentIcon } from "@/components/icons";
@@ -8,19 +8,9 @@ import FieldError from "../shared/FieldError";
 import FlashcardShell from "../shared/FlashcardShell";
 import CardNav from "../shared/CardNav";
 import OptionalLabel from "../shared/OptionalLabel";
-import ConcernCards from "../shared/ConcernCards";
-import SupportCards from "../shared/SupportCards";
 import VoiceInputButton from "../shared/VoiceInputButton";
 import { LearningStyleObservations } from "../LearningStyleObservations";
 import type { ParentFormData } from "./parentMapper";
-import nervousIcon from "@/assets/icons-3d/nervous.png";
-import areasToImproveIcon from "@/assets/icons-3d/areas-to-improve.png";
-import communicationIcon from "@/assets/icons-3d/communication.png";
-import curriculumIcon from "@/assets/icons-3d/curriculum.png";
-import emotionalWellbeingIcon from "@/assets/icons-3d/emotional-wellbeing.png";
-import learningStyleIcon from "@/assets/icons-3d/learning-style.png";
-import targetGradeIcon from "@/assets/icons-3d/target-grade.png";
-import childProfileIcon from "@/assets/icons-3d/child-profile.png";
 import { NOTES_MAX_CHARS } from "../shared/submitAssessment";
 
 // Phase D: Parent Learning Profile. Originally a 4-card flashcard sequence
@@ -39,60 +29,25 @@ import { NOTES_MAX_CHARS } from "../shared/submitAssessment";
 //    model for backward compatibility with older saved reports, just no
 //    longer collected here.
 //
-// Biggest Concerns, Preferred Support, and Additional Notes used to be their
-// own standalone "Support" step (ParentStep4.tsx, now removed) — folded in
-// here as three more cards in this same sequence, so the Parent flow is one
-// step shorter overall. Back to the sequential one-card-at-a-time pattern
-// (mirroring AcademicPathFlashcards.tsx/LanguageJourneyCard.tsx) rather than
-// stacking all four questions in one long scroll — each is a distinct
-// multi-select question, so an explicit "Continue" per card (not
-// auto-advance-on-first-pick) matches how every other multi-select card in
-// this app behaves.
+// Additional Notes used to be in its own "Support" step (ParentStep4.tsx,
+// now removed) and was moved in here as the last card. The cards come one
+// at a time, like AcademicPathFlashcards.tsx and LanguageJourneyCard.tsx.
+//
+// Removed 23 Nov 2026: "Biggest Concerns" and "Preferred Support". Every
+// family has all of those concerns and needs every kind of support, so a
+// few ticks told us nothing. The AI never received either answer. The
+// fields stay in the data model (with an empty default) so older saved
+// reports still open.
 
-// Icons: each option maps to the closest fit among the existing 3D icon
-// family (frontend/src/assets/icons-3d/) rather than a literal 1:1 asset
-// per option — semantic accuracy took priority over per-option uniqueness,
-// per explicit instruction. Every option within each grid still gets its
-// own distinct icon (no repeats within a single grid).
-
-// Consolidated from 8 options each down to 5 — several were close enough
-// in meaning that offering both read as redundant rather than as genuinely
-// distinct choices: Exam style shift folded into Academic rigor gap,
-// Classroom culture into Peer adjustment; Finding a tutor dropped entirely
-// (it overlapped with the Support section's own 1-on-1 Tutoring option,
-// not really a "concern" in its own right).
-const TRANSITION_CONCERNS = [
-  { value: "Academic rigor gap", icon: areasToImproveIcon },
-  { value: "Language barriers", icon: communicationIcon },
-  { value: "Peer adjustment", icon: nervousIcon },
-  { value: "Homework pressure", icon: curriculumIcon },
-  { value: "Child confidence", icon: emotionalWellbeingIcon },
-];
-
-// Worksheets + Mock Tests merged into Practice & Assessment; Video Lessons
-// folded into 1-on-1 Tutoring; Emergency Support folded into Parent
-// Counselling.
-const SUPPORT_NEEDS = [
-  { value: "1-on-1 Tutoring", icon: learningStyleIcon },
-  { value: "Practice & Assessment", icon: targetGradeIcon },
-  { value: "Peer Study", icon: childProfileIcon },
-  { value: "Progress Tracking", icon: areasToImproveIcon },
-  { value: "Parent Counselling", icon: communicationIcon },
-];
-
-type CardId = "learningStyle" | "concerns" | "support" | "notes";
-const ORDER: CardId[] = ["learningStyle", "concerns", "support", "notes"];
+type CardId = "learningStyle" | "notes";
+const ORDER: CardId[] = ["learningStyle", "notes"];
 const CARD_LABEL: Record<CardId, string> = {
   learningStyle: "Learning Style",
-  concerns: "Biggest Concerns",
-  support: "Preferred Support",
   notes: "Additional Notes",
 };
 // The required field each card answers (Additional Notes is optional).
 const CARD_FIELD: Partial<Record<CardId, keyof ParentFormData>> = {
   learningStyle: "learningStyles",
-  concerns: "transitionConcerns",
-  support: "supportNeeds",
 };
 
 interface ParentLearningProfileWizardProps {
@@ -175,42 +130,6 @@ const ParentLearningProfileWizard = ({ formData, onFieldChange, onArrayToggle, f
                   <LearningStyleObservations selectedStyles={formData.learningStyles} onToggle={(styleId) => onArrayToggle("learningStyles", styleId)} />
                 </div>
                 <FieldError message={fieldErrors.learningStyles} />
-              </>
-            )}
-
-            {currentId === "concerns" && (
-              <>
-                <div className="relative flex flex-col items-center text-center">
-                  <div className="mb-4">
-                    <GlobiculumIconTile tone="amber" size={72}>
-                      <CircleAlert size={38} />
-                    </GlobiculumIconTile>
-                  </div>
-                  <h4 className="text-xl font-bold text-foreground">Biggest Concerns</h4>
-                  <p className="mt-1 text-sm text-muted-foreground">What worries you most about the move?</p>
-                </div>
-                <div className="relative mt-6">
-                  <ConcernCards options={TRANSITION_CONCERNS} selected={formData.transitionConcerns} onToggle={(value) => onArrayToggle("transitionConcerns", value)} />
-                </div>
-                <FieldError message={fieldErrors.transitionConcerns} />
-              </>
-            )}
-
-            {currentId === "support" && (
-              <>
-                <div className="relative flex flex-col items-center text-center">
-                  <div className="mb-4">
-                    <GlobiculumIconTile tone="teal" size={72}>
-                      <HeartHandshake size={38} />
-                    </GlobiculumIconTile>
-                  </div>
-                  <h4 className="text-xl font-bold text-foreground">Preferred Support</h4>
-                  <p className="mt-1 text-sm text-muted-foreground">What kind of support would help your family most?</p>
-                </div>
-                <div className="relative mt-6">
-                  <SupportCards options={SUPPORT_NEEDS} selected={formData.supportNeeds} onToggle={(value) => onArrayToggle("supportNeeds", value)} />
-                </div>
-                <FieldError message={fieldErrors.supportNeeds} />
               </>
             )}
 

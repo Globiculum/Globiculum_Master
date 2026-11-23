@@ -130,8 +130,6 @@ const ParentStep5 = ({ formData, prevReportId, isRetake = false, onPrev, onValid
         { label: "Strongest Subjects", value: joinList(strongest) },
         { label: "Challenging Subjects", value: joinList(challenging) },
         { label: "Subject Confidences", value: joinRecord(formData.subjectConfidences) },
-        { label: "Biggest Concerns", value: joinList(formData.transitionConcerns) },
-        { label: "Preferred Support", value: joinList(formData.supportNeeds) },
         { label: "Additional Notes", value: formData.additionalNotes || "—" },
       ],
     },

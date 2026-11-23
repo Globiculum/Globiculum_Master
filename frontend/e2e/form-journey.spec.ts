@@ -125,8 +125,8 @@ test("a refresh warns first, then reopens the form on the card the parent was on
   await expect(page.locator("#parent-child-first-name")).toHaveCount(0);
 });
 
-test("the Academic step opens one section at a time, with Back and Next in each card", async ({ page }) => {
-  test.setTimeout(90_000); // answers a whole step, card by card
+test("the Academic step opens one section at a time, then Learning Profile asks two cards", async ({ page }) => {
+  test.setTimeout(120_000); // answers two whole steps, card by card
   await openParentForm(page);
   await answerSchoolUpToPreviousLearning(page);
   await page.getByRole("radio", { name: "No", exact: true }).click();
@@ -164,6 +164,19 @@ test("the Academic step opens one section at a time, with Back and Next in each 
 
   await expect(cardTitle(page, "How does your child learn best?")).toBeVisible();
   await expect(progress(page)).toHaveAttribute("aria-valuenow", "66");
+
+  // Learning Profile: learning style, then the optional notes. Biggest
+  // Concerns and Preferred Support are no longer asked (removed 23 Nov).
+  await expect(page.getByText("Learning Style · 1 of 2")).toBeVisible();
+  await page.getByRole("checkbox", { name: /visually through diagrams/ }).click();
+  await expect(progress(page)).toHaveAttribute("aria-valuenow", "100");
+  await nextButton(page).click();
+  await expect(page.getByText("Additional Notes · 2 of 2")).toBeVisible();
+  await page.getByRole("button", { name: "Skip, no notes" }).click();
+
+  await expect(page.getByText("Asha's Review")).toBeVisible();
+  await expect(page.getByText("Biggest Concerns")).toHaveCount(0);
+  await expect(page.getByText("Preferred Support")).toHaveCount(0);
 });
 
 test("the student form gets the same journey: one question or section at a time, Previous Learning last", async ({ page }) => {

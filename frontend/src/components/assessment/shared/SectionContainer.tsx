@@ -10,7 +10,7 @@ import FieldError from "./FieldError";
 // stacking a card-inside-a-card. Also doubles as a validated field-group
 // wrapper (required indicator + invalid ring + error message) for groups
 // that already have their own heading here and don't need a second
-// QuestionCard label above them (e.g. School Stage cards, Biggest Concerns).
+// QuestionCard label above them (e.g. School Stage cards).
 
 interface SectionContainerProps {
   icon?: LucideIcon;

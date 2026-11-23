@@ -114,15 +114,11 @@ const academicPathStepSchema = z
 // a separate "which subjects to strengthen" question that re-asked the same
 // ground as those derived subjects in different wording — removed as
 // redundant. overallPerformance moved to the Academic Path step (see above).
-// Biggest Concerns/Preferred Support/Additional Notes (formerly their own
-// Support step, was canProceedFromStep case 3) now live in this same step —
-// see ParentLearningProfileWizard.tsx.
-// Every question in the app is required unless labelled optional, so Preferred
-// Support is too; Additional Notes stays optional.
+// Additional Notes (formerly in its own Support step) is here too, and is
+// optional. Biggest Concerns and Preferred Support were removed on
+// 23 Nov 2026 (see ParentLearningProfileWizard.tsx).
 const learningProfileStepSchema = z.object({
   learningStyles: z.array(z.string()).min(1, "Pick at least one learning style"),
-  transitionConcerns: z.array(z.string()).min(1, "Select at least one concern"),
-  supportNeeds: z.array(z.string()).min(1, "Select at least one kind of support"),
 });
 
 const PARENT_STEP_SCHEMAS: (z.ZodTypeAny | null)[] = [
@@ -138,7 +134,7 @@ export function parentStepShares(formData: ParentFormData, subjects: SubjectProg
   return [
     stepShare([!!formData.childName.trim() && !!formData.childLastName.trim(), ...schoolAnswers(formData, true)]),
     stepShare(academicAnswers(formData, subjects)),
-    stepShare([formData.learningStyles.length > 0, formData.transitionConcerns.length > 0, formData.supportNeeds.length > 0]),
+    stepShare([formData.learningStyles.length > 0]),
   ];
 }
 

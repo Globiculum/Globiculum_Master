@@ -72,8 +72,6 @@ describe("parentStepShares", () => {
       academicPath: ["Mathematics"],
       overallPerformance: "on-track",
       learningStyles: ["visual"],
-      transitionConcerns: ["Language barriers"],
-      supportNeeds: ["Peer Study"],
     };
     expect(percentAnswered(parentStepShares(d, { answered: 5, total: 5 }))).toBe(100);
   });

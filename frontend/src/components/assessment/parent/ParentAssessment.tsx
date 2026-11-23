@@ -170,8 +170,10 @@ const mergePrefillData = (defaults: ParentFormData, prefillData?: Record<string,
     overallPerformance: prefillData.overallPerformance || defaults.overallPerformance,
     strongestSubjects: Array.isArray(prefillData.strongestSubjects) ? prefillData.strongestSubjects : defaults.strongestSubjects,
     challengingSubjects: Array.isArray(prefillData.challengingSubjects) ? prefillData.challengingSubjects : defaults.challengingSubjects,
-    transitionConcerns: Array.isArray(prefillData.transitionConcerns) ? prefillData.transitionConcerns : defaults.transitionConcerns,
-    supportNeeds: Array.isArray(prefillData.supportNeeds) ? prefillData.supportNeeds : defaults.supportNeeds,
+    // No longer asked (removed 23 Nov 2026), so a retake doesn't carry an old
+    // answer the parent can't see or change.
+    transitionConcerns: defaults.transitionConcerns,
+    supportNeeds: defaults.supportNeeds,
     strengthenGoals: Array.isArray(prefillData.strengthenGoals) ? prefillData.strengthenGoals : defaults.strengthenGoals,
     subjectConfidences:
       prefillData.subjectConfidences && typeof prefillData.subjectConfidences === "object"
