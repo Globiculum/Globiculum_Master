@@ -22,7 +22,7 @@ import { clearDraft } from "@/lib/assessmentDraft";
 import { toast } from "sonner";
 import { generateReportPDF } from "@/lib/generateReportPDF";
 import { ReportBody, type AnalysisData } from "@/components/report/ReportBody";
-import { deriveSubjectStrengths, notesForAnalysis } from "@/components/assessment/shared/submitAssessment";
+import { deriveSubjectStrengths, notesForAnalysis, worriesForAnalysis } from "@/components/assessment/shared/submitAssessment";
 import { languageSkillsForAnalysis } from "@/components/assessment/shared/languageSkills";
 import ReportGenerationLoader, { type LoaderPersona } from "@/components/assessment/shared/ReportGenerationLoader";
 
@@ -362,6 +362,7 @@ const ReportPreview = () => {
               : undefined,
         // Same as submitAssessment.ts.
         additionalNotes: notesForAnalysis(raw),
+        worries: worriesForAnalysis(raw),
       };
     };
 

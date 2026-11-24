@@ -16,6 +16,7 @@ import {
 } from "../_shared/apiContracts.ts";
 import { createLogger } from "../_shared/observability.ts";
 import { describeLanguageSkills, sanitizeLanguageSkills, type LanguageSkill } from "../_shared/languageSkills.ts";
+import { cleanWorriesResponse, sanitizeWorries, worriesJsonField, worriesPromptSection, type Worry } from "../_shared/worries.ts";
 import { 
   checkRateLimit, 
   getRateLimitIdentifier, 
@@ -645,6 +646,8 @@ interface FormData {
   languageSkills?: Record<string, LanguageSkill[]>;
   transitionTimeline?: string;
   additionalNotes?: string;   // free text from the form's "Additional notes" box
+  // Student form only: what makes the student nervous about the move (T72).
+  worries?: Worry[];
 }
 
 // Longest notes text passed to the model (the form caps it at the same length).
@@ -881,6 +884,8 @@ serve(async (req) => {
       transitionTimeline: sanitizeForPrompt(rawFormData.transitionTimeline, 50) || undefined,
       // Triple quotes would close the block the notes are quoted in.
       additionalNotes: sanitizeForPrompt(rawFormData.additionalNotes, NOTES_MAX_CHARS).replace(/"{3,}/g, '"') || undefined,
+      // Allow-listed against the form's options, never used as free text.
+      worries: sanitizeWorries(rawFormData.worries),
     };
 
     // ==========================================================================
@@ -902,6 +907,8 @@ serve(async (req) => {
       timeline: formData.transitionTimeline,
       // Length only: the notes can hold personal details, so they aren't logged.
       notesChars: formData.additionalNotes?.length ?? 0,
+      // A count only, for the same reason.
+      worryCount: formData.worries?.length ?? 0,
     });
 
     // ==========================================================================
@@ -1522,7 +1529,7 @@ ${streamName ? `- Target Stream (Classes XI-XII): ${streamName}\n` : ''}- Subjec
 - Challenges: ${formData.challengingAreas?.join(', ') || 'Not specified'}
 - Languages: ${formData.languagesSpoken?.join(', ') || 'English'}
 ${formData.languageSkills ? `- What the child can do in each Indian language: ${describeLanguageSkills(formData.languageSkills)}. Plan Hindi/Sanskrit from this: a child who speaks or understands but can't read starts with the Devanagari script and matras; one who reads and writes but doesn't speak needs listening and speaking practice; don't plan script basics for a language they already read and write.\n` : ''}${excludedLanguageSubjects.length > 0 ? `- Indian language at the new school: ${formData.targetLanguage === 'sanskrit' ? 'Sanskrit' : formData.targetLanguage === 'both' ? 'Hindi and Sanskrit' : 'Hindi'} (do not plan for ${excludedLanguageSubjects.join(', ')})\n` : ''}- Timeline: ${formData.transitionTimeline || 'Standard pace'}
-${notesSection}${ragSection}
+${notesSection}${worriesPromptSection(formData.worries)}${ragSection}
 **Return ONLY this JSON structure with SHORT bullet points (max 10 words each):**
 {
   "overallAlignment": {
@@ -1568,7 +1575,7 @@ ${notesSection}${ragSection}
       { "name": "<resource name + type>", "url": "<URL if this resource has a RESOURCE_URL from RAG data, otherwise omit>" }
     ],
     "culturalLanguage": ["<short tip>", "<short tip>", "<short tip>"]
-  }${notesJsonField}
+  }${notesJsonField}${worriesJsonField(formData.worries)}
 }
 
 IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource names. For resourceUrl fields: copy the RESOURCE_URL value verbatim from the gap data above — do not invent URLs.`;
@@ -2077,6 +2084,10 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
       } else {
         delete analysisData.notesResponse;
       }
+      // "About what makes you nervous": only when the student ticked a worry.
+      const worriesResponse = cleanWorriesResponse(analysisData.worriesResponse, formData.worries);
+      if (worriesResponse) analysisData.worriesResponse = worriesResponse;
+      else delete analysisData.worriesResponse;
     }
 
     addDebug('llm_parsed', 'LLM response parsed into JSON analysis object', {

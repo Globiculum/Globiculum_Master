@@ -11,6 +11,8 @@ import { AiSuggestedTag, PreparationPlan } from "@/components/report/Preparation
 import { ThisWeek } from "@/components/report/ThisWeek";
 import { ParentQuestions } from "@/components/report/ParentQuestions";
 import { NotesResponse } from "@/components/report/NotesResponse";
+import { WorriesResponse } from "@/components/report/WorriesResponse";
+import { worriesForAnalysis } from "@/components/assessment/shared/submitAssessment";
 import {
   boardComparisonNote, boardLabel, buildActionPlan, buildExecutiveSummary, buildKeyTakeaways, buildParentFAQ, orderSubjectsByNeed,
 } from "@/lib/reportContent";
@@ -255,6 +257,8 @@ export interface AnalysisData {
   };
   /** The AI's reply to the form's "Additional notes"; only when notes were given. */
   notesResponse?: string;
+  /** The AI's reply to the student's "What makes you nervous?"; only when a worry was ticked. */
+  worriesResponse?: string;
 }
 
 interface ReportBodyProps {
@@ -361,6 +365,11 @@ export function ReportBody({ formData, analysis, onDownload, onShare, isSharing 
         {typeof analysis.notesResponse === "string" && analysis.notesResponse.trim() && (
           <div className="mt-4">
             <NotesResponse text={analysis.notesResponse.trim()} />
+          </div>
+        )}
+        {typeof analysis.worriesResponse === "string" && analysis.worriesResponse.trim() && (
+          <div className="mt-4">
+            <WorriesResponse text={analysis.worriesResponse.trim()} worries={worriesForAnalysis(formData) ?? []} />
           </div>
         )}
       </ReportSection>

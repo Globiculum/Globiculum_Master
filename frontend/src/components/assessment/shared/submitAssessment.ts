@@ -97,6 +97,20 @@ export function notesForAnalysis(formData: Record<string, unknown> | null | unde
   return notes.slice(0, NOTES_MAX_CHARS);
 }
 
+/** The student form's "Not really nervous" choice, which isn't a worry. */
+const NOT_NERVOUS = "Not really nervous";
+
+/**
+ * The student form's "What makes you nervous?" ticks as sent to the AI, which
+ * replies to them in the report (T72). Undefined when nothing worries them or
+ * the form has no such question (the parent form). The backend allow-lists them.
+ */
+export function worriesForAnalysis(formData: Record<string, unknown> | null | undefined): string[] | undefined {
+  const picked = Array.isArray(formData?.nervousness) ? formData.nervousness : [];
+  const worries = picked.filter((w): w is string => typeof w === "string" && w !== NOT_NERVOUS);
+  return worries.length ? worries : undefined;
+}
+
 export interface SubmitAssessmentFieldError {
   field: string;
   message: string;
@@ -243,6 +257,8 @@ export async function submitAssessment<T extends SubmittableFormData>({
           transitionTimeline: formData.timeline || undefined,
           // Read by the AI to personalise the plan and its "About your notes" reply.
           additionalNotes: notesForAnalysis(formData as unknown as Record<string, unknown>),
+          // Student form: what makes them nervous, answered in the report.
+          worries: worriesForAnalysis(formData as unknown as Record<string, unknown>),
         },
       },
       headers: { "X-API-Version": "v1" },
