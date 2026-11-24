@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, signIn, test } from "./fixtures";
+import { expect, openParentFormFirstQuestion, signIn, test } from "./fixtures";
 import { PARENT_A, PASSWORD } from "./testData";
 
 // The parent form's journey: an account first, progress counted from the
@@ -12,10 +12,7 @@ const cardTitle = (page: Page, title: string | RegExp) => page.locator("#main-co
 
 async function openParentForm(page: Page) {
   await signIn(page, PARENT_A);
-  await page.goto("/begin-journey");
-  await page.locator("[aria-pressed]").filter({ has: page.getByText("Parent", { exact: true }) }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.locator("#parent-child-first-name")).toBeVisible();
+  await openParentFormFirstQuestion(page);
 }
 
 async function answerNameAndStage(page: Page) {

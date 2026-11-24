@@ -27,6 +27,9 @@ export default async function globalSetup() {
     // reports first (their share links go with them: ON DELETE CASCADE).
     const { error } = await admin.from("saved_reports").delete().in("user_id", old.map((u) => u.id));
     if (error) throw error;
+    // No foreign key here either: the parent's agreements on the consent card (T27).
+    const { error: consentError } = await admin.from("user_consents").delete().in("user_id", old.map((u) => u.id));
+    if (consentError) throw consentError;
     for (const u of old) {
       const { error: delError } = await admin.auth.admin.deleteUser(u.id);
       if (delError) throw delError;

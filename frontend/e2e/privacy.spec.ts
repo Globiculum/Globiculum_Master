@@ -1,4 +1,4 @@
-import { browserStorage, expect, signIn, signOut, test } from "./fixtures";
+import { browserStorage, expect, openParentFormFirstQuestion, signIn, signOut, test } from "./fixtures";
 import { CHILD, PARENT_A, PARENT_B, PASSWORD, REPORT_TITLE } from "./testData";
 
 const AUTH_TOKEN_KEY = /^sb-.*-auth-token/;
@@ -6,9 +6,7 @@ const AUTH_TOKEN_KEY = /^sb-.*-auth-token/;
 test("sign-out removes the child's answers and the login from the browser", async ({ page }) => {
   await signIn(page, PARENT_A);
 
-  await page.goto("/begin-journey");
-  await page.locator("[aria-pressed]").filter({ has: page.getByText("Parent", { exact: true }) }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
+  await openParentFormFirstQuestion(page);
   await page.locator("#parent-child-first-name").fill(CHILD.first);
   await page.locator("#parent-child-last-name").fill(CHILD.last);
 

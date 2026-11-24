@@ -51,6 +51,32 @@ export async function signIn(page: Page, user: { email: string; name: string }) 
   await expect(page.getByRole("button", { name: new RegExp(user.name) })).toBeVisible();
 }
 
+/** Ticks a box on the "Before we begin" card by clicking its label, as a person does. */
+export async function tickConsentBox(page: Page, label: RegExp) {
+  await page.locator("label").filter({ hasText: label }).click();
+  await expect(page.getByLabel(label)).toBeChecked();
+}
+
+/**
+ * Opens the parent form at its first question: picks Parent on /begin-journey
+ * and, the first time for this account, agrees on the "Before we begin" card
+ * (T27). The agreement is kept on the server, so later visits skip the card.
+ */
+export async function openParentFormFirstQuestion(page: Page) {
+  await page.goto("/begin-journey");
+  await page.locator("[aria-pressed]").filter({ has: page.getByText("Parent", { exact: true }) }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  const card = page.getByRole("heading", { name: "Before we begin" });
+  const firstName = page.locator("#parent-child-first-name");
+  await expect(card.or(firstName)).toBeVisible();
+  if (await card.isVisible()) {
+    await tickConsentBox(page, /^I'm 18 or over/);
+    await tickConsentBox(page, /^I agree to Globiculum/);
+    await page.getByRole("button", { name: "Agree and start" }).click();
+  }
+  await expect(firstName).toBeVisible();
+}
+
 /** `withFormAnswers`: a form has answers, so Sign Out first asks to confirm clearing them. */
 export async function signOut(page: Page, user: { name: string }, { withFormAnswers = false } = {}) {
   await page.getByRole("button", { name: new RegExp(user.name) }).click();

@@ -4,13 +4,15 @@ import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ParentAssessment from "@/components/assessment/parent/ParentAssessment";
+import ParentConsentStep from "@/components/assessment/parent/ParentConsentStep";
 import { PARENT_TOTAL_STEPS } from "@/components/assessment/parent/parentValidation";
 import { STUDENT_TOTAL_STEPS } from "@/components/assessment/student/StudentAssessmentController";
 import PersonaSelection, { type Persona } from "@/components/PersonaSelection";
-import { Clock, Lock } from "lucide-react";
+import { Clock, Loader2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRetakePrefill } from "@/hooks/useRetakePrefill";
 import { useAssessmentDraft } from "@/hooks/useAssessmentDraft";
+import { useParentConsent } from "@/hooks/useParentConsent";
 import { clearDraft, readDraft } from "@/lib/assessmentDraft";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import beginJourneyImage from "@/assets/BEGIN-JOURNEY.png";
@@ -35,6 +37,10 @@ const BeginJourney = () => {
   const { pending: prefillPending, prefillFormData, prevReportId } = useRetakePrefill();
   // Answers saved earlier in this tab, restored after a refresh.
   const { pending: draftPending, draft, userId, startOver } = useAssessmentDraft("parent", prevReportId);
+  // The parent's permission for their child's details, asked once before the
+  // form's first question (T27). Checked as the page opens, so it's usually
+  // known by the time a persona is picked.
+  const consent = useParentConsent(userId);
   // Bumped by "Start over" so the form remounts empty.
   const [formKey, setFormKey] = useState(0);
 
@@ -212,6 +218,30 @@ const BeginJourney = () => {
                   <div className="mt-10 sm:mt-12 lg:mt-16">
                     <PersonaSelection onContinue={handlePersonaContinue} onSelectionChange={setPreviewPersona} />
                   </div>
+                </motion.div>
+              ) : consent.state === "checking" ? (
+                <motion.div
+                  key="parent-consent-checking"
+                  role="status"
+                  aria-live="polite"
+                  className="flex min-h-[360px] items-center justify-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2, delay: 0.15 }}
+                >
+                  <Loader2 className="h-8 w-8 animate-spin text-secondary" aria-hidden="true" />
+                  <span className="sr-only">Loading…</span>
+                </motion.div>
+              ) : consent.state === "needed" ? (
+                <motion.div
+                  key="parent-consent-step"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.35, ease: "easeInOut" }}
+                >
+                  <ParentConsentStep onAgree={consent.agree} onChangePersona={handleChangePersona} showChangePersona={!isRetake} />
                 </motion.div>
               ) : (
                 <motion.div

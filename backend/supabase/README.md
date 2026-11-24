@@ -66,6 +66,25 @@ it as `accepted_terms_at` (as for email sign-ups); anyone without it (e.g. a new
 in page) is asked to agree before going on, or can cancel and log out. An existing email account
 with the same address gets Google added to it by Supabase (both addresses are verified).
 
+## Parent permission ("Before we begin" card, T27)
+
+The parent form asks for the parent's permission once, before its first question
+(`frontend/src/components/assessment/parent/ParentConsentStep.tsx`). The `record-consent` edge
+function checks and saves it in `user_consents` (one row per agreement: server time, wording
+version, the two statements, IP address and browser). The browser can't read or write that table
+(row security on, no rules), so only the function, with the service key, touches it.
+
+- **Deploy `record-consent` before the frontend that uses it.** Without it, parents can't get past
+  the card (it says the agreement couldn't be saved).
+  `npx supabase functions deploy record-consent` (from `backend/`).
+- **Changing the wording:** never edit it under the same version. Add a new version to
+  `PARENT_CONSENT_VERSIONS` in `functions/_shared/consent.ts` and to `PARENT_CONSENT_VERSION` in
+  `frontend/src/lib/parentConsent.ts`, deploy the function, then the frontend. Every parent then
+  sees the card again.
+- Not done yet: the student form's permission (waits on the lead), and a check in
+  `analyze-curriculum` that refuses a report without a permission on file. That check can only come
+  with the student form's permission, or it would block student reports.
+
 ## Known gaps between the old files and production (6 Nov 2026)
 
 These existed in the archived files but are not in the live database. Restoring any of them is a
