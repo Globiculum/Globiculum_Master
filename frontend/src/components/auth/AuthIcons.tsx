@@ -98,42 +98,67 @@ export const AlertIcon = () => (
   </Stroke>
 );
 
-/** Faint network texture on the teal panel (520 x 340). */
-export const PanelNetwork = ({ className }: { className?: string }) => (
-  <svg className={className} width="520" height="340" viewBox="0 0 520 340" aria-hidden="true" focusable="false">
-    <g stroke="#0D9488" strokeWidth="1">
-      <line x1="30" y1="260" x2="120" y2="190" />
-      <line x1="120" y1="190" x2="230" y2="215" />
-      <line x1="120" y1="190" x2="190" y2="90" />
-      <line x1="190" y1="90" x2="320" y2="120" />
-      <line x1="230" y1="215" x2="320" y2="120" />
-      <line x1="320" y1="120" x2="430" y2="60" />
-      <line x1="230" y1="215" x2="360" y2="290" />
-      <line x1="320" y1="120" x2="480" y2="190" />
-    </g>
-    <g fill="#0D9488">
-      {[[30, 260], [120, 190], [230, 215], [190, 90], [320, 120], [430, 60], [360, 290], [480, 190]].map(([cx, cy]) => (
-        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" />
-      ))}
-    </g>
+/**
+ * The teal waves on the right of the auth pages (25 Nov 2026 mock), drawn at
+ * 1621 x 831 and stretched to the screen, so the wave's edge stays where the
+ * mock has it (about 55% across) on any screen shape.
+ */
+export const AuthWaves = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 1621 831" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="ga-waves-main" x1="860" y1="0" x2="1621" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stopColor="#d9f2ee" />
+        <stop offset="0.3" stopColor="#b3e6de" />
+        <stop offset="0.62" stopColor="#6cc7be" />
+        <stop offset="1" stopColor="#2a9893" />
+      </linearGradient>
+      <linearGradient id="ga-waves-deep" x1="1150" y1="0" x2="1621" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stopColor="#2a9f98" stopOpacity="0" />
+        <stop offset="1" stopColor="#17807a" stopOpacity="0.85" />
+      </linearGradient>
+      <linearGradient id="ga-waves-band" x1="700" y1="0" x2="1621" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stopColor="#c9eee7" stopOpacity="0.95" />
+        <stop offset="0.5" stopColor="#8fd8cd" stopOpacity="0.85" />
+        <stop offset="1" stopColor="#3fb0a7" stopOpacity="0.7" />
+      </linearGradient>
+      <linearGradient id="ga-waves-foot" x1="0" y1="640" x2="0" y2="831" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stopColor="#1f8d87" stopOpacity="0" />
+        <stop offset="1" stopColor="#16736e" stopOpacity="0.9" />
+      </linearGradient>
+      <filter id="ga-waves-soft" x="-10%" y="-10%" width="120%" height="120%">
+        <feGaussianBlur stdDeviation="6" />
+      </filter>
+    </defs>
+    <path d="M880,0 C855,110 950,190 955,300 C960,410 840,500 790,600 C755,670 742,760 738,831 L1621,831 L1621,0 Z" fill="url(#ga-waves-main)" />
+    <path d="M1170,0 C1250,160 1220,380 1330,560 C1420,705 1530,760 1621,790 L1621,0 Z" fill="url(#ga-waves-deep)" filter="url(#ga-waves-soft)" />
+    <path d="M700,831 C770,715 900,640 1060,632 C1250,622 1380,700 1621,650 L1621,831 Z" fill="url(#ga-waves-band)" />
+    <path d="M1080,831 C1260,790 1450,720 1621,690 L1621,831 Z" fill="url(#ga-waves-foot)" />
+    <path
+      d="M880,0 C855,110 950,190 955,300 C960,410 840,500 790,600 C755,670 742,760 738,831"
+      fill="none"
+      stroke="#ffffff"
+      strokeOpacity="0.55"
+      strokeWidth="3"
+      filter="url(#ga-waves-soft)"
+    />
+    <path d="M760,700 C900,600 1100,590 1290,660" fill="none" stroke="#ffffff" strokeOpacity="0.45" strokeWidth="2" filter="url(#ga-waves-soft)" />
   </svg>
 );
 
-/** Network lines in the card's top-right corner (170 x 140, flipped). */
-export const CardNetwork = ({ className }: { className?: string }) => (
-  <svg className={className} width="170" height="140" viewBox="0 0 220 180" aria-hidden="true" focusable="false">
-    <g stroke="#0D9488" strokeWidth="1">
-      <line x1="20" y1="150" x2="80" y2="100" />
-      <line x1="80" y1="100" x2="150" y2="120" />
-      <line x1="80" y1="100" x2="120" y2="40" />
-      <line x1="120" y1="40" x2="190" y2="60" />
-      <line x1="150" y1="120" x2="200" y2="160" />
-      <line x1="150" y1="120" x2="190" y2="60" />
+/** The graduation cap with its sparks and dashed trail, between the headline and the waves. */
+export const CapDoodle = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 265 210" fill="none" aria-hidden="true" focusable="false">
+    <path d="M150 118 C118 150 98 122 72 160 S30 192 4 206" stroke="#0d9488" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="7 8" />
+    {/* The cap: lucide's graduation-cap outline, enlarged and tilted. */}
+    <g transform="translate(140 22) rotate(-14 48 48) scale(4)" stroke="#0f766e" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
+      <path d="M22 10v6" />
+      <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
     </g>
-    <g fill="#0D9488">
-      {[[20, 150], [80, 100], [150, 120], [120, 40], [190, 60], [200, 160]].map(([cx, cy]) => (
-        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3" />
-      ))}
+    <g stroke="#f59e0b" strokeWidth="3" strokeLinecap="round">
+      <path d="M232 14 L238 2" />
+      <path d="M244 26 L257 20" />
+      <path d="M246 42 L259 44" />
     </g>
   </svg>
 );

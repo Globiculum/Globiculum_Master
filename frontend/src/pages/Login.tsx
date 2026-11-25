@@ -108,7 +108,12 @@ const Login = () => {
   return (
     <AuthLayout
       pageTitle="Log in | Globiculum"
-      title="Welcome back"
+      title={
+        <>
+          Welcome back <span aria-hidden="true">👋</span>
+        </>
+      }
+      subtitle="Log in to continue learning with Globiculum."
       footer={
         <>
           New to Globiculum?{" "}

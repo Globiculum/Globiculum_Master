@@ -186,6 +186,7 @@ const Signup = () => {
     <AuthLayout
       pageTitle="Sign up | Globiculum"
       title="Create your account"
+      subtitle="Start planning your child's school move with Globiculum."
       footer={
         <>
           Already have an account?{" "}

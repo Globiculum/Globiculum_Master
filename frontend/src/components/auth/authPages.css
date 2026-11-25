@@ -1,8 +1,9 @@
 /*
- * Log in, Sign up and the password / email-link pages: Version 2 design
- * (GLOBICULUM_AUTH_PAGES_V2.md): a Deep Navy frame holding a teal panel, the
- * logo, headline and family photo on the left and a white form card on the
- * right. Colours are the brief's token list only.
+ * Log in, Sign up and the password / email-link pages, built from the 25 Nov
+ * 2026 mock: headline, subtitle and three features on the left with the
+ * family photo below, teal waves (AuthWaves) on the right, and the white form
+ * card floating over them. The form keeps the Version 2 brief's styles and
+ * tokens (GLOBICULUM_AUTH_PAGES_V2.md).
  */
 
 .ga-frame {
@@ -29,11 +30,14 @@
   /* Carlito is the site's self-hosted, metric-compatible Calibri. */
   --ga-body: Carlito, Calibri, Helvetica, sans-serif;
 
+  position: relative;
+  isolation: isolate;
   box-sizing: border-box;
   display: flex;
   min-height: 100vh;
-  padding: 24px;
-  background: var(--ga-navy);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background: linear-gradient(90deg, #fdfaf6 0%, #f7fbfa 55%, #eef8f6 100%);
   color: var(--ga-navy);
   font-family: var(--ga-body);
 }
@@ -44,135 +48,174 @@
   box-sizing: border-box;
 }
 
-/* ---------- Panel ---------- */
+/* ---------- Waves ---------- */
 
-.ga-panel {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  border-radius: 28px;
-  overflow: hidden;
-  background:
-    radial-gradient(60% 55% at 90% 8%, rgba(94, 234, 212, 0.3) 0%, rgba(94, 234, 212, 0) 70%),
-    radial-gradient(70% 60% at 0% 0%, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0) 62%),
-    radial-gradient(55% 55% at 100% 100%, rgba(91, 108, 255, 0.15) 0%, rgba(91, 108, 255, 0) 70%),
-    linear-gradient(150deg, var(--ga-teal-top) 0%, var(--ga-teal-mid) 46%, var(--ga-teal-deep) 100%);
-}
-
-.ga-glow,
-.ga-glow-2,
-.ga-dots,
-.ga-network,
-.ga-card-network {
+.ga-waves {
   position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
-.ga-glow {
-  left: -20%;
-  bottom: -230px;
-  width: 84%;
-  height: 780px;
-  border-radius: 50%;
-  background: radial-gradient(
-    closest-side,
-    #ffffff 0%,
-    #ffffff 30%,
-    rgba(236, 253, 250, 0.92) 46%,
-    rgba(153, 246, 228, 0.58) 64%,
-    rgba(94, 234, 212, 0.18) 82%,
-    rgba(94, 234, 212, 0) 100%
-  );
-  filter: blur(14px);
-}
-
-.ga-glow-2 {
-  left: 24%;
-  bottom: -160px;
-  width: 52%;
-  height: 560px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(204, 251, 241, 0.5), rgba(204, 251, 241, 0));
-  filter: blur(20px);
-}
-
-.ga-dots {
-  right: 0;
-  top: 0;
-  width: 520px;
-  height: 360px;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1.2px, transparent 1.2px);
-  background-size: 22px 22px;
-}
-
-.ga-network {
-  left: 34%;
-  top: 36%;
-  opacity: 0.3;
-}
+/* ---------- Layout (phones first; laptops below) ---------- */
 
 .ga-inner {
   position: relative;
   flex: 1;
   display: flex;
-  align-items: stretch;
-  gap: 48px;
-  padding: 44px 56px 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  /* Room at the top for the logo in the corner. */
+  padding: 84px 16px 24px;
 }
-
-/* ---------- Left column ---------- */
 
 .ga-left {
-  flex: 1 1 0;
-  min-width: 0;
+  width: 100%;
+  max-width: 480px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
 }
 
+/* Phones and tablets: the logo sits in the screen's top-left corner. */
 .ga-logo-link {
-  align-self: flex-start;
-  border-radius: 14px;
+  position: absolute;
+  z-index: 1;
+  top: 20px;
+  left: 16px;
+  border-radius: 12px;
+}
+
+.ga-logo-link:focus-visible {
+  outline: 2px solid var(--ga-teal-600);
+  outline-offset: 3px;
 }
 
 .ga-logo {
   display: block;
-  height: 52px;
+  height: 40px;
   width: auto;
-  border-radius: 14px;
+  border-radius: 12px;
+}
+
+@media (min-width: 600px) {
+  .ga-inner {
+    padding: 96px 24px 32px;
+  }
+
+  .ga-logo-link {
+    top: 24px;
+    left: 24px;
+  }
+
+  .ga-logo {
+    height: 44px;
+  }
+}
+
+/* The short orange-to-teal line above the headline. */
+.ga-accent {
+  flex: none;
+  width: 84px;
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f97316 0%, #fb923c 40%, #0d9488 100%);
 }
 
 .ga-h1 {
-  margin: 0;
-  max-width: 640px;
+  margin: 16px 0 0;
   font-family: var(--ga-heading);
-  font-size: 52px;
-  line-height: 1.12;
+  font-size: 30px;
+  line-height: 1.14;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--ga-white);
+  color: var(--ga-navy);
 }
 
 .ga-h1-accent {
-  background: linear-gradient(90deg, #ffffff 0%, #99f6e4 55%, #5eead4 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--ga-teal-mid);
 }
 
+.ga-lead {
+  margin: 12px 0 0;
+  max-width: 34em;
+  font-family: var(--ga-heading);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ga-slate-700);
+}
+
+.ga-features {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  align-items: center;
+}
+
+.ga-feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--ga-heading);
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--ga-navy);
+}
+
+.ga-feature + .ga-feature {
+  margin-left: clamp(16px, 2vw, 30px);
+  padding-left: clamp(16px, 2vw, 30px);
+  border-left: 1px solid var(--ga-line-strong);
+}
+
+.ga-feature-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #e0f7f3;
+  color: var(--ga-teal-mid);
+}
+
+.ga-feature-icon svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 1.9;
+}
+
+.ga-doodle,
 .ga-photo {
-  position: relative;
-  margin: auto 0 28px -8px;
-  max-width: 740px;
-  width: 94%;
+  display: none;
 }
 
-.ga-photo img {
-  position: relative;
+/* Phones and tablets: the family under the card. */
+.ga-photo-below {
   display: block;
   width: 100%;
+  max-width: 560px;
   height: auto;
+  margin-top: -4px;
+  /* The table runs off the picture's right edge: fade it out there. */
+  -webkit-mask-image: linear-gradient(to right, #000 86%, transparent 100%);
+  mask-image: linear-gradient(to right, #000 86%, transparent 100%);
+}
+
+/* Tablets have room for the three features under the subtitle (after the
+   rules above that hide them on phones). */
+@media (min-width: 600px) {
+  .ga-feature-row {
+    margin-top: 20px;
+  }
+
+  .ga-features {
+    display: flex;
+  }
 }
 
 /* ---------- Card ---------- */
@@ -180,25 +223,29 @@
 .ga-card {
   position: relative;
   overflow: hidden;
-  flex: 0 0 440px;
-  max-width: 440px;
-  align-self: center;
-  margin-bottom: 44px;
-  padding: 40px 40px 36px;
-  border-radius: 28px;
+  width: 100%;
+  max-width: 480px;
+  padding: 32px 22px;
+  border-radius: 32px;
   background: var(--ga-white);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 40px 80px -30px rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 30px 70px -28px rgba(15, 23, 42, 0.3);
   display: flex;
   flex-direction: column;
   gap: 22px;
 }
 
-.ga-card-network {
-  right: -14px;
-  top: -10px;
-  opacity: 0.16;
-  transform: scaleY(-1);
+.ga-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ga-subtitle {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ga-slate-700);
 }
 
 .ga-card--center {
@@ -373,15 +420,9 @@
   color: var(--ga-navy);
 }
 
-.ga-link:focus-visible,
-.ga-logo-link:focus-visible {
+.ga-link:focus-visible {
   outline: 2px solid var(--ga-teal-600);
   outline-offset: 2px;
-}
-
-.ga-logo-link:focus-visible {
-  outline-color: var(--ga-white);
-  outline-offset: 4px;
 }
 
 .ga-forgot {
@@ -615,124 +656,157 @@
 /* ---------- Laptop and desktop: the page fits the screen, no scrolling ---------- */
 
 /*
- * The design is drawn at 1440 x 900. Here the frame is exactly one screen
- * tall: the photo takes whatever height is left under the headline, and the
- * spacing, logo and headline shrink on shorter screens. Every clamp() below
- * gives the design's own value at 1440 x 900. The glow behind the family is
- * sized from the photo (container query units), so it scales with it and
- * never rises behind the headline.
+ * One screen tall, as in the mock (drawn at 1621 x 831): the text on the left
+ * shrinks with the screen and the family photo takes the height left under
+ * it, bleeding to the bottom-left corner. The card is centred top to bottom on
+ * the right and can use the full height less a small gap; it scrolls inside
+ * only as a last resort (a very short screen with every error showing).
  */
-.ga-photo-glow,
-.ga-photo-glow-2 {
-  display: none;
-}
-
 @media (min-width: 961px) and (min-height: 560px) {
   .ga-frame {
-    /* The panel's top padding, and the least space kept above and below the card. */
-    --ga-pad-top: clamp(24px, 4.9vh, 44px);
-    --ga-card-gap: clamp(12px, 2.2vh, 20px);
+    /* The least space kept above and below the card. */
+    --ga-card-gap: clamp(12px, 2.67vh, 24px);
+    /* The left column's padding, which the photo bleeds back over. */
+    --ga-left-pad: clamp(32px, 4.4vw, 72px);
     height: 100vh;
     height: 100dvh;
-    padding: clamp(12px, 2.67vh, 24px);
-  }
-
-  .ga-panel {
-    min-height: 0;
-    /* Lets the photo glows sit behind the panel's dots and network lines. */
-    isolation: isolate;
+    overflow: hidden;
   }
 
   .ga-inner {
     min-height: 0;
-    gap: clamp(32px, 3.34vw, 48px);
-    padding: var(--ga-pad-top) clamp(32px, 3.9vw, 56px) 0;
+    flex-direction: row;
+    align-items: stretch;
+    gap: clamp(24px, 3vw, 48px);
+    padding: 0 clamp(24px, 3.5vw, 56px) 0 0;
   }
 
   .ga-left {
-    min-height: 0;
-    gap: clamp(16px, 3.56vh, 32px);
+    position: relative;
+    container: ga-left / inline-size;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    padding: clamp(16px, 3vh, 28px) 0 0 var(--ga-left-pad);
+  }
+
+  /* The photo is on the left here, not under the card. */
+  .ga-photo-below {
+    display: none;
+  }
+
+  /* Laptops: the logo heads the left column, in line with the headline. */
+  .ga-logo-link {
+    position: static;
+    flex: none;
+    align-self: flex-start;
+    margin-bottom: clamp(12px, 3.2vh, 30px);
   }
 
   .ga-logo {
-    height: clamp(40px, 5.8vh, 52px);
+    height: clamp(34px, 5.4vh, 48px);
   }
 
   .ga-h1 {
-    flex: none;
-    font-size: clamp(36px, min(3.62vw, 5.8vh), 52px);
+    margin-top: clamp(14px, 2.9vh, 26px);
+    font-size: clamp(32px, min(3.6vw, 6.6vh), 58px);
+    line-height: 1.12;
   }
 
+  .ga-lead {
+    /* Wraps after "helps your", as in the mock. */
+    max-width: 27em;
+    margin-top: clamp(12px, 2.6vh, 24px);
+    font-size: clamp(15px, min(1.3vw, 2.55vh), 21px);
+  }
+
+  /* Only as wide as the features, so the doodle can hang off their right end. */
+  .ga-feature-row {
+    position: relative;
+    align-self: flex-start;
+    margin-top: clamp(14px, 3.4vh, 30px);
+  }
+
+  .ga-features {
+    display: flex;
+  }
+
+  .ga-feature {
+    font-size: clamp(13px, min(1.05vw, 2vh), 16px);
+  }
+
+  .ga-feature-icon {
+    width: clamp(40px, min(3.6vw, 7vh), 60px);
+    height: clamp(40px, min(3.6vw, 7vh), 60px);
+    border-radius: clamp(12px, 1.1vw, 18px);
+  }
+
+  .ga-feature-icon svg {
+    width: 48%;
+    height: 48%;
+  }
+
+  /* Cap and dashed trail just right of the features, the cap level with the
+     subtitle and the trail running down towards the photo (as in the mock). */
+  .ga-doodle {
+    position: absolute;
+    z-index: 1;
+    left: calc(100% + clamp(8px, 1.4vw, 28px));
+    top: -95%;
+    width: clamp(120px, 12vw, 230px);
+    height: auto;
+  }
+
+  /* Shown only where the column has room for it beside the features. */
+  @container ga-left (min-width: 680px) {
+    .ga-doodle {
+      display: block;
+    }
+  }
+
+  /* The box under the features; the photo fills as much of it as its shape
+     allows, from the bottom-left corner of the screen. */
   .ga-photo {
+    display: block;
+    position: relative;
     flex: 1 1 0;
     min-height: 0;
-    width: 94%;
-    max-width: 740px;
-    margin: 0 0 clamp(16px, 3.12vh, 28px) -8px;
+    margin: clamp(8px, 2vh, 20px) 0 0 calc(-1 * var(--ga-left-pad));
     container-type: size;
   }
 
-  /* The photo's shown width: the box's width, or less when height is short. */
+  /* 990 x 493 (2.008 : 1): as wide as the box, or less when the box is short,
+     and never much past its own size (it would blur on very large screens). */
   .ga-photo img {
     position: absolute;
     left: 0;
     bottom: 0;
-    width: min(100cqw, 154.33cqh);
+    width: min(100cqw, 200.8cqh, 1150px);
     height: auto;
-  }
-
-  .ga-glow,
-  .ga-glow-2 {
-    display: none;
-  }
-
-  /* Same glows as the design, measured from the photo instead of the panel
-     (W = photo width, H = photo height = W / 1.5433). */
-  .ga-photo-glow,
-  .ga-photo-glow-2 {
-    display: block;
-    position: absolute;
-    z-index: -1;
-    border-radius: 50%;
-    pointer-events: none;
-  }
-
-  .ga-photo-glow {
-    left: calc(-0.44 * min(100cqw, 154.33cqh));
-    bottom: calc(-0.54 * min(64.8cqw, 100cqh));
-    width: calc(1.58 * min(100cqw, 154.33cqh));
-    height: calc(1.63 * min(64.8cqw, 100cqh));
-    background: radial-gradient(
-      closest-side,
-      #ffffff 0%,
-      #ffffff 30%,
-      rgba(236, 253, 250, 0.92) 46%,
-      rgba(153, 246, 228, 0.58) 64%,
-      rgba(94, 234, 212, 0.18) 82%,
-      rgba(94, 234, 212, 0) 100%
-    );
-    filter: blur(14px);
-  }
-
-  .ga-photo-glow-2 {
-    left: calc(0.387 * min(100cqw, 154.33cqh));
-    bottom: calc(-0.3935 * min(64.8cqw, 100cqh));
-    width: calc(0.978 * min(100cqw, 154.33cqh));
-    height: calc(1.169 * min(64.8cqw, 100cqh));
-    background: radial-gradient(closest-side, rgba(204, 251, 241, 0.5), rgba(204, 251, 241, 0));
-    filter: blur(20px);
+    /* The table runs off the picture's right edge: fade it out there. */
+    -webkit-mask-image: linear-gradient(to right, #000 86%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 86%, transparent 100%);
   }
 
   .ga-card {
-    /* Centred in the panel (as in the design) and allowed to use its full
-       height less a small gap, so a long form still fits. It scrolls inside
-       only as a last resort (a very short screen with every error showing). */
-    margin-top: calc(var(--ga-card-gap) - var(--ga-pad-top));
-    margin-bottom: var(--ga-card-gap);
-    max-height: calc(100% + var(--ga-pad-top) - 2 * var(--ga-card-gap));
+    flex: none;
+    align-self: center;
+    width: clamp(420px, 33vw, 540px);
+    max-width: none;
+    max-height: calc(100% - 2 * var(--ga-card-gap));
     overflow-y: auto;
-    padding: clamp(24px, 4.45vh, 40px) 40px clamp(22px, 4vh, 36px);
+    padding: clamp(24px, 5vh, 48px) clamp(32px, 3.1vw, 50px) clamp(22px, 4.4vh, 40px);
     gap: clamp(14px, 2.45vh, 22px);
+    border-radius: clamp(28px, 2.3vw, 36px);
+  }
+
+  .ga-title {
+    font-size: clamp(24px, min(2.1vw, 3.9vh), 32px);
+    font-weight: 700;
+  }
+
+  .ga-subtitle {
+    font-size: clamp(14px, min(1.1vw, 2.1vh), 17px);
   }
 
   .ga-form {
@@ -761,7 +835,6 @@
    Sign up card (four fields, Terms, Create account, or, Google) fits. */
 @media (min-width: 961px) and (min-height: 560px) and (max-height: 820px) {
   .ga-frame {
-    padding: 12px;
     --ga-card-gap: 10px;
   }
 
@@ -853,54 +926,17 @@
   }
 }
 
-/* ---------- Tablet and phone: one column ---------- */
+/* ---------- Tablet and phone ---------- */
 
+/* The base rules above are the phone layout: the headline and subtitle, then
+   the card, with the waves in the lower part of the screen. */
 @media (max-width: 960px) {
-  .ga-frame {
-    padding: 12px;
-  }
-
-  .ga-inner {
-    flex-direction: column;
-    gap: 28px;
-    padding: 28px 20px 0;
-  }
-
-  .ga-left {
-    order: 1;
-    gap: 20px;
-  }
-
-  .ga-h1 {
-    font-size: 36px;
-  }
-
-  .ga-photo {
-    margin: 0 0 20px;
-    width: 100%;
-  }
-
-  .ga-card {
-    order: 2;
-    /* Full width, but only as tall as its content (short status cards). */
-    flex: none;
-    width: 100%;
-    max-width: none;
-    margin-bottom: 20px;
-    padding: 32px 22px;
-  }
-
-  .ga-glow {
-    left: -30%;
-    width: 160%;
-    top: 300px;
-    bottom: auto;
-    height: 520px;
-  }
-
-  .ga-glow-2,
-  .ga-card-network {
-    display: none;
+  .ga-waves {
+    top: 38%;
+    height: 62%;
+    /* No hard edge where the waves begin. */
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 40%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 40%);
   }
 }
 
