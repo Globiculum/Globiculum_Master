@@ -27,45 +27,43 @@ const HeroSection = () => {
           screens untouched (35vw < 860px below ~2457px wide) but raises the
           ceiling in step with width beyond that, so very large/wide monitors
           get a taller band instead of an ever-worse crop. */}
-      <div className="relative flex min-h-[clamp(560px,85vh,max(860px,35vw))] flex-col justify-center overflow-hidden py-12 sm:py-16 md:py-20">
-        {/* Full-bleed — spans the whole section width (no max-width cap) so the
-            image reaches the viewport edges on wide screens instead of leaving
-            bg-primary strips on either side. Going full-bleed makes the band's
-            aspect ratio much wider relative to its height than the image's own
-            source ratio, so object-cover has to crop more vertically to still
-            fill the width — that crop was eating the badges baked into the
-            bottom of the image. The taller min-height above (and the object-
-            position Y nudged down here) both exist to give it enough vertical
-            room that the crop doesn't reach that far down. */}
-        <div className="absolute inset-0">
+      {/* The hero picture has its badges (CBSE · ICSE · IB, NCERT Chapter Map,
+          10-Minute) and the family baked in, so text must never sit on them and
+          the crop must never cut them.
+          - Below lg there's no room beside the text: the text comes first on the
+            plain background and the picture follows as its own block.
+          - From lg the picture is the band's background, the family on the
+            right. The band is never taller than the picture's own 16:9 shape
+            (56.25vw), so object-cover only trims a little off the top and
+            bottom, which keeps the bottom badges in view at every width (it
+            was 35vw-capped before, which cut them off on large monitors); and
+            no taller than 85vh, so it still fits the screen. */}
+      <div className="relative flex flex-col justify-center overflow-hidden pt-10 sm:pt-14 lg:min-h-[max(560px,min(56.25vw,85vh))] lg:py-12 xl:py-16">
+        <div className="absolute inset-0 hidden lg:block">
+          {/* Ultrawide screens (wider than 21:10) can't fit the 16:9 picture's
+              top and bottom: there it is shown whole on the right, its empty
+              left side fading into the background, instead of cropped. */}
           <img
             src={bgHeroImage}
             alt=""
             aria-hidden="true"
-            className="h-full w-full bg-primary object-cover object-[80%_38%]"
+            className="h-full w-full bg-primary object-cover object-[80%_38%] [@media(min-aspect-ratio:21/10)]:object-contain [@media(min-aspect-ratio:21/10)]:object-right [@media(min-aspect-ratio:21/10)]:[mask-image:linear-gradient(to_right,transparent,#000_30%)]"
           />
         </div>
-        {/* Below lg, the text column (max-w-2xl) exceeds the viewport width, so the
-            left-to-right desktop gradient (tuned for text confined to the left ~45%)
-            leaves the right portion of wrapped text sitting over a barely-dimmed part
-            of the image. A top-to-bottom scrim reads correctly once text spans the
-            full width; the left-to-right treatment only takes over once there's
-            actually room for the image to read as a distinct right-hand visual.
-            The mid stop leans on Academic Teal rather than navy so the band
-            reads as branded teal, not a flat navy wash over the footage. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/85 via-secondary/25 to-primary/10 lg:bg-gradient-to-r lg:from-primary/85 lg:via-secondary/15 lg:to-transparent" />
+        {/* Darkens the picture's left side under the text. */}
+        <div className="absolute inset-0 hidden bg-gradient-to-r from-primary/85 via-secondary/15 to-transparent lg:block" />
 
-        {/* Bottom fade — dissolves the footage into solid bg-primary right before
-            the band ends, so it blends into the stats section below instead of
-            cutting off hard against it (the seam became far more visible once the
-            video went full-bleed edge-to-edge instead of sitting in a 1400px column
-            with navy on either side to soften it). */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-primary to-transparent sm:h-14" aria-hidden="true" />
+        {/* Bottom fade — dissolves the picture into solid bg-primary right before
+            the band ends, so it blends into the stats section below. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden h-14 bg-gradient-to-t from-primary to-transparent lg:block" aria-hidden="true" />
 
-        <div className="relative mx-auto w-full max-w-[1920px] px-[clamp(1rem,4vw,5rem)]">
+        <div className="container relative mx-auto px-4 sm:px-6">
           <div className="max-w-2xl space-y-6 sm:space-y-8">
             <div className="space-y-4 sm:space-y-6">
-              <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-[1.08] text-primary-foreground text-left">
+              {/* lg steps down to 5xl: beside the picture at 1024-1279px, 6xl
+                  would run into the family. Very large screens step up to 7xl
+                  so the text keeps up with the picture. */}
+              <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-5xl xl:text-6xl min-[1800px]:text-7xl font-bold leading-[1.08] text-primary-foreground text-left">
                 <span className="text-primary-foreground">Moving back</span>
                 <br />
                 <span className="bg-gradient-mint bg-clip-text text-transparent font-extrabold">to India?</span>
@@ -77,12 +75,15 @@ const HeroSection = () => {
                 <br />
                 <span className="bg-gradient-mint bg-clip-text text-transparent font-extrabold">stands.</span>
               </h1>
-              <p className="text-base sm:text-lg md:text-xl text-primary-foreground/85 leading-relaxed max-w-3xl text-left">
+              {/* Beside the picture (lg+) the line length is capped so the text
+                  stays clear of the family and the NCERT badge. */}
+              <p className="text-base sm:text-lg md:text-xl min-[1800px]:text-2xl text-primary-foreground/85 leading-relaxed max-w-3xl lg:max-w-md xl:max-w-xl min-[1800px]:max-w-2xl text-left">
                 A 10-minute assessment. Subject-by-subject gap analysis mapped to your target board's curriculum. A personalised bridge plan — before your child sets foot in an Indian school.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-start px-4 sm:px-0">
+            {/* StickyMobileCTA watches this: it shows only once these buttons have scrolled away. */}
+            <div id="hero-cta" className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-start px-4 sm:px-0">
               <Button
                 size="lg"
                 className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/25 hover:shadow-xl hover:shadow-accent/30 transition-all duration-300 rounded-full font-semibold text-sm sm:text-base px-6 sm:px-8 w-full sm:w-auto"
@@ -104,11 +105,23 @@ const HeroSection = () => {
             </div>
           </div>
         </div>
+
+        {/* Below lg: the picture under the text, framed on the family and all
+            three badges (its left part is empty sky meant for the desktop
+            text). Phones get a 4:3 crop from the right, tablets the whole 16:9.
+            Its top and bottom fade into the background. */}
+        <div className="relative mt-8 sm:mt-10 lg:hidden" aria-hidden="true">
+          <img
+            src={bgHeroImage}
+            alt=""
+            className="aspect-[4/3] w-full object-cover object-right [mask-image:linear-gradient(to_bottom,transparent_0%,#000_10%,#000_93%,transparent_100%)] sm:aspect-[16/9]"
+          />
+        </div>
       </div>
 
       {/* Trust stats — separate band on plain background, below the image entirely
           so it can never overlap the badges baked into the hero art above. */}
-      <div className="relative mx-auto w-full max-w-[1920px] px-[clamp(1rem,4vw,5rem)]">
+      <div className="container relative mx-auto px-4 sm:px-6">
         <div className="border-t border-white/10 py-8 sm:py-10">
           <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 sm:gap-y-0">
             {STATS.map((stat) => (

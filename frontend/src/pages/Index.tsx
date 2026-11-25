@@ -14,7 +14,7 @@ import Footer from "@/components/Footer";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-muted pb-16 md:pb-0">
+    <div className="min-h-screen bg-muted">
       <Header />
       <HeroSection />
       <ChallengeSection />
@@ -27,6 +27,8 @@ const Index = () => {
       <FreeStartSection />
       <FAQSection />
       <Footer />
+      {/* Phones: room under the footer for the sticky button, in the footer's colour. */}
+      <div aria-hidden="true" className="h-[4.5rem] bg-primary md:hidden" />
       <StickyMobileCTA />
     </div>
   );

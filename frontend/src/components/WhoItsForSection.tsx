@@ -90,7 +90,8 @@ const PersonaCard = ({ persona }: { persona: Persona }) => {
 
         <a
           href="/begin-journey"
-          className="mt-auto inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity hover:opacity-80"
+          // py-3/-mb-3: a 44px-tall tap target without moving the link.
+          className="-mb-3 mt-auto inline-flex items-center gap-1.5 py-3 text-sm font-semibold transition-opacity hover:opacity-80"
           style={{ color: persona.color }}
         >
           {persona.cta}
@@ -133,7 +134,9 @@ const WhoItsForSection = () => {
         </motion.div>
 
         <motion.div
-          className="mx-auto grid max-w-6xl grid-cols-1 gap-6 sm:grid-cols-3"
+          // Three across only from lg: at tablet widths three columns squeezed
+          // each card to a word or two per line. Below lg, one centred column.
+          className="mx-auto grid max-w-xl grid-cols-1 gap-6 lg:max-w-6xl lg:grid-cols-3"
           variants={staggerContainer}
           initial="hidden"
           whileInView="visible"

@@ -77,7 +77,7 @@ const ReadinessReportSection = () => {
               <motion.button
                 onClick={openFullscreen}
                 whileHover={shouldReduceMotion ? undefined : { scale: 1.05 }}
-                className="absolute top-4 right-4 bg-primary/80 hover:bg-primary text-primary-foreground p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-3 right-3 bg-primary/80 hover:bg-primary text-primary-foreground p-3 rounded-lg opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
                 aria-label="View fullscreen"
               >
                 <Maximize2 className="h-5 w-5" />

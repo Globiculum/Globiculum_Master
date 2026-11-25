@@ -107,7 +107,7 @@ const TestimonialCard = ({ testimonial }: { testimonial: Testimonial }) => {
               onClick={() => setExpanded((prev) => !prev)}
               aria-expanded={expanded}
               aria-label={expanded ? `Show less of ${testimonial.name}'s testimonial` : `Read more of ${testimonial.name}'s testimonial`}
-              className="mt-2.5 inline-flex items-center gap-1 text-sm font-semibold transition-opacity hover:opacity-80"
+              className="-mb-3 -mt-0.5 inline-flex min-h-[44px] items-center gap-1 text-sm font-semibold transition-opacity hover:opacity-80"
               style={{ color: testimonial.color }}
             >
               {expanded ? "Show less" : "Read more"}

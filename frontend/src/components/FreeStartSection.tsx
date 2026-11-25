@@ -32,7 +32,7 @@ const StepRow = ({ step, index }: { step: string; index: number }) => {
       <motion.span
         whileHover={shouldReduceMotion ? undefined : { scale: 1.12 }}
         transition={{ type: "spring", stiffness: 400, damping: 15 }}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-sm font-bold text-secondary transition-colors duration-300 group-hover:bg-secondary group-hover:text-secondary-foreground"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-mint/15 text-sm font-bold text-mint transition-colors duration-300 group-hover:bg-secondary group-hover:text-secondary-foreground"
       >
         {index + 1}
       </motion.span>

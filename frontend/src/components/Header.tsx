@@ -184,7 +184,8 @@ const Header = ({ children }: HeaderProps = {}) => {
       >
         Skip to main content
       </a>
-      <div className="mx-auto flex h-16 w-full max-w-[1920px] items-center justify-between px-[clamp(1rem,3vw,4rem)]">
+      {/* The site's container, so the logo and menu line up with the page content at every width. */}
+      <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
         <a
           href="/"
           className="flex items-center space-x-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-primary"

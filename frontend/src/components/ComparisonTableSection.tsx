@@ -67,15 +67,17 @@ const ComparisonTableSection = () => {
           className="mx-auto max-w-4xl overflow-hidden rounded-3xl border border-[rgba(15,23,42,0.06)] shadow-xl"
         >
           <div className="overflow-x-auto" role="table" aria-label="Comparison of Globiculum against other tools">
-            <div className="min-w-[560px]">
-              <div role="row" className="grid grid-cols-[1fr_140px_140px] items-center bg-primary px-6 py-4 sm:px-8">
+            {/* Phones: narrow tick columns so all three fit without sideways
+                scrolling (a 560px minimum hid "Others" off-screen). */}
+            <div className="sm:min-w-[560px]">
+              <div role="row" className="grid grid-cols-[1fr_80px_68px] items-center bg-primary px-4 py-4 sm:grid-cols-[1fr_140px_140px] sm:px-8">
                 <span role="columnheader" className="text-sm font-semibold text-white/70">
                   Capability
                 </span>
-                <span role="columnheader" className="text-center text-sm font-bold text-mint">
+                <span role="columnheader" className="text-center text-xs font-bold text-mint sm:text-sm">
                   Globiculum
                 </span>
-                <span role="columnheader" className="text-center text-sm font-semibold text-white/70">
+                <span role="columnheader" className="text-center text-xs font-semibold text-white/70 sm:text-sm">
                   Others
                 </span>
               </div>
@@ -86,11 +88,11 @@ const ComparisonTableSection = () => {
                     key={row.capability}
                     variants={fadeUp}
                     role="row"
-                    className={`grid grid-cols-[1fr_140px_140px] items-center px-6 py-4 transition-colors duration-200 hover:bg-secondary/[0.05] sm:px-8 sm:py-5 ${
+                    className={`grid grid-cols-[1fr_80px_68px] items-center px-4 py-4 transition-colors sm:grid-cols-[1fr_140px_140px] duration-200 hover:bg-secondary/[0.05] sm:px-8 sm:py-5 ${
                       index % 2 === 1 ? "bg-muted/30" : "bg-white"
                     }`}
                   >
-                    <span role="rowheader" className="pr-4 text-sm text-foreground sm:text-[15px]">
+                    <span role="rowheader" className="pr-3 text-sm text-foreground sm:pr-4 sm:text-[15px]">
                       {row.capability}
                     </span>
                     <span role="cell" className="flex justify-center" aria-label="Included">
