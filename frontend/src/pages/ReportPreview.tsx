@@ -393,9 +393,14 @@ const ReportPreview = () => {
         const code = parsed?.error?.code;
         const firstDetail = parsed?.error?.details?.[0]?.message;
         const pretty = [msg, firstDetail].filter(Boolean).join(" — ");
+        // Busy or slow AI: the wording written for families ("Our analysis
+        // service is busy right now. Please wait a moment and try again.")
+        // rather than the technical one ("AI service is experiencing high demand").
+        const busy = status === 503 || status === 429 || status === 408;
+        const userMessage = busy && typeof parsed?.error?.user_message === "string" ? parsed.error.user_message : "";
         return {
           status,
-          message: pretty || code || fnError?.message || "Request failed",
+          message: userMessage || pretty || code || fnError?.message || "Request failed",
         };
       } catch {
         return {
@@ -512,9 +517,15 @@ const ReportPreview = () => {
 
       console.log("[ReportPreview] Starting curriculum analysis");
 
+      // When every AI model was busy (503/429), wait and try once more.
+      const BUSY_WAIT_MS = 15_000;
+      let busyRetried = false;
+
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         console.log(`[ReportPreview] Attempt ${attempt + 1}/${MAX_RETRIES + 1}`);
-        
+        // `finally` below clears it after every attempt, including one that retries.
+        if (!cancelled) setIsLoading(true);
+
         try {
           const accessToken = await getValidAccessToken();
           if (!accessToken) {
@@ -542,6 +553,16 @@ const ReportPreview = () => {
             if ((status === 401 || status === 500) && attempt < MAX_RETRIES) {
               console.log("[ReportPreview] Retrying due to status", status);
               await sleep(800 + attempt * 700);
+              continue;
+            }
+
+            // The backend already tried every model it has; Google's busy
+            // spells are usually short, so one more go after a pause.
+            if ((status === 503 || status === 429) && !busyRetried && attempt < MAX_RETRIES) {
+              busyRetried = true;
+              console.log("[ReportPreview] AI busy, retrying in", BUSY_WAIT_MS, "ms");
+              await sleep(BUSY_WAIT_MS);
+              if (cancelled) return;
               continue;
             }
 

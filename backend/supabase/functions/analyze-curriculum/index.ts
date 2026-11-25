@@ -1585,15 +1585,23 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
     // ==========================================================================
     
     const GEMINI_MODEL = 'gemini-3.1-flash-lite';
-    // Same lite family, used only when the main model is overloaded or rate
-    // limited (Google returns 503 "high demand" for a model at busy times).
-    const GEMINI_BACKUP_MODEL = 'gemini-flash-lite-latest';
+    // Tried in order when the model before is busy (503 "This model is currently
+    // experiencing high demand", 429), failing (500) or retired (404). Each has
+    // its own capacity at Google. On 25 Nov 2026 both lite models were turning
+    // most requests away for long spells while gemini-3.5-flash kept answering:
+    // slower (about a minute per report) but complete. Its thinking is set to
+    // minimal, or its hidden reasoning would use part of the 6000-token budget.
+    const GEMINI_FALLBACKS: { model: string; thinkingLevel?: string }[] = [
+      { model: 'gemini-flash-lite-latest' },
+      { model: 'gemini-3.5-flash', thinkingLevel: 'minimal' },
+    ];
+    const FALLBACK_STATUSES = [404, 429, 500, 503];
     let modelUsed = GEMINI_MODEL;
 
     const aiJobResult = await executeJob(
       async () => {
         // Measure LLM latency within the job
-        const callGemini = (model: string) => logger.measureLLM(model, async () => {
+        const callGemini = (model: string, thinkingLevel?: string) => logger.measureLLM(model, async () => {
           // Key in a header, not the URL, so it never lands in URL logs.
           const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
           console.log(`[GEMINI] Calling ${model} at generativelanguage.googleapis.com`);
@@ -1617,6 +1625,7 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
                 temperature: 0.7,
                 maxOutputTokens: 6000,
                 responseMimeType: "application/json",
+                ...(thinkingLevel ? { thinkingConfig: { thinkingLevel } } : {}),
               },
             }),
           });
@@ -1624,15 +1633,16 @@ IMPORTANT: Each bullet must be under 10 words. Be specific with topic/resource n
 
         modelUsed = GEMINI_MODEL;
         let response = await callGemini(GEMINI_MODEL);
-        if (response.status === 503 || response.status === 429) {
+        for (const fallback of GEMINI_FALLBACKS) {
+          if (!FALLBACK_STATUSES.includes(response.status)) break;
           const busyText = await response.text();
-          console.warn(`[GEMINI] ${GEMINI_MODEL} returned ${response.status}, trying ${GEMINI_BACKUP_MODEL}`);
-          addDebug('gemini_backup_model', `${GEMINI_MODEL} busy, using ${GEMINI_BACKUP_MODEL}`, {
+          console.warn(`[GEMINI] ${modelUsed} returned ${response.status}, trying ${fallback.model}`);
+          addDebug('gemini_backup_model', `${modelUsed} unavailable, using ${fallback.model}`, {
             status: response.status,
             errorPreview: busyText.substring(0, 200),
           });
-          modelUsed = GEMINI_BACKUP_MODEL;
-          response = await callGemini(GEMINI_BACKUP_MODEL);
+          modelUsed = fallback.model;
+          response = await callGemini(fallback.model, fallback.thinkingLevel);
         }
 
         // Check response status and throw appropriate errors for retry logic
